@@ -77,4 +77,29 @@ test('Swing 保留 Pivot 的发生和确认时间', function () {
     assert.strictEqual(swing.availableIndex, 4);
 });
 
+test('confirmed Swing 不会被未来同类 Pivot 替换', function () {
+    var first = {
+        type: 'HIGH',
+        price: 10,
+        index: 2,
+        extremeIndex: 2,
+        confirmationIndex: 4,
+        availableIndex: 4
+    };
+    var later = {
+        type: 'HIGH',
+        price: 12,
+        index: 5,
+        extremeIndex: 5,
+        confirmationIndex: 7,
+        availableIndex: 7
+    };
+    var prefix = Swing.filterSwings([first]);
+    var extended = Swing.filterSwings([first, later]);
+
+    assert.strictEqual(extended.length, 2);
+    assert.deepStrictEqual(extended[0], prefix[0]);
+    assert.strictEqual(extended[1].index, 5);
+});
+
 console.log('\n' + testsPassed + ' tests passed.');

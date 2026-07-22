@@ -26,9 +26,7 @@ function getStructureAvailableIndex(breakIndex) {
     var i;
 
     for (i = 1; i < arguments.length; i++) {
-        availableIndex = getSwingAvailableIndex(
-            arguments[i]
-        );
+        availableIndex = getSwingAvailableIndex(arguments[i]);
 
         if (
             typeof availableIndex === 'number' &&
@@ -41,415 +39,577 @@ function getStructureAvailableIndex(breakIndex) {
     return result;
 }
 
-function analyze(klines, swings, options) {
-    var state = {
+function createState() {
+    return {
         trend: 'UNKNOWN',
         protectedLow: null,
         protectedHigh: null,
-        events: []
+        events: [],
+        lastLow: null,
+        lastHigh: null,
+        candidateLow: null,
+        candidateHigh: null,
+        pendingLowBreak: null,
+        pendingHighBreak: null,
+        pendingProtectedLowBreak: null,
+        pendingProtectedHighBreak: null
     };
-
-    var lastHigh = null;
-    var lastLow = null;
-
-    var candidateLow = null;
-    var candidateHigh = null;
-
-    var i;
-    var swing;
-
-    options = options || {};
-
-    for (i = 0; i < swings.length; i++) {
-        swing = swings[i];
-
-        if (swing.type === 'LOW') {
-            candidateLow = swing;
-
-            if (lastLow) {
-                processBearishBreak(
-                    klines,
-                    lastLow,
-                    swing,
-                    candidateHigh,
-                    state,
-                    options
-                );
-            }
-
-            lastLow = swing;
-        }
-
-        if (swing.type === 'HIGH') {
-            candidateHigh = swing;
-
-            if (lastHigh) {
-                processBullishBreak(
-                    klines,
-                    lastHigh,
-                    swing,
-                    candidateLow,
-                    state,
-                    options
-                );
-            }
-
-            lastHigh = swing;
-        }
-    }
-
-    return state;
 }
 
-function processBullishBreak(
+function sameSwing(left, right) {
+    return left === right || Boolean(
+        left &&
+        right &&
+        left.type === right.type &&
+        left.index === right.index &&
+        left.price === right.price &&
+        getSwingAvailableIndex(left) ===
+            getSwingAvailableIndex(right)
+    );
+}
+
+function pendingFor(pending, reference) {
+    if (
+        pending &&
+        sameSwing(pending.reference, reference)
+    ) {
+        return pending.result;
+    }
+
+    return null;
+}
+
+function setProtectedLow(state, swing) {
+    if (!sameSwing(state.protectedLow, swing)) {
+        state.pendingProtectedLowBreak = null;
+    }
+
+    state.protectedLow = swing || null;
+}
+
+function setProtectedHigh(state, swing) {
+    if (!sameSwing(state.protectedHigh, swing)) {
+        state.pendingProtectedHighBreak = null;
+    }
+
+    state.protectedHigh = swing || null;
+}
+
+function observeBullishBreak(
     klines,
-    previousHigh,
-    currentHigh,
-    candidateLow,
-    state,
+    index,
+    reference,
     options
 ) {
-    if (currentHigh.price <= previousHigh.price) {
+    if (
+        !reference ||
+        index <= reference.index ||
+        klines[index].high <= reference.price
+    ) {
+        return null;
+    }
+
+    return BreakValidator.validateBullishBreak(
+        klines,
+        index,
+        reference.price,
+        options
+    );
+}
+
+function observeBearishBreak(
+    klines,
+    index,
+    reference,
+    options
+) {
+    if (
+        !reference ||
+        index <= reference.index ||
+        klines[index].low >= reference.price
+    ) {
+        return null;
+    }
+
+    return BreakValidator.validateBearishBreak(
+        klines,
+        index,
+        reference.price,
+        options
+    );
+}
+
+function observeReference(
+    state,
+    pendingProperty,
+    reference,
+    observer,
+    klines,
+    index,
+    options
+) {
+    var pending = state[pendingProperty];
+    var result;
+
+    if (!reference) {
+        state[pendingProperty] = null;
         return;
     }
 
-    var breakResult = BreakValidator.findBullishBreak(
+    if (
+        pending &&
+        sameSwing(pending.reference, reference)
+    ) {
+        return;
+    }
+
+    state[pendingProperty] = null;
+    result = observer(
         klines,
-        previousHigh.index + 1,
-        previousHigh.price,
+        index,
+        reference,
         options
     );
 
-    if (!breakResult) {
+    if (result && result.valid) {
+        state[pendingProperty] = {
+            reference: reference,
+            result: result
+        };
+    }
+}
+
+function observeBreaks(state, klines, index, options) {
+    observeReference(
+        state,
+        'pendingHighBreak',
+        state.lastHigh,
+        observeBullishBreak,
+        klines,
+        index,
+        options
+    );
+    observeReference(
+        state,
+        'pendingLowBreak',
+        state.lastLow,
+        observeBearishBreak,
+        klines,
+        index,
+        options
+    );
+    observeReference(
+        state,
+        'pendingProtectedHighBreak',
+        state.protectedHigh,
+        observeBullishBreak,
+        klines,
+        index,
+        options
+    );
+    observeReference(
+        state,
+        'pendingProtectedLowBreak',
+        state.protectedLow,
+        observeBearishBreak,
+        klines,
+        index,
+        options
+    );
+}
+
+function pushBullishTaken(
+    state,
+    previousHigh,
+    currentHigh,
+    candidateLow,
+    breakResult
+) {
+    state.events.push({
+        type: 'BSL_TAKEN',
+        direction: 'BULLISH',
+        level: previousHigh.price,
+        breakIndex: breakResult.breakIndex,
+        availableIndex: getStructureAvailableIndex(
+            breakResult.breakIndex,
+            previousHigh,
+            currentHigh,
+            candidateLow
+        ),
+        breakType: breakResult.type
+    });
+}
+
+function pushBearishTaken(
+    state,
+    previousLow,
+    currentLow,
+    candidateHigh,
+    breakResult
+) {
+    state.events.push({
+        type: 'SSL_TAKEN',
+        direction: 'BEARISH',
+        level: previousLow.price,
+        breakIndex: breakResult.breakIndex,
+        availableIndex: getStructureAvailableIndex(
+            breakResult.breakIndex,
+            previousLow,
+            currentLow,
+            candidateHigh
+        ),
+        breakType: breakResult.type
+    });
+}
+
+function commitBullishBreak(
+    state,
+    previousHigh,
+    currentHigh,
+    breakResult
+) {
+    var candidateLow = state.candidateLow;
+    var protectedBreak;
+    var availableIndex;
+
+    if (breakResult.type === 'WICK_BREAK') {
+        pushBullishTaken(
+            state,
+            previousHigh,
+            currentHigh,
+            candidateLow,
+            breakResult
+        );
         return;
     }
 
-    var availableIndex = getStructureAvailableIndex(
+    availableIndex = getStructureAvailableIndex(
         breakResult.breakIndex,
         previousHigh,
         currentHigh,
         candidateLow
     );
 
-    /*
-     * 只有影线突破
-     * 先定义成 Liquidity Taken
-     */
-    if (breakResult.type === 'WICK_BREAK') {
-        state.events.push({
-            type: 'BSL_TAKEN',
-            direction: 'BULLISH',
-            level: previousHigh.price,
-            breakIndex: breakResult.breakIndex,
-            availableIndex: availableIndex,
-            breakType: breakResult.type
-        });
-
-        return;
-    }
-
-    /*
-     * UNKNOWN
-     * 第一次确认 Bullish Structure
-     */
     if (state.trend === 'UNKNOWN') {
         state.trend = 'BULLISH';
-
-        if (candidateLow) {
-            state.protectedLow = candidateLow;
-        }
-
+        setProtectedLow(state, candidateLow);
         state.events.push({
             type: 'BULLISH_STRUCTURE_CONFIRMED',
             direction: 'BULLISH',
-
             level: previousHigh.price,
-
             breakIndex: breakResult.breakIndex,
             availableIndex: availableIndex,
             breakType: breakResult.type,
-
             protectedLow: state.protectedLow
                 ? state.protectedLow.price
                 : null
         });
-
         return;
     }
 
-    /*
-     * 原本 Bullish
-     * 继续向上突破
-     * => Bullish BOS
-     */
     if (state.trend === 'BULLISH') {
-        if (candidateLow) {
-            state.protectedLow = candidateLow;
-        }
-
+        setProtectedLow(state, candidateLow);
         state.events.push({
             type: 'BULLISH_BOS',
             direction: 'BULLISH',
-
             level: previousHigh.price,
-
             breakIndex: breakResult.breakIndex,
             availableIndex: availableIndex,
             breakType: breakResult.type,
-
             protectedLow: state.protectedLow
                 ? state.protectedLow.price
                 : null,
-
-            quality:
-                breakResult.type === 'DISPLACEMENT_BREAK'
-                    ? 'HIGH'
-                    : 'NORMAL'
+            quality: breakResult.type ===
+                'DISPLACEMENT_BREAK'
+                ? 'HIGH'
+                : 'NORMAL'
         });
-
         return;
     }
 
-    /*
-     * 原本 Bearish
-     *
-     * 注意：
-     * 只有真正突破 Protected High
-     * 才定义成 Bullish MSS
-     */
     if (
-        state.trend === 'BEARISH' &&
-        state.protectedHigh &&
-        currentHigh.price > state.protectedHigh.price
+        state.trend !== 'BEARISH' ||
+        !state.protectedHigh ||
+        currentHigh.price <= state.protectedHigh.price
     ) {
-        var protectedBreak =
-            BreakValidator.findBullishBreak(
-                klines,
-                state.protectedHigh.index + 1,
-                state.protectedHigh.price,
-                options
-            );
-
-        if (
-            protectedBreak &&
-            protectedBreak.type !== 'WICK_BREAK'
-        ) {
-            availableIndex = getStructureAvailableIndex(
-                protectedBreak.breakIndex,
-                currentHigh,
-                state.protectedHigh,
-                candidateLow
-            );
-
-            state.events.push({
-                type: 'BULLISH_MSS',
-                direction: 'BULLISH',
-
-                level: state.protectedHigh.price,
-
-                breakIndex:
-                    protectedBreak.breakIndex,
-
-                availableIndex: availableIndex,
-
-                breakType:
-                    protectedBreak.type,
-
-                oldProtectedHigh:
-                    state.protectedHigh.price,
-
-                newProtectedLow:
-                    candidateLow
-                        ? candidateLow.price
-                        : null,
-
-                quality:
-                    protectedBreak.type ===
-                    'DISPLACEMENT_BREAK'
-                        ? 'HIGH'
-                        : 'NORMAL'
-            });
-
-            state.trend = 'BULLISH';
-
-            state.protectedLow =
-                candidateLow || null;
-
-            state.protectedHigh = null;
-        }
-    }
-}
-
-function processBearishBreak(
-    klines,
-    previousLow,
-    currentLow,
-    candidateHigh,
-    state,
-    options
-) {
-    if (currentLow.price >= previousLow.price) {
         return;
     }
 
-    var breakResult = BreakValidator.findBearishBreak(
-        klines,
-        previousLow.index + 1,
-        previousLow.price,
-        options
+    protectedBreak = pendingFor(
+        state.pendingProtectedHighBreak,
+        state.protectedHigh
     );
 
-    if (!breakResult) {
+    if (
+        !protectedBreak ||
+        protectedBreak.type === 'WICK_BREAK'
+    ) {
         return;
     }
 
-    var availableIndex = getStructureAvailableIndex(
+    availableIndex = getStructureAvailableIndex(
+        protectedBreak.breakIndex,
+        currentHigh,
+        state.protectedHigh,
+        candidateLow
+    );
+    state.events.push({
+        type: 'BULLISH_MSS',
+        direction: 'BULLISH',
+        level: state.protectedHigh.price,
+        breakIndex: protectedBreak.breakIndex,
+        availableIndex: availableIndex,
+        breakType: protectedBreak.type,
+        oldProtectedHigh: state.protectedHigh.price,
+        newProtectedLow: candidateLow
+            ? candidateLow.price
+            : null,
+        quality: protectedBreak.type ===
+            'DISPLACEMENT_BREAK'
+            ? 'HIGH'
+            : 'NORMAL'
+    });
+    state.trend = 'BULLISH';
+    setProtectedLow(state, candidateLow);
+    setProtectedHigh(state, null);
+}
+
+function commitBearishBreak(
+    state,
+    previousLow,
+    currentLow,
+    breakResult
+) {
+    var candidateHigh = state.candidateHigh;
+    var protectedBreak;
+    var availableIndex;
+
+    if (breakResult.type === 'WICK_BREAK') {
+        pushBearishTaken(
+            state,
+            previousLow,
+            currentLow,
+            candidateHigh,
+            breakResult
+        );
+        return;
+    }
+
+    availableIndex = getStructureAvailableIndex(
         breakResult.breakIndex,
         previousLow,
         currentLow,
         candidateHigh
     );
 
-    /*
-     * 只有影线跌破
-     * => SSL Taken
-     */
-    if (breakResult.type === 'WICK_BREAK') {
-        state.events.push({
-            type: 'SSL_TAKEN',
-            direction: 'BEARISH',
-            level: previousLow.price,
-            breakIndex: breakResult.breakIndex,
-            availableIndex: availableIndex,
-            breakType: breakResult.type
-        });
-
-        return;
-    }
-
-    /*
-     * UNKNOWN
-     */
     if (state.trend === 'UNKNOWN') {
         state.trend = 'BEARISH';
-
-        if (candidateHigh) {
-            state.protectedHigh = candidateHigh;
-        }
-
+        setProtectedHigh(state, candidateHigh);
         state.events.push({
             type: 'BEARISH_STRUCTURE_CONFIRMED',
             direction: 'BEARISH',
-
             level: previousLow.price,
-
             breakIndex: breakResult.breakIndex,
             availableIndex: availableIndex,
             breakType: breakResult.type,
-
             protectedHigh: state.protectedHigh
                 ? state.protectedHigh.price
                 : null
         });
-
         return;
     }
 
-    /*
-     * Bearish BOS
-     */
     if (state.trend === 'BEARISH') {
-        if (candidateHigh) {
-            state.protectedHigh = candidateHigh;
-        }
-
+        setProtectedHigh(state, candidateHigh);
         state.events.push({
             type: 'BEARISH_BOS',
             direction: 'BEARISH',
-
             level: previousLow.price,
-
             breakIndex: breakResult.breakIndex,
             availableIndex: availableIndex,
             breakType: breakResult.type,
-
             protectedHigh: state.protectedHigh
                 ? state.protectedHigh.price
                 : null,
-
-            quality:
-                breakResult.type === 'DISPLACEMENT_BREAK'
-                    ? 'HIGH'
-                    : 'NORMAL'
+            quality: breakResult.type ===
+                'DISPLACEMENT_BREAK'
+                ? 'HIGH'
+                : 'NORMAL'
         });
-
         return;
     }
 
-    /*
-     * Bullish → Bearish MSS
-     */
     if (
-        state.trend === 'BULLISH' &&
-        state.protectedLow &&
-        currentLow.price < state.protectedLow.price
+        state.trend !== 'BULLISH' ||
+        !state.protectedLow ||
+        currentLow.price >= state.protectedLow.price
     ) {
-        var protectedBreak =
-            BreakValidator.findBearishBreak(
-                klines,
-                state.protectedLow.index + 1,
-                state.protectedLow.price,
-                options
-            );
+        return;
+    }
+
+    protectedBreak = pendingFor(
+        state.pendingProtectedLowBreak,
+        state.protectedLow
+    );
+
+    if (
+        !protectedBreak ||
+        protectedBreak.type === 'WICK_BREAK'
+    ) {
+        return;
+    }
+
+    availableIndex = getStructureAvailableIndex(
+        protectedBreak.breakIndex,
+        currentLow,
+        state.protectedLow,
+        candidateHigh
+    );
+    state.events.push({
+        type: 'BEARISH_MSS',
+        direction: 'BEARISH',
+        level: state.protectedLow.price,
+        breakIndex: protectedBreak.breakIndex,
+        availableIndex: availableIndex,
+        breakType: protectedBreak.type,
+        oldProtectedLow: state.protectedLow.price,
+        newProtectedHigh: candidateHigh
+            ? candidateHigh.price
+            : null,
+        quality: protectedBreak.type ===
+            'DISPLACEMENT_BREAK'
+            ? 'HIGH'
+            : 'NORMAL'
+    });
+    state.trend = 'BEARISH';
+    setProtectedHigh(state, candidateHigh);
+    setProtectedLow(state, null);
+}
+
+function confirmSwing(state, swing) {
+    var previous;
+    var breakResult;
+
+    if (swing.type === 'HIGH') {
+        previous = state.lastHigh;
+        state.candidateHigh = swing;
+        breakResult = pendingFor(
+            state.pendingHighBreak,
+            previous
+        );
 
         if (
-            protectedBreak &&
-            protectedBreak.type !== 'WICK_BREAK'
+            previous &&
+            swing.price > previous.price &&
+            breakResult
         ) {
-            availableIndex = getStructureAvailableIndex(
-                protectedBreak.breakIndex,
-                currentLow,
-                state.protectedLow,
-                candidateHigh
+            commitBullishBreak(
+                state,
+                previous,
+                swing,
+                breakResult
             );
-
-            state.events.push({
-                type: 'BEARISH_MSS',
-                direction: 'BEARISH',
-
-                level: state.protectedLow.price,
-
-                breakIndex:
-                    protectedBreak.breakIndex,
-
-                availableIndex: availableIndex,
-
-                breakType:
-                    protectedBreak.type,
-
-                oldProtectedLow:
-                    state.protectedLow.price,
-
-                newProtectedHigh:
-                    candidateHigh
-                        ? candidateHigh.price
-                        : null,
-
-                quality:
-                    protectedBreak.type ===
-                    'DISPLACEMENT_BREAK'
-                        ? 'HIGH'
-                        : 'NORMAL'
-            });
-
-            state.trend = 'BEARISH';
-
-            state.protectedHigh =
-                candidateHigh || null;
-
-            state.protectedLow = null;
         }
+
+        state.lastHigh = swing;
+        state.pendingHighBreak = null;
+        return;
     }
+
+    if (swing.type === 'LOW') {
+        previous = state.lastLow;
+        state.candidateLow = swing;
+        breakResult = pendingFor(
+            state.pendingLowBreak,
+            previous
+        );
+
+        if (
+            previous &&
+            swing.price < previous.price &&
+            breakResult
+        ) {
+            commitBearishBreak(
+                state,
+                previous,
+                swing,
+                breakResult
+            );
+        }
+
+        state.lastLow = swing;
+        state.pendingLowBreak = null;
+    }
+}
+
+function sortConfirmedSwings(swings) {
+    return (swings || []).map(function (swing, order) {
+        return {
+            swing: swing,
+            order: order
+        };
+    }).sort(function (left, right) {
+        var availableDifference =
+            getSwingAvailableIndex(left.swing) -
+            getSwingAvailableIndex(right.swing);
+        var indexDifference;
+
+        if (availableDifference !== 0) {
+            return availableDifference;
+        }
+
+        indexDifference = left.swing.index -
+            right.swing.index;
+
+        if (indexDifference !== 0) {
+            return indexDifference;
+        }
+
+        return left.order - right.order;
+    }).map(function (item) {
+        return item.swing;
+    });
+}
+
+function analyze(klines, swings, options) {
+    var state = createState();
+    var confirmedSwings = sortConfirmedSwings(swings);
+    var swingCursor = 0;
+    var index;
+
+    klines = klines || [];
+    options = options || {};
+
+    for (index = 0; index < klines.length; index++) {
+        /*
+         * 只观察当前 K 线。Break 先被记录，等对应 Swing
+         * 在 availableIndex 确认后才提交结构状态变化。
+         */
+        observeBreaks(state, klines, index, options);
+
+        while (
+            swingCursor < confirmedSwings.length &&
+            getSwingAvailableIndex(
+                confirmedSwings[swingCursor]
+            ) === index
+        ) {
+            confirmSwing(
+                state,
+                confirmedSwings[swingCursor]
+            );
+            swingCursor++;
+        }
+
+        /* 新确认的 Level 可以从当前收盘开始被观察。 */
+        observeBreaks(state, klines, index, options);
+    }
+
+    return {
+        trend: state.trend,
+        protectedLow: state.protectedLow,
+        protectedHigh: state.protectedHigh,
+        events: state.events
+    };
 }
 
 module.exports = {
