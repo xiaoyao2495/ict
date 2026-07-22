@@ -50,6 +50,11 @@ test('Equal High 成功识别', function () {
     assert.strictEqual(result[0].type, 'EQUAL_HIGH');
     assert.strictEqual(result[0].index1, 1);
     assert.strictEqual(result[0].index2, 3);
+    assert.strictEqual(result[0].availableIndex, 3);
+    assert.strictEqual(result[0].formedIndex, 3);
+    assert.strictEqual(result[0].activeFrom, 3);
+    assert.strictEqual(result[0].consumedAt, null);
+    assert.strictEqual(result[0].status, 'FORMED');
     assert.strictEqual(result[0].price, 100.025);
 });
 
@@ -65,6 +70,11 @@ test('Equal Low 成功识别', function () {
     assert.strictEqual(result[0].type, 'EQUAL_LOW');
     assert.strictEqual(result[0].index1, 1);
     assert.strictEqual(result[0].index2, 3);
+    assert.strictEqual(result[0].availableIndex, 3);
+    assert.strictEqual(result[0].formedIndex, 3);
+    assert.strictEqual(result[0].activeFrom, 3);
+    assert.strictEqual(result[0].consumedAt, null);
+    assert.strictEqual(result[0].status, 'FORMED');
     assert.strictEqual(result[0].price, 99.975);
 });
 
@@ -98,6 +108,7 @@ test('正确计算 PDH', function () {
     assert.ok(pdh);
     assert.strictEqual(pdh.price, 110);
     assert.strictEqual(pdh.index, 1);
+    assert.strictEqual(pdh.availableIndex, 2);
 });
 
 test('正确计算 PDL', function () {
@@ -112,6 +123,7 @@ test('正确计算 PDL', function () {
     assert.ok(pdl);
     assert.strictEqual(pdl.price, 90);
     assert.strictEqual(pdl.index, 1);
+    assert.strictEqual(pdl.availableIndex, 2);
 });
 
 test('Buy Side Sweep', function () {
@@ -135,7 +147,9 @@ test('Buy Side Sweep', function () {
         {
             type: 'BUY_SIDE_SWEEP',
             price: 100,
-            index: 1
+            extreme: 101,
+            index: 1,
+            availableIndex: 1
         }
     ]);
 });
@@ -161,16 +175,28 @@ test('Sell Side Sweep', function () {
         {
             type: 'SELL_SIDE_SWEEP',
             price: 100,
-            index: 1
+            extreme: 99,
+            index: 1,
+            availableIndex: 1
         }
     ]);
 });
 
 test('流动性位置形成之前不能被 Sweep', function () {
     var swings = [
-        { type: 'HIGH', price: 100, index: 2 },
+        {
+            type: 'HIGH',
+            price: 100,
+            index: 2,
+            availableIndex: 4
+        },
         { type: 'LOW', price: 90, index: 3 },
-        { type: 'HIGH', price: 100.05, index: 4 }
+        {
+            type: 'HIGH',
+            price: 100.05,
+            index: 4,
+            availableIndex: 6
+        }
     ];
     var klines = [
         createKline(21, 0, 99, 95, 98),
@@ -184,6 +210,78 @@ test('流动性位置形成之前不能被 Sweep', function () {
 
     assert.strictEqual(result.equalHighs.length, 1);
     assert.strictEqual(result.sweeps.length, 0);
+    assert.strictEqual(result.equalHighs[0].status, 'FORMED');
+});
+
+test('Liquidity 首次触及后变为 CONSUMED', function () {
+    var klines = [
+        createKline(21, 0, 99, 95, 98),
+        createKline(21, 1, 100, 97, 100),
+        createKline(21, 2, 101, 97, 99)
+    ];
+    var levels = [{
+        type: 'EQUAL_HIGH',
+        direction: 'BUY_SIDE',
+        price: 100,
+        formedIndex: 0,
+        availableIndex: 0,
+        activeFrom: 0,
+        consumedAt: null,
+        status: 'FORMED'
+    }];
+    var sweeps = Liquidity.findLiquiditySweeps(
+        klines,
+        levels
+    );
+
+    assert.strictEqual(levels[0].consumedAt, 1);
+    assert.strictEqual(levels[0].status, 'CONSUMED');
+    assert.deepStrictEqual(sweeps, []);
+});
+
+test('已 CONSUMED 的 Level 不会再次产生 Sweep', function () {
+    var klines = [
+        createKline(21, 0, 99, 95, 98),
+        createKline(21, 1, 101, 97, 101),
+        createKline(21, 2, 102, 97, 99)
+    ];
+    var levels = [{
+        type: 'EQUAL_HIGH',
+        direction: 'BUY_SIDE',
+        price: 100,
+        formedIndex: 0,
+        availableIndex: 0,
+        activeFrom: 0,
+        consumedAt: null,
+        status: 'FORMED'
+    }];
+    var sweeps = Liquidity.findLiquiditySweeps(
+        klines,
+        levels
+    );
+
+    assert.strictEqual(levels[0].consumedAt, 1);
+    assert.deepStrictEqual(sweeps, []);
+});
+
+test('PDH PDL 只在下一交易日开始后 ACTIVE', function () {
+    var klines = [
+        createKline(20, 0, 105, 95, 100),
+        createKline(20, 12, 110, 90, 108),
+        createKline(21, 0, 108, 98, 104)
+    ];
+    var result = Liquidity.analyze([], klines);
+    var pdh = findByType(result.previousDayLevels, 'PDH');
+    var pdl = findByType(result.previousDayLevels, 'PDL');
+
+    assert.strictEqual(pdh.formedIndex, 1);
+    assert.strictEqual(pdh.activeFrom, 2);
+    assert.strictEqual(pdh.consumedAt, null);
+    assert.strictEqual(pdh.status, 'ACTIVE');
+    assert.strictEqual(pdl.formedIndex, 1);
+    assert.strictEqual(pdl.activeFrom, 2);
+    assert.strictEqual(pdl.consumedAt, null);
+    assert.strictEqual(pdl.status, 'ACTIVE');
 });
 
 test('一个 Liquidity Level 只记录第一次 Sweep', function () {

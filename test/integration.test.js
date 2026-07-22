@@ -125,9 +125,19 @@ test('完整 LONG_SETUP 链路', function () {
     ];
     var swings = [
         { type: 'HIGH', price: 110, index: 0 },
-        { type: 'LOW', price: 100, index: 1 },
+        {
+            type: 'LOW',
+            price: 100,
+            index: 1,
+            availableIndex: 3
+        },
         { type: 'HIGH', price: 105, index: 2 },
-        { type: 'LOW', price: 100.05, index: 3 },
+        {
+            type: 'LOW',
+            price: 100.05,
+            index: 3,
+            availableIndex: 5
+        },
         { type: 'HIGH', price: 104, index: 4 },
         { type: 'LOW', price: 99, index: 5 },
         { type: 'HIGH', price: 106, index: 7 }
@@ -158,19 +168,15 @@ test('完整 LONG_SETUP 链路', function () {
     assert.strictEqual(mss.index, 7);
     assert.strictEqual(displacement.index, 8);
     assert.strictEqual(fvg.endIndex, 9);
-    assert.deepStrictEqual(result.setups, [
-        {
-            type: 'LONG_SETUP',
-            triggerIndex: 9,
-            direction: 'BULLISH',
-            reasons: [
-                'SELL_SIDE_SWEEP',
-                'BULLISH_MSS',
-                'BULLISH_DISPLACEMENT',
-                'BULLISH_FVG'
-            ]
-        }
-    ]);
+    assert.strictEqual(result.setups.length, 1);
+    assert.strictEqual(result.setups[0].type, 'LONG_SETUP');
+    assert.strictEqual(result.setups[0].triggerIndex, 9);
+    assert.strictEqual(result.setups[0].availableIndex, 9);
+    assert.strictEqual(result.setups[0].sweep, sweep);
+    assert.strictEqual(result.setups[0].mss, mss);
+    assert.strictEqual(result.setups[0].displacement, displacement);
+    assert.strictEqual(result.setups[0].fvg, fvg);
+    assert.strictEqual(result.setups[0].sweepExtreme, 99);
 });
 
 test('完整 SHORT_SETUP 链路', function () {
@@ -188,9 +194,19 @@ test('完整 SHORT_SETUP 链路', function () {
     ];
     var swings = [
         { type: 'LOW', price: 90, index: 0 },
-        { type: 'HIGH', price: 100, index: 1 },
+        {
+            type: 'HIGH',
+            price: 100,
+            index: 1,
+            availableIndex: 3
+        },
         { type: 'LOW', price: 95, index: 2 },
-        { type: 'HIGH', price: 100.05, index: 3 },
+        {
+            type: 'HIGH',
+            price: 100.05,
+            index: 3,
+            availableIndex: 5
+        },
         { type: 'LOW', price: 96, index: 4 },
         { type: 'HIGH', price: 101, index: 5 },
         { type: 'LOW', price: 94, index: 7 }
@@ -221,19 +237,15 @@ test('完整 SHORT_SETUP 链路', function () {
     assert.strictEqual(mss.index, 7);
     assert.strictEqual(displacement.index, 8);
     assert.strictEqual(fvg.endIndex, 9);
-    assert.deepStrictEqual(result.setups, [
-        {
-            type: 'SHORT_SETUP',
-            triggerIndex: 9,
-            direction: 'BEARISH',
-            reasons: [
-                'BUY_SIDE_SWEEP',
-                'BEARISH_MSS',
-                'BEARISH_DISPLACEMENT',
-                'BEARISH_FVG'
-            ]
-        }
-    ]);
+    assert.strictEqual(result.setups.length, 1);
+    assert.strictEqual(result.setups[0].type, 'SHORT_SETUP');
+    assert.strictEqual(result.setups[0].triggerIndex, 9);
+    assert.strictEqual(result.setups[0].availableIndex, 9);
+    assert.strictEqual(result.setups[0].sweep, sweep);
+    assert.strictEqual(result.setups[0].mss, mss);
+    assert.strictEqual(result.setups[0].displacement, displacement);
+    assert.strictEqual(result.setups[0].fvg, fvg);
+    assert.strictEqual(result.setups[0].sweepExtreme, 101);
 });
 
 console.log('\n' + testsPassed + ' integration tests passed.');

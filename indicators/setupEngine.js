@@ -38,6 +38,18 @@ function getEventIndex(event) {
     return null;
 }
 
+function getEventAvailableIndex(event) {
+    if (!event) {
+        return null;
+    }
+
+    if (typeof event.availableIndex === 'number') {
+        return event.availableIndex;
+    }
+
+    return getEventIndex(event);
+}
+
 function getEventPriority(event) {
     if (
         event.type === 'BUY_SIDE_SWEEP' ||
@@ -79,7 +91,7 @@ function appendEvents(result, events) {
     }
 
     for (i = 0; i < events.length; i++) {
-        index = getEventIndex(events[i]);
+        index = getEventAvailableIndex(events[i]);
 
         if (index !== null && !isNaN(index)) {
             result.push(events[i]);
@@ -99,7 +111,8 @@ function mergeEvents(input) {
 
     result.sort(function (event1, event2) {
         var indexDifference =
-            getEventIndex(event1) - getEventIndex(event2);
+            getEventAvailableIndex(event1) -
+            getEventAvailableIndex(event2);
 
         if (indexDifference !== 0) {
             return indexDifference;
@@ -119,6 +132,7 @@ function createSequenceState(sequence, setupType, direction) {
         direction: direction,
         position: 0,
         reasons: [],
+        events: [],
         lastIndex: null
     };
 }
@@ -126,11 +140,73 @@ function createSequenceState(sequence, setupType, direction) {
 function resetState(state) {
     state.position = 0;
     state.reasons = [];
+    state.events = [];
     state.lastIndex = null;
 }
 
+function getSweepExtreme(sweep) {
+    if (!sweep) {
+        return null;
+    }
+
+    if (typeof sweep.extreme === 'number') {
+        return sweep.extreme;
+    }
+
+    if (typeof sweep.sweepExtreme === 'number') {
+        return sweep.sweepExtreme;
+    }
+
+    return null;
+}
+
+function getStructureInvalidationLevel(direction, mss) {
+    if (!mss) {
+        return null;
+    }
+
+    if (
+        direction === 'BULLISH' &&
+        typeof mss.newProtectedLow === 'number'
+    ) {
+        return mss.newProtectedLow;
+    }
+
+    if (
+        direction === 'BEARISH' &&
+        typeof mss.newProtectedHigh === 'number'
+    ) {
+        return mss.newProtectedHigh;
+    }
+
+    return null;
+}
+
+function isFormationValid(
+    direction,
+    midpoint,
+    sweepExtreme,
+    structureLevel
+) {
+    if (
+        typeof midpoint !== 'number' ||
+        typeof sweepExtreme !== 'number' ||
+        typeof structureLevel !== 'number'
+    ) {
+        return null;
+    }
+
+    if (direction === 'BULLISH') {
+        return midpoint > sweepExtreme &&
+            midpoint > structureLevel;
+    }
+
+    return midpoint < sweepExtreme &&
+        midpoint < structureLevel;
+}
+
 function processEvent(state, event) {
-    var eventIndex = getEventIndex(event);
+    var eventIndex = getEventAvailableIndex(event);
     var distanceLimit;
     var reasons;
     var setup;
@@ -139,6 +215,7 @@ function processEvent(state, event) {
     if (event.type === state.sequence[0]) {
         state.position = 1;
         state.reasons = [event.type];
+        state.events = [event];
         state.lastIndex = eventIndex;
         return null;
     }
@@ -163,6 +240,7 @@ function processEvent(state, event) {
     }
 
     state.reasons.push(event.type);
+    state.events.push(event);
     state.position++;
     state.lastIndex = eventIndex;
 
@@ -176,11 +254,43 @@ function processEvent(state, event) {
         reasons.push(state.reasons[i]);
     }
 
+    var sweep = state.events[0];
+    var mss = state.events[1];
+    var displacement = state.events[2];
+    var fvg = state.events[3];
+    var sweepExtreme = getSweepExtreme(sweep);
+    var structureLevel = getStructureInvalidationLevel(
+        state.direction,
+        mss
+    );
+
     setup = {
         type: state.setupType,
         triggerIndex: getEventIndex(event),
+        availableIndex: eventIndex,
         direction: state.direction,
-        reasons: reasons
+        reasons: reasons,
+        sweep: sweep,
+        mss: mss,
+        displacement: displacement,
+        fvg: fvg,
+        sweepExtreme: sweepExtreme,
+        structureInvalidationLevel: structureLevel,
+        fvgMidpoint: typeof fvg.midpoint === 'number'
+            ? fvg.midpoint
+            : null,
+        fvgTop: typeof fvg.top === 'number'
+            ? fvg.top
+            : null,
+        fvgBottom: typeof fvg.bottom === 'number'
+            ? fvg.bottom
+            : null,
+        formationValid: isFormationValid(
+            state.direction,
+            fvg.midpoint,
+            sweepExtreme,
+            structureLevel
+        )
     };
 
     resetState(state);
@@ -218,7 +328,7 @@ function findSetups(events) {
     }
 
     result.sort(function (setup1, setup2) {
-        return setup1.triggerIndex - setup2.triggerIndex;
+        return setup1.availableIndex - setup2.availableIndex;
     });
 
     return result;
@@ -230,6 +340,7 @@ function analyze(input) {
 
 module.exports = {
     analyze: analyze,
+    getEventAvailableIndex: getEventAvailableIndex,
     mergeEvents: mergeEvents,
     findSetups: findSetups
 };

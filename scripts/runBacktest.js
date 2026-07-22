@@ -4,6 +4,7 @@ process.env.HTTPS_PROXY = 'http://127.0.0.1:7890';
 var axios = require('axios');
 var AnalysisEngine = require('../indicators/analysisEngine');
 var EntryEngine = require('../indicators/entryEngine');
+var Liquidity = require('../indicators/liquidity');
 var BacktestEngine = require('../backtest/backtestEngine');
 
 var BASE_URL = 'https://fapi.binance.com';
@@ -121,9 +122,62 @@ function cloneSetupWithOffset(setup, offset) {
     return {
         type: setup.type,
         triggerIndex: setup.triggerIndex + offset,
+        availableIndex:
+            (typeof setup.availableIndex === 'number'
+                ? setup.availableIndex
+                : setup.triggerIndex) + offset,
         direction: setup.direction,
-        reasons: setup.reasons.slice()
+        reasons: setup.reasons.slice(),
+        sweep: cloneEventWithOffset(setup.sweep, offset),
+        mss: cloneEventWithOffset(setup.mss, offset),
+        displacement: cloneEventWithOffset(
+            setup.displacement,
+            offset
+        ),
+        fvg: cloneFVGWithOffset(setup.fvg, offset),
+        sweepExtreme: setup.sweepExtreme,
+        structureInvalidationLevel:
+            setup.structureInvalidationLevel,
+        fvgMidpoint: setup.fvgMidpoint,
+        fvgTop: setup.fvgTop,
+        fvgBottom: setup.fvgBottom,
+        formationValid: setup.formationValid
     };
+}
+
+function cloneEventWithOffset(event, offset) {
+    var result = {};
+    var indexFields = {
+        index: true,
+        breakIndex: true,
+        startIndex: true,
+        endIndex: true,
+        availableIndex: true,
+        extremeIndex: true,
+        confirmationIndex: true
+    };
+    var property;
+
+    if (!event) {
+        return null;
+    }
+
+    for (property in event) {
+        if (
+            Object.prototype.hasOwnProperty.call(
+                event,
+                property
+            )
+        ) {
+            result[property] =
+                indexFields[property] &&
+                typeof event[property] === 'number'
+                    ? event[property] + offset
+                    : event[property];
+        }
+    }
+
+    return result;
 }
 
 function cloneFVGWithOffset(fvg, offset) {
@@ -133,6 +187,10 @@ function cloneFVGWithOffset(fvg, offset) {
         bottom: fvg.bottom,
         startIndex: fvg.startIndex + offset,
         endIndex: fvg.endIndex + offset,
+        availableIndex:
+            (typeof fvg.availableIndex === 'number'
+                ? fvg.availableIndex
+                : fvg.endIndex) + offset,
         size: fvg.size,
         midpoint: fvg.midpoint,
         mitigated: fvg.mitigated,
@@ -150,7 +208,27 @@ function cloneEqualLevelWithOffset(level, offset) {
         type: level.type,
         price: level.price,
         index1: level.index1 + offset,
-        index2: level.index2 + offset
+        index2: level.index2 + offset,
+        formedIndex:
+            (typeof level.formedIndex === 'number'
+                ? level.formedIndex
+                : level.index2) + offset,
+        availableIndex:
+            (typeof level.availableIndex === 'number'
+                ? level.availableIndex
+                : level.index2) + offset,
+        activeFrom:
+            (typeof level.activeFrom === 'number'
+                ? level.activeFrom
+                : typeof level.availableIndex === 'number'
+                    ? level.availableIndex
+                    : level.index2) + offset,
+        consumedAt:
+            typeof level.consumedAt === 'number'
+                ? level.consumedAt + offset
+                : null,
+        status: level.status,
+        direction: level.direction
     };
 }
 
@@ -158,7 +236,27 @@ function cloneDayLevelWithOffset(level, offset) {
     return {
         type: level.type,
         price: level.price,
-        index: level.index + offset
+        index: level.index + offset,
+        formedIndex:
+            (typeof level.formedIndex === 'number'
+                ? level.formedIndex
+                : level.index) + offset,
+        availableIndex:
+            (typeof level.availableIndex === 'number'
+                ? level.availableIndex
+                : level.index) + offset,
+        activeFrom:
+            (typeof level.activeFrom === 'number'
+                ? level.activeFrom
+                : typeof level.availableIndex === 'number'
+                    ? level.availableIndex
+                    : level.index) + offset,
+        consumedAt:
+            typeof level.consumedAt === 'number'
+                ? level.consumedAt + offset
+                : null,
+        status: level.status,
+        direction: level.direction
     };
 }
 
@@ -199,6 +297,7 @@ function analyzeHistoricalKlines(klines) {
     var result = {
         setups: [],
         fvgs: [],
+        structureEvents: [],
         liquidity: {
             equalHighs: [],
             equalLows: [],
@@ -208,6 +307,7 @@ function analyzeHistoricalKlines(klines) {
     };
     var seenSetups = {};
     var seenFvgs = {};
+    var seenStructureEvents = {};
     var seenEqualHighs = {};
     var seenEqualLows = {};
     var seenDayLevels = {};
@@ -242,7 +342,7 @@ function analyzeHistoricalKlines(klines) {
         analysis = AnalysisEngine.analyzeMarket(windowKlines);
 
         for (i = 0; i < analysis.setups.length; i++) {
-            globalIndex = analysis.setups[i].triggerIndex +
+            globalIndex = analysis.setups[i].availableIndex +
                 windowStart;
 
             if (
@@ -256,7 +356,8 @@ function analyzeHistoricalKlines(klines) {
                 analysis.setups[i],
                 windowStart
             );
-            key = item.type + ':' + item.triggerIndex;
+            key = item.type + ':' + item.triggerIndex + ':' +
+                item.availableIndex;
             addUnique(
                 result.setups,
                 seenSetups,
@@ -282,6 +383,36 @@ function analyzeHistoricalKlines(klines) {
             );
             key = item.type + ':' + item.endIndex;
             addUnique(result.fvgs, seenFvgs, key, item);
+        }
+
+        for (i = 0; i < analysis.structureEvents.length; i++) {
+            globalIndex =
+                (typeof analysis.structureEvents[i]
+                    .availableIndex === 'number'
+                    ? analysis.structureEvents[i]
+                        .availableIndex
+                    : analysis.structureEvents[i]
+                        .breakIndex) + windowStart;
+
+            if (
+                globalIndex < coreStart ||
+                globalIndex >= coreEnd
+            ) {
+                continue;
+            }
+
+            item = cloneEventWithOffset(
+                analysis.structureEvents[i],
+                windowStart
+            );
+            key = item.type + ':' + item.breakIndex + ':' +
+                item.availableIndex + ':' + item.level;
+            addUnique(
+                result.structureEvents,
+                seenStructureEvents,
+                key,
+                item
+            );
         }
 
         for (
@@ -347,8 +478,21 @@ function analyzeHistoricalKlines(klines) {
         );
     }
 
+    Liquidity.refreshLiquidityLifecycle(
+        klines,
+        result.liquidity.equalHighs
+    );
+    Liquidity.refreshLiquidityLifecycle(
+        klines,
+        result.liquidity.equalLows
+    );
+    Liquidity.refreshLiquidityLifecycle(
+        klines,
+        result.liquidity.previousDayLevels
+    );
+
     result.setups.sort(function (setup1, setup2) {
-        return setup1.triggerIndex - setup2.triggerIndex;
+        return setup1.availableIndex - setup2.availableIndex;
     });
 
     return result;
@@ -399,22 +543,24 @@ function filterLiquidityForSetup(liquidity, setupIndex) {
 
 function createEntriesWithoutFutureLiquidity(
     analysis,
-    klines
+    klines,
+    options
 ) {
     var result = [];
     var entries;
     var i;
     var j;
 
+    options = options || {};
+
     for (i = 0; i < analysis.setups.length; i++) {
         entries = EntryEngine.analyze({
             setups: [analysis.setups[i]],
             fvgs: analysis.fvgs,
             klines: klines,
-            liquidity: filterLiquidityForSetup(
-                analysis.liquidity,
-                analysis.setups[i].triggerIndex
-            )
+            liquidity: analysis.liquidity,
+            structureEvents: analysis.structureEvents,
+            entryMode: options.entryMode
         });
 
         for (j = 0; j < entries.length; j++) {

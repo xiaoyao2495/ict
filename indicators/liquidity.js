@@ -14,6 +14,71 @@ function isEqualPrice(price1, price2) {
         referencePrice <= EQUAL_TOLERANCE;
 }
 
+function getSwingAvailableIndex(swing) {
+    if (typeof swing.availableIndex === 'number') {
+        return swing.availableIndex;
+    }
+
+    if (typeof swing.confirmationIndex === 'number') {
+        return swing.confirmationIndex;
+    }
+
+    return swing.index;
+}
+
+function getLevelDirection(level) {
+    if (
+        level.type === 'EQUAL_HIGH' ||
+        level.type === 'PDH'
+    ) {
+        return 'BUY_SIDE';
+    }
+
+    if (
+        level.type === 'EQUAL_LOW' ||
+        level.type === 'PDL'
+    ) {
+        return 'SELL_SIDE';
+    }
+
+    return level.direction || null;
+}
+
+function prepareLiquidityLevel(level) {
+    var formedIndex;
+
+    formedIndex = typeof level.formedIndex === 'number'
+        ? level.formedIndex
+        : typeof level.index2 === 'number'
+            ? level.index2
+            : typeof level.index === 'number'
+                ? level.index
+                : 0;
+
+    level.formedIndex = formedIndex;
+    level.availableIndex =
+        typeof level.availableIndex === 'number'
+            ? level.availableIndex
+            : formedIndex;
+    level.activeFrom =
+        typeof level.activeFrom === 'number'
+            ? level.activeFrom
+            : level.availableIndex;
+    level.consumedAt =
+        typeof level.consumedAt === 'number'
+            ? level.consumedAt
+            : null;
+    level.direction = getLevelDirection(level);
+
+    if (level.consumedAt !== null) {
+        level.status = 'CONSUMED';
+    } else if (level.status !== 'ACTIVE') {
+        level.status = 'FORMED';
+    }
+
+    return level;
+}
+
 function findEqualLevels(swings, swingType, resultType) {
     var result = [];
     var previous = null;
@@ -39,7 +104,21 @@ function findEqualLevels(swings, swingType, resultType) {
                 type: resultType,
                 price: (previous.price + current.price) / 2,
                 index1: previous.index,
-                index2: current.index
+                index2: current.index,
+                formedIndex: current.index,
+                availableIndex: Math.max(
+                    getSwingAvailableIndex(previous),
+                    getSwingAvailableIndex(current)
+                ),
+                activeFrom: Math.max(
+                    getSwingAvailableIndex(previous),
+                    getSwingAvailableIndex(current)
+                ),
+                consumedAt: null,
+                status: 'FORMED',
+                direction: resultType === 'EQUAL_HIGH'
+                    ? 'BUY_SIDE'
+                    : 'SELL_SIDE'
             });
         }
 
@@ -147,6 +226,18 @@ function findPreviousDayLevels(klines) {
         });
     }
 
+    for (i = 0; i < result.length; i++) {
+        result[i].availableIndex = findNextDayIndex(
+            klines,
+            result[i].index
+        );
+        result[i].formedIndex = result[i].index;
+        result[i].activeFrom = result[i].availableIndex;
+        result[i].consumedAt = null;
+        result[i].status = 'FORMED';
+        result[i].direction = getLevelDirection(result[i]);
+    }
+
     return result;
 }
 
@@ -207,38 +298,21 @@ function toLiquidityLevels(
     var i;
 
     for (i = 0; i < equalHighs.length; i++) {
-        result.push({
-            direction: 'BUY_SIDE',
-            price: equalHighs[i].price,
-            activeFrom: equalHighs[i].index2 + 1
-        });
+        result.push(prepareLiquidityLevel(equalHighs[i]));
     }
 
     for (i = 0; i < equalLows.length; i++) {
-        result.push({
-            direction: 'SELL_SIDE',
-            price: equalLows[i].price,
-            activeFrom: equalLows[i].index2 + 1
-        });
+        result.push(prepareLiquidityLevel(equalLows[i]));
     }
 
     for (i = 0; i < dayLevels.length; i++) {
-        result.push({
-            direction: dayLevels[i].type === 'PDH'
-                ? 'BUY_SIDE'
-                : 'SELL_SIDE',
-            price: dayLevels[i].price,
-            activeFrom: findNextDayIndex(
-                klines,
-                dayLevels[i].index
-            )
-        });
+        result.push(prepareLiquidityLevel(dayLevels[i]));
     }
 
     return result;
 }
 
-function findLiquiditySweeps(klines, levels) {
+function scanLiquidityLifecycle(klines, levels, reset) {
     var result = [];
     var level;
     var kline;
@@ -251,38 +325,72 @@ function findLiquiditySweeps(klines, levels) {
     }
 
     for (i = 0; i < levels.length; i++) {
-        level = levels[i];
-        startIndex = typeof level.activeFrom === 'number'
-            ? level.activeFrom
-            : 0;
+        level = prepareLiquidityLevel(levels[i]);
+
+        if (reset) {
+            level.consumedAt = null;
+            level.status = 'FORMED';
+        }
+
+        if (level.consumedAt !== null) {
+            level.status = 'CONSUMED';
+            continue;
+        }
+
+        startIndex = level.activeFrom;
+
+        if (startIndex >= klines.length) {
+            level.status = 'FORMED';
+            continue;
+        }
+
+        level.status = 'ACTIVE';
 
         for (j = startIndex; j < klines.length; j++) {
             kline = klines[j];
 
             if (
                 level.direction === 'BUY_SIDE' &&
-                kline.high > level.price &&
-                kline.close < level.price
+                kline.high >= level.price
             ) {
-                result.push({
-                    type: 'BUY_SIDE_SWEEP',
-                    price: level.price,
-                    index: j
-                });
+                level.consumedAt = j;
+                level.status = 'CONSUMED';
+
+                if (
+                    kline.high > level.price &&
+                    kline.close < level.price
+                ) {
+                    result.push({
+                        type: 'BUY_SIDE_SWEEP',
+                        price: level.price,
+                        extreme: kline.high,
+                        index: j,
+                        availableIndex: j
+                    });
+                }
 
                 break;
             }
 
             if (
                 level.direction === 'SELL_SIDE' &&
-                kline.low < level.price &&
-                kline.close > level.price
+                kline.low <= level.price
             ) {
-                result.push({
-                    type: 'SELL_SIDE_SWEEP',
-                    price: level.price,
-                    index: j
-                });
+                level.consumedAt = j;
+                level.status = 'CONSUMED';
+
+                if (
+                    kline.low < level.price &&
+                    kline.close > level.price
+                ) {
+                    result.push({
+                        type: 'SELL_SIDE_SWEEP',
+                        price: level.price,
+                        extreme: kline.low,
+                        index: j,
+                        availableIndex: j
+                    });
+                }
 
                 break;
             }
@@ -290,6 +398,14 @@ function findLiquiditySweeps(klines, levels) {
     }
 
     return result;
+}
+
+function findLiquiditySweeps(klines, levels) {
+    return scanLiquidityLifecycle(klines, levels, false);
+}
+
+function refreshLiquidityLifecycle(klines, levels) {
+    return scanLiquidityLifecycle(klines, levels, true);
 }
 
 function analyze(swings, klines) {
@@ -317,5 +433,6 @@ module.exports = {
     findEqualHighs: findEqualHighs,
     findEqualLows: findEqualLows,
     findPreviousDayLevels: findPreviousDayLevels,
-    findLiquiditySweeps: findLiquiditySweeps
+    findLiquiditySweeps: findLiquiditySweeps,
+    refreshLiquidityLifecycle: refreshLiquidityLifecycle
 };

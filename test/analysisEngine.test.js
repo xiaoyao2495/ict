@@ -195,7 +195,7 @@ test('analyzeMarket 返回统一对象结构', function () {
     ]);
 });
 
-test('LONG_SETUP 完整链路', function () {
+test('后确认 BULLISH_MSS 不回填生成过去的 Setup', function () {
     var result = AnalysisEngine.analyzeMarket(
         createLongScenario()
     );
@@ -236,22 +236,17 @@ test('LONG_SETUP 完整链路', function () {
         ),
         true
     );
-    assert.deepStrictEqual(result.setups, [
-        {
-            type: 'LONG_SETUP',
-            triggerIndex: 26,
-            direction: 'BULLISH',
-            reasons: [
-                'SELL_SIDE_SWEEP',
-                'BULLISH_MSS',
-                'BULLISH_DISPLACEMENT',
-                'BULLISH_FVG'
-            ]
-        }
-    ]);
+    assert.strictEqual(
+        findEventByType(
+            result.structureEvents,
+            'BULLISH_MSS'
+        ).availableIndex,
+        28
+    );
+    assert.deepStrictEqual(result.setups, []);
 });
 
-test('SHORT_SETUP 完整链路', function () {
+test('后确认 BEARISH_MSS 不回填生成过去的 Setup', function () {
     var result = AnalysisEngine.analyzeMarket(
         createShortScenario()
     );
@@ -292,19 +287,14 @@ test('SHORT_SETUP 完整链路', function () {
         ),
         true
     );
-    assert.deepStrictEqual(result.setups, [
-        {
-            type: 'SHORT_SETUP',
-            triggerIndex: 26,
-            direction: 'BEARISH',
-            reasons: [
-                'BUY_SIDE_SWEEP',
-                'BEARISH_MSS',
-                'BEARISH_DISPLACEMENT',
-                'BEARISH_FVG'
-            ]
-        }
-    ]);
+    assert.strictEqual(
+        findEventByType(
+            result.structureEvents,
+            'BEARISH_MSS'
+        ).availableIndex,
+        28
+    );
+    assert.deepStrictEqual(result.setups, []);
 });
 
 test('Wick 突破 Protected High 不产生 BULLISH_MSS', function () {
@@ -332,6 +322,7 @@ test('Close 突破 Protected High 产生 BULLISH_MSS', function () {
 
     assert.ok(event);
     assert.strictEqual(event.breakIndex, 26);
+    assert.strictEqual(event.availableIndex, 28);
     assert.strictEqual(event.breakType, 'CLOSE_BREAK');
 });
 
@@ -346,6 +337,7 @@ test('Displacement Break 产生 BULLISH_MSS', function () {
 
     assert.ok(event);
     assert.strictEqual(event.breakIndex, 26);
+    assert.strictEqual(event.availableIndex, 28);
     assert.strictEqual(
         event.breakType,
         'DISPLACEMENT_BREAK'
@@ -377,6 +369,7 @@ test('Close 跌破 Protected Low 产生 BEARISH_MSS', function () {
 
     assert.ok(event);
     assert.strictEqual(event.breakIndex, 26);
+    assert.strictEqual(event.availableIndex, 28);
     assert.strictEqual(event.breakType, 'CLOSE_BREAK');
 });
 
@@ -391,6 +384,7 @@ test('Displacement Break 产生 BEARISH_MSS', function () {
 
     assert.ok(event);
     assert.strictEqual(event.breakIndex, 26);
+    assert.strictEqual(event.availableIndex, 28);
     assert.strictEqual(
         event.breakType,
         'DISPLACEMENT_BREAK'
@@ -422,6 +416,7 @@ test('displacement event 包含正确 index 和 type', function () {
     assert.ok(event);
     assert.strictEqual(event.type, 'BULLISH_DISPLACEMENT');
     assert.strictEqual(event.index, 2);
+    assert.strictEqual(event.availableIndex, 2);
     assert.strictEqual(event.score >= 2, true);
     assert.strictEqual(typeof event.bodyRatio, 'number');
     assert.strictEqual(typeof event.momentum, 'boolean');

@@ -1,5 +1,46 @@
 var BreakValidator = require('./breakValidator');
 
+function getSwingAvailableIndex(swing) {
+    if (!swing) {
+        return null;
+    }
+
+    if (typeof swing.availableIndex === 'number') {
+        return swing.availableIndex;
+    }
+
+    if (typeof swing.confirmationIndex === 'number') {
+        return swing.confirmationIndex;
+    }
+
+    if (typeof swing.index === 'number') {
+        return swing.index;
+    }
+
+    return null;
+}
+
+function getStructureAvailableIndex(breakIndex) {
+    var result = breakIndex;
+    var availableIndex;
+    var i;
+
+    for (i = 1; i < arguments.length; i++) {
+        availableIndex = getSwingAvailableIndex(
+            arguments[i]
+        );
+
+        if (
+            typeof availableIndex === 'number' &&
+            availableIndex > result
+        ) {
+            result = availableIndex;
+        }
+    }
+
+    return result;
+}
+
 function analyze(klines, swings, options) {
     var state = {
         trend: 'UNKNOWN',
@@ -83,6 +124,13 @@ function processBullishBreak(
         return;
     }
 
+    var availableIndex = getStructureAvailableIndex(
+        breakResult.breakIndex,
+        previousHigh,
+        currentHigh,
+        candidateLow
+    );
+
     /*
      * 只有影线突破
      * 先定义成 Liquidity Taken
@@ -93,6 +141,7 @@ function processBullishBreak(
             direction: 'BULLISH',
             level: previousHigh.price,
             breakIndex: breakResult.breakIndex,
+            availableIndex: availableIndex,
             breakType: breakResult.type
         });
 
@@ -117,6 +166,7 @@ function processBullishBreak(
             level: previousHigh.price,
 
             breakIndex: breakResult.breakIndex,
+            availableIndex: availableIndex,
             breakType: breakResult.type,
 
             protectedLow: state.protectedLow
@@ -144,6 +194,7 @@ function processBullishBreak(
             level: previousHigh.price,
 
             breakIndex: breakResult.breakIndex,
+            availableIndex: availableIndex,
             breakType: breakResult.type,
 
             protectedLow: state.protectedLow
@@ -183,6 +234,13 @@ function processBullishBreak(
             protectedBreak &&
             protectedBreak.type !== 'WICK_BREAK'
         ) {
+            availableIndex = getStructureAvailableIndex(
+                protectedBreak.breakIndex,
+                currentHigh,
+                state.protectedHigh,
+                candidateLow
+            );
+
             state.events.push({
                 type: 'BULLISH_MSS',
                 direction: 'BULLISH',
@@ -191,6 +249,8 @@ function processBullishBreak(
 
                 breakIndex:
                     protectedBreak.breakIndex,
+
+                availableIndex: availableIndex,
 
                 breakType:
                     protectedBreak.type,
@@ -243,6 +303,13 @@ function processBearishBreak(
         return;
     }
 
+    var availableIndex = getStructureAvailableIndex(
+        breakResult.breakIndex,
+        previousLow,
+        currentLow,
+        candidateHigh
+    );
+
     /*
      * 只有影线跌破
      * => SSL Taken
@@ -253,6 +320,7 @@ function processBearishBreak(
             direction: 'BEARISH',
             level: previousLow.price,
             breakIndex: breakResult.breakIndex,
+            availableIndex: availableIndex,
             breakType: breakResult.type
         });
 
@@ -276,6 +344,7 @@ function processBearishBreak(
             level: previousLow.price,
 
             breakIndex: breakResult.breakIndex,
+            availableIndex: availableIndex,
             breakType: breakResult.type,
 
             protectedHigh: state.protectedHigh
@@ -301,6 +370,7 @@ function processBearishBreak(
             level: previousLow.price,
 
             breakIndex: breakResult.breakIndex,
+            availableIndex: availableIndex,
             breakType: breakResult.type,
 
             protectedHigh: state.protectedHigh
@@ -336,6 +406,13 @@ function processBearishBreak(
             protectedBreak &&
             protectedBreak.type !== 'WICK_BREAK'
         ) {
+            availableIndex = getStructureAvailableIndex(
+                protectedBreak.breakIndex,
+                currentLow,
+                state.protectedLow,
+                candidateHigh
+            );
+
             state.events.push({
                 type: 'BEARISH_MSS',
                 direction: 'BEARISH',
@@ -344,6 +421,8 @@ function processBearishBreak(
 
                 breakIndex:
                     protectedBreak.breakIndex,
+
+                availableIndex: availableIndex,
 
                 breakType:
                     protectedBreak.type,

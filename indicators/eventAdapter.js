@@ -38,6 +38,7 @@ function createDisplacementEvents(klines) {
         result.push({
             type: type,
             index: i,
+            availableIndex: i,
             score: analysis.score,
             bodyRatio: analysis.bodyRatio,
             momentum: analysis.momentum,

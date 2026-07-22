@@ -98,7 +98,7 @@ test('回测结果不使用未收盘未来 K线', function () {
     assert.strictEqual(result.stats.total, 0);
 });
 
-test('回测目标不使用 Setup 之后形成的流动性', function () {
+test('回测目标不使用 Entry 时尚未 ACTIVE 的流动性', function () {
     var baseTime = Date.UTC(2026, 6, 21);
     var klines = [
         createKline(baseTime, 105, 99),
@@ -106,25 +106,30 @@ test('回测目标不使用 Setup 之后形成的流动性', function () {
         createKline(baseTime + 10 * 60 * 1000, 110, 105),
         createKline(baseTime + 15 * 60 * 1000, 111, 104)
     ];
+    var fvg = {
+        type: 'BULLISH_FVG',
+        top: 110,
+        bottom: 100,
+        midpoint: 105,
+        startIndex: 0,
+        endIndex: 2,
+        availableIndex: 2
+    };
     var analysis = {
         setups: [
             {
                 type: 'LONG_SETUP',
                 triggerIndex: 2,
+                availableIndex: 2,
                 direction: 'BULLISH',
-                reasons: []
+                reasons: [],
+                fvg: fvg,
+                sweepExtreme: 100,
+                structureInvalidationLevel: 100
             }
         ],
-        fvgs: [
-            {
-                type: 'BULLISH_FVG',
-                top: 110,
-                bottom: 100,
-                midpoint: 105,
-                startIndex: 0,
-                endIndex: 2
-            }
-        ],
+        fvgs: [fvg],
+        structureEvents: [],
         liquidity: {
             equalHighs: [
                 {

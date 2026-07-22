@@ -28,8 +28,41 @@ function createTrade(entry, direction) {
         entryIndex: entry.triggerIndex,
         exitIndex: null,
         exitPrice: null,
-        r: null
+        r: null,
+        sameBarStop: false,
+        sameBarTarget: false,
+        ambiguousEntryBar: false
     };
+}
+
+function auditLongEntryBar(trade, entry, klines) {
+    var kline = klines[entry.triggerIndex];
+
+    if (!kline) {
+        return false;
+    }
+
+    trade.sameBarStop = kline.low <= entry.stop;
+    trade.sameBarTarget = kline.high >= entry.target;
+    trade.ambiguousEntryBar =
+        trade.sameBarStop || trade.sameBarTarget;
+
+    return trade.sameBarStop;
+}
+
+function auditShortEntryBar(trade, entry, klines) {
+    var kline = klines[entry.triggerIndex];
+
+    if (!kline) {
+        return false;
+    }
+
+    trade.sameBarStop = kline.high >= entry.stop;
+    trade.sameBarTarget = kline.low <= entry.target;
+    trade.ambiguousEntryBar =
+        trade.sameBarStop || trade.sameBarTarget;
+
+    return trade.sameBarStop;
 }
 
 function closeTrade(trade, status, index, price, r) {
@@ -45,7 +78,17 @@ function simulateLong(entry, klines) {
     var trade = createTrade(entry, 'LONG');
     var i;
 
-    for (i = entry.triggerIndex; i < klines.length; i++) {
+    if (auditLongEntryBar(trade, entry, klines)) {
+        return closeTrade(
+            trade,
+            'LOSS',
+            entry.triggerIndex,
+            entry.stop,
+            -1
+        );
+    }
+
+    for (i = entry.triggerIndex + 1; i < klines.length; i++) {
         if (klines[i].low <= entry.stop) {
             return closeTrade(
                 trade,
@@ -74,7 +117,17 @@ function simulateShort(entry, klines) {
     var trade = createTrade(entry, 'SHORT');
     var i;
 
-    for (i = entry.triggerIndex; i < klines.length; i++) {
+    if (auditShortEntryBar(trade, entry, klines)) {
+        return closeTrade(
+            trade,
+            'LOSS',
+            entry.triggerIndex,
+            entry.stop,
+            -1
+        );
+    }
+
+    for (i = entry.triggerIndex + 1; i < klines.length; i++) {
         if (klines[i].high >= entry.stop) {
             return closeTrade(
                 trade,

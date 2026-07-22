@@ -1,3 +1,44 @@
+function normalizeSwing(pivot) {
+    var result = {};
+    var property;
+    var extremeIndex;
+    var confirmationIndex;
+
+    for (property in pivot) {
+        if (
+            Object.prototype.hasOwnProperty.call(
+                pivot,
+                property
+            )
+        ) {
+            result[property] = pivot[property];
+        }
+    }
+
+    extremeIndex = typeof pivot.extremeIndex === 'number'
+        ? pivot.extremeIndex
+        : pivot.index;
+    confirmationIndex =
+        typeof pivot.confirmationIndex === 'number'
+            ? pivot.confirmationIndex
+            : typeof pivot.availableIndex === 'number'
+                ? pivot.availableIndex
+                : extremeIndex;
+
+    result.index = extremeIndex;
+    result.extremeIndex = extremeIndex;
+    result.confirmationIndex = confirmationIndex;
+    result.availableIndex =
+        typeof pivot.availableIndex === 'number'
+            ? Math.max(
+                pivot.availableIndex,
+                confirmationIndex
+            )
+            : confirmationIndex;
+
+    return result;
+}
+
 function filterSwings(pivots) {
     var result = [];
     var i;
@@ -9,7 +50,7 @@ function filterSwings(pivots) {
     }
 
     for (i = 0; i < pivots.length; i++) {
-        current = pivots[i];
+        current = normalizeSwing(pivots[i]);
         last = result[result.length - 1];
 
         if (!last) {

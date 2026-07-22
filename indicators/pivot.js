@@ -39,6 +39,9 @@ function findPivots(klines, left, right) {
         if (isPivotHigh) {
             result.push({
                 index: i,
+                extremeIndex: i,
+                confirmationIndex: i + right,
+                availableIndex: i + right,
                 time: current.openTime,
                 price: current.high,
                 type: 'HIGH'
@@ -48,6 +51,9 @@ function findPivots(klines, left, right) {
         if (isPivotLow) {
             result.push({
                 index: i,
+                extremeIndex: i,
+                confirmationIndex: i + right,
+                availableIndex: i + right,
                 time: current.openTime,
                 price: current.low,
                 type: 'LOW'

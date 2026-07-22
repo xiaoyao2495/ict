@@ -47,7 +47,26 @@ function createShortEntry(triggerIndex) {
     };
 }
 
-test('多头止盈', function () {
+test('LONG Entry 后下一根 Target 为 WIN', function () {
+    var result = BacktestEngine.analyze({
+        entries: [createLongEntry(1)],
+        klines: [
+            createKline(101, 99),
+            createKline(105, 96),
+            createKline(110, 96)
+        ]
+    });
+
+    assert.strictEqual(result.trades[0].status, 'WIN');
+    assert.strictEqual(result.trades[0].exitIndex, 2);
+    assert.strictEqual(result.trades[0].exitPrice, 110);
+    assert.strictEqual(result.trades[0].r, 2);
+    assert.strictEqual(result.trades[0].sameBarStop, false);
+    assert.strictEqual(result.trades[0].sameBarTarget, false);
+    assert.strictEqual(result.trades[0].ambiguousEntryBar, false);
+});
+
+test('LONG Entry+Target 同根不能直接 WIN', function () {
     var result = BacktestEngine.analyze({
         entries: [createLongEntry(1)],
         klines: [
@@ -56,13 +75,85 @@ test('多头止盈', function () {
         ]
     });
 
-    assert.strictEqual(result.trades[0].status, 'WIN');
-    assert.strictEqual(result.trades[0].exitIndex, 1);
-    assert.strictEqual(result.trades[0].exitPrice, 110);
-    assert.strictEqual(result.trades[0].r, 2);
+    assert.strictEqual(result.trades[0].status, 'OPEN');
+    assert.strictEqual(result.trades[0].exitIndex, null);
+    assert.strictEqual(result.trades[0].sameBarStop, false);
+    assert.strictEqual(result.trades[0].sameBarTarget, true);
+    assert.strictEqual(result.trades[0].ambiguousEntryBar, true);
 });
 
-test('多头止损且同 K线止损优先', function () {
+test('LONG Entry+Stop 同根必须 LOSS', function () {
+    var result = BacktestEngine.analyze({
+        entries: [createLongEntry(1)],
+        klines: [
+            createKline(101, 99),
+            createKline(109, 94)
+        ]
+    });
+
+    assert.strictEqual(result.trades[0].status, 'LOSS');
+    assert.strictEqual(result.trades[0].exitIndex, 1);
+    assert.strictEqual(result.trades[0].exitPrice, 95);
+    assert.strictEqual(result.trades[0].r, -1);
+    assert.strictEqual(result.trades[0].sameBarStop, true);
+    assert.strictEqual(result.trades[0].sameBarTarget, false);
+    assert.strictEqual(result.trades[0].ambiguousEntryBar, true);
+});
+
+test('SHORT Entry 后下一根 Target 为 WIN', function () {
+    var result = BacktestEngine.analyze({
+        entries: [createShortEntry(1)],
+        klines: [
+            createKline(101, 99),
+            createKline(104, 95),
+            createKline(104, 90)
+        ]
+    });
+
+    assert.strictEqual(result.trades[0].status, 'WIN');
+    assert.strictEqual(result.trades[0].exitIndex, 2);
+    assert.strictEqual(result.trades[0].exitPrice, 90);
+    assert.strictEqual(result.trades[0].r, 2);
+    assert.strictEqual(result.trades[0].sameBarStop, false);
+    assert.strictEqual(result.trades[0].sameBarTarget, false);
+    assert.strictEqual(result.trades[0].ambiguousEntryBar, false);
+});
+
+test('SHORT Entry+Target 同根不能直接 WIN', function () {
+    var result = BacktestEngine.analyze({
+        entries: [createShortEntry(1)],
+        klines: [
+            createKline(101, 99),
+            createKline(104, 90)
+        ]
+    });
+
+    assert.strictEqual(result.trades[0].status, 'OPEN');
+    assert.strictEqual(result.trades[0].exitIndex, null);
+    assert.strictEqual(result.trades[0].sameBarStop, false);
+    assert.strictEqual(result.trades[0].sameBarTarget, true);
+    assert.strictEqual(result.trades[0].ambiguousEntryBar, true);
+});
+
+test('SHORT Entry+Stop 同根必须 LOSS', function () {
+    var result = BacktestEngine.analyze({
+        entries: [createShortEntry(1)],
+        klines: [
+            createKline(101, 99),
+            createKline(106, 91)
+        ]
+    });
+
+    assert.strictEqual(result.trades[0].status, 'LOSS');
+    assert.strictEqual(result.trades[0].exitIndex, 1);
+    assert.strictEqual(result.trades[0].exitPrice, 105);
+    assert.strictEqual(result.trades[0].r, -1);
+    assert.strictEqual(result.trades[0].sameBarStop, true);
+    assert.strictEqual(result.trades[0].sameBarTarget, false);
+    assert.strictEqual(result.trades[0].ambiguousEntryBar, true);
+});
+
+test('Entry+Stop+Target 同根必须 LOSS', function () {
     var result = BacktestEngine.analyze({
         entries: [createLongEntry(1)],
         klines: [
@@ -73,38 +164,27 @@ test('多头止损且同 K线止损优先', function () {
 
     assert.strictEqual(result.trades[0].status, 'LOSS');
     assert.strictEqual(result.trades[0].exitIndex, 1);
-    assert.strictEqual(result.trades[0].exitPrice, 95);
     assert.strictEqual(result.trades[0].r, -1);
+    assert.strictEqual(result.trades[0].sameBarStop, true);
+    assert.strictEqual(result.trades[0].sameBarTarget, true);
+    assert.strictEqual(result.trades[0].ambiguousEntryBar, true);
 });
 
-test('空头止盈', function () {
+test('Entry 后下一根 Stop 为 LOSS', function () {
     var result = BacktestEngine.analyze({
-        entries: [createShortEntry(1)],
+        entries: [createLongEntry(1)],
         klines: [
             createKline(101, 99),
-            createKline(104, 90)
-        ]
-    });
-
-    assert.strictEqual(result.trades[0].status, 'WIN');
-    assert.strictEqual(result.trades[0].exitIndex, 1);
-    assert.strictEqual(result.trades[0].exitPrice, 90);
-    assert.strictEqual(result.trades[0].r, 2);
-});
-
-test('空头止损且同 K线止损优先', function () {
-    var result = BacktestEngine.analyze({
-        entries: [createShortEntry(1)],
-        klines: [
-            createKline(101, 99),
-            createKline(106, 89)
+            createKline(105, 96),
+            createKline(106, 94)
         ]
     });
 
     assert.strictEqual(result.trades[0].status, 'LOSS');
-    assert.strictEqual(result.trades[0].exitIndex, 1);
-    assert.strictEqual(result.trades[0].exitPrice, 105);
+    assert.strictEqual(result.trades[0].exitIndex, 2);
     assert.strictEqual(result.trades[0].r, -1);
+    assert.strictEqual(result.trades[0].sameBarStop, false);
+    assert.strictEqual(result.trades[0].sameBarTarget, false);
 });
 
 test('未触发止损或止盈时保持 OPEN', function () {
@@ -149,10 +229,10 @@ test('多笔交易统计', function () {
     assert.strictEqual(result.trades.length, 4);
     assert.deepStrictEqual(result.stats, {
         total: 4,
-        win: 2,
-        loss: 2,
-        winRate: 50,
-        avgR: 0.5
+        win: 0,
+        loss: 4,
+        winRate: 0,
+        avgR: -1
     });
 });
 
