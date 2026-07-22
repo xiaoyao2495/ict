@@ -5,6 +5,7 @@ var Liquidity = require('./liquidity');
 var EventAdapter = require('./eventAdapter');
 var FVG = require('./fvg');
 var SetupEngine = require('./setupEngine');
+var HTFContextAnalyzer = require('./htfContextAnalyzer');
 
 function analyzeMarket(klines) {
     var pivots = Pivot.findPivots(klines, 2, 2);
@@ -28,6 +29,11 @@ function analyzeMarket(klines) {
         displacementEvents: displacementEvents,
         fvgEvents: fvgs
     });
+
+    setups = HTFContextAnalyzer.attachContexts(
+        setups,
+        klines
+    );
 
     return {
         swings: swings,

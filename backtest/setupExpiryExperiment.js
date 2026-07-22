@@ -207,11 +207,12 @@ function createResult(
     direction,
     entryPrice,
     mode,
-    klines
+    klines,
+    entryMode
 ) {
     return {
         type: direction + '_ENTRY',
-        entryMode: EntryEngine.ENTRY_MODES.FVG_EDGE,
+        entryMode: entryMode,
         expiryMode: mode,
         status: 'SETUP_FORMED',
         entry: entryPrice,
@@ -290,22 +291,30 @@ function processSetup(
     klines,
     liquidity,
     structureEvents,
-    mode
+    mode,
+    options
 ) {
     var direction = setup.type === 'LONG_SETUP'
         ? 'LONG'
         : 'SHORT';
+    var entryMode;
+
+    options = options || {};
+    entryMode = options.entryMode ||
+        EntryEngine.ENTRY_MODES.FVG_EDGE;
+
     var entryPrice = EntryEngine.getEntryPrice(
         direction,
         setup.fvg,
-        EntryEngine.ENTRY_MODES.FVG_EDGE
+        entryMode
     );
     var result = createResult(
         setup,
         direction,
         entryPrice,
         mode,
-        klines
+        klines,
+        entryMode
     );
     var entryTouched;
     var i;
@@ -477,13 +486,16 @@ function summarize(setupCount, entries, trades) {
     };
 }
 
-function runBaseline(input) {
+function runBaseline(input, options) {
+    options = options || {};
+
     var entries = EntryEngine.analyze({
         setups: input.analysis.setups,
         klines: input.klines,
         liquidity: input.analysis.liquidity,
         structureEvents: input.analysis.structureEvents,
-        entryMode: EntryEngine.ENTRY_MODES.FVG_EDGE
+        entryMode: options.entryMode ||
+            EntryEngine.ENTRY_MODES.FVG_EDGE
     });
     var backtest = BacktestEngine.analyze({
         entries: entries,
@@ -502,14 +514,15 @@ function runBaseline(input) {
     };
 }
 
-function runExperimentalMode(input, mode) {
+function runExperimentalMode(input, mode, options) {
     var entries = input.analysis.setups.map(function (setup) {
         return processSetup(
             setup,
             input.klines,
             input.analysis.liquidity,
             input.analysis.structureEvents,
-            mode
+            mode,
+            options
         );
     });
     var backtest = BacktestEngine.analyze({

@@ -3,9 +3,18 @@ process.env.HTTPS_PROXY = 'http://127.0.0.1:7890';
 
 var axios = require('axios');
 var AnalysisEngine = require('../indicators/analysisEngine');
-var EntryEngine = require('../indicators/entryEngine');
 var Liquidity = require('../indicators/liquidity');
+var HTFContextAnalyzer = require(
+    '../indicators/htfContextAnalyzer'
+);
 var BacktestEngine = require('../backtest/backtestEngine');
+var SetupExpiryExperiment = require(
+    '../backtest/setupExpiryExperiment'
+);
+var SetupAgeExperiment = require(
+    '../backtest/setupAgeExperiment'
+);
+var BaselineV1 = require('../config/baselineV1');
 
 var BASE_URL = 'https://fapi.binance.com';
 var SYMBOL = 'BTCUSDT';
@@ -491,6 +500,11 @@ function analyzeHistoricalKlines(klines) {
         result.liquidity.previousDayLevels
     );
 
+    result.setups = HTFContextAnalyzer.attachContexts(
+        result.setups,
+        klines
+    );
+
     result.setups.sort(function (setup1, setup2) {
         return setup1.availableIndex - setup2.availableIndex;
     });
@@ -546,29 +560,106 @@ function createEntriesWithoutFutureLiquidity(
     klines,
     options
 ) {
-    var result = [];
-    var entries;
-    var i;
-    var j;
+    var configuration = resolveConfiguration(options);
+    var input = {
+        analysis: analysis,
+        klines: klines
+    };
+    var modeResult = SetupExpiryExperiment
+        .runExperimentalMode(
+            input,
+            SetupExpiryExperiment.MODES.MODE_B,
+            {
+                entryMode: configuration.entryMode
+            }
+        );
 
-    options = options || {};
+    return SetupAgeExperiment.applyMaxWait(
+        modeResult.entries,
+        configuration.maxWaitBars
+    );
+}
 
-    for (i = 0; i < analysis.setups.length; i++) {
-        entries = EntryEngine.analyze({
-            setups: [analysis.setups[i]],
-            fvgs: analysis.fvgs,
-            klines: klines,
-            liquidity: analysis.liquidity,
-            structureEvents: analysis.structureEvents,
-            entryMode: options.entryMode
-        });
+function resolveConfiguration(overrides) {
+    var result = {};
+    var property;
 
-        for (j = 0; j < entries.length; j++) {
-            result.push(entries[j]);
+    for (property in BaselineV1) {
+        if (
+            Object.prototype.hasOwnProperty.call(
+                BaselineV1,
+                property
+            )
+        ) {
+            result[property] = BaselineV1[property];
         }
     }
 
+    overrides = overrides || {};
+
+    for (property in overrides) {
+        if (
+            Object.prototype.hasOwnProperty.call(
+                overrides,
+                property
+            )
+        ) {
+            result[property] = overrides[property];
+        }
+    }
+
+    if (result.stop !== 'SWEEP_EXTREME') {
+        throw new Error(
+            'Unsupported Stop mode: ' + result.stop
+        );
+    }
+
+    if (result.target !== 'LIQUIDITY_RESELECT') {
+        throw new Error(
+            'Unsupported Target mode: ' + result.target
+        );
+    }
+
+    if (result.execution !== 'CONSERVATIVE') {
+        throw new Error(
+            'Unsupported Execution mode: ' +
+            result.execution
+        );
+    }
+
+    if (
+        result.maxWaitBars !== null &&
+        (
+            typeof result.maxWaitBars !== 'number' ||
+            result.maxWaitBars < 0
+        )
+    ) {
+        throw new Error(
+            'Unsupported maxWaitBars: ' +
+            result.maxWaitBars
+        );
+    }
+
     return result;
+}
+
+function executeBacktest(analysis, klines, options) {
+    var configuration = resolveConfiguration(options);
+    var entries = createEntriesWithoutFutureLiquidity(
+        analysis,
+        klines,
+        configuration
+    );
+    var backtest = BacktestEngine.analyze({
+        entries: entries,
+        klines: klines
+    });
+
+    return {
+        configuration: configuration,
+        entries: entries,
+        backtest: backtest
+    };
 }
 
 function calculateTradeStats(trades, direction) {
@@ -654,12 +745,15 @@ function printTrades(trades, klines) {
     );
 }
 
-function runBacktest() {
+function runBacktest(options) {
+    var configuration = resolveConfiguration(options);
+
     console.log('=====================');
     console.log('ICT Backtest');
     console.log('=====================');
     console.log('Symbol:', SYMBOL);
     console.log('Timeframe:', INTERVAL);
+    console.log('Configuration:', configuration);
     console.log(
         'Requested period:',
         new Date(START_TIME).toISOString(),
@@ -686,6 +780,7 @@ function runBacktest() {
         var analysis;
         var entries;
         var backtest;
+        var execution;
         var overallStats;
         var longStats;
         var shortStats;
@@ -709,14 +804,13 @@ function runBacktest() {
         console.log('Total closed Klines:', klines.length);
 
         analysis = analyzeHistoricalKlines(klines);
-        entries = createEntriesWithoutFutureLiquidity(
+        execution = executeBacktest(
             analysis,
-            klines
+            klines,
+            configuration
         );
-        backtest = BacktestEngine.analyze({
-            entries: entries,
-            klines: klines
-        });
+        entries = execution.entries;
+        backtest = execution.backtest;
 
         overallStats = calculateTradeStats(backtest.trades);
         longStats = calculateTradeStats(
@@ -743,6 +837,7 @@ function runBacktest() {
         return {
             klines: klines,
             analysis: analysis,
+            configuration: execution.configuration,
             entries: entries,
             backtest: backtest,
             overallStats: overallStats,
@@ -765,6 +860,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+    BASELINE_V1: BaselineV1,
     CONFIRMATION_WINDOW: CONFIRMATION_WINDOW,
     filterClosedKlines: filterClosedKlines,
     getAnalysisWindowRange: getAnalysisWindowRange,
@@ -772,5 +868,7 @@ module.exports = {
     filterLiquidityForSetup: filterLiquidityForSetup,
     createEntriesWithoutFutureLiquidity:
         createEntriesWithoutFutureLiquidity,
+    resolveConfiguration: resolveConfiguration,
+    executeBacktest: executeBacktest,
     runBacktest: runBacktest
 };
