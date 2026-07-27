@@ -1,5 +1,49 @@
 'use strict';
 
+function ltfNarrativeState(fiveMinute) {
+  const confirmed = fiveMinute &&
+    fiveMinute.currentConfirmed
+    ? fiveMinute.currentConfirmed
+    : {};
+  const sweeps = Array.isArray(confirmed.liquiditySweeps)
+    ? confirmed.liquiditySweeps
+    : [];
+  const displacement = confirmed.displacement;
+  const mss = confirmed.mss;
+  const hasAnyEvent = (
+    sweeps.length > 0 ||
+    Boolean(displacement) ||
+    Boolean(mss)
+  );
+
+  if (
+    sweeps.length === 0 ||
+    !displacement ||
+    !mss
+  ) {
+    return hasAnyEvent ? 'INCOMPLETE' : 'NONE';
+  }
+
+  const sides = new Set(sweeps.map((sweep) => sweep.side));
+  if (
+    sides.size === 1 &&
+    sides.has('SELL_SIDE') &&
+    displacement.direction === 'BULLISH' &&
+    mss.direction === 'BULLISH'
+  ) {
+    return 'ALIGNED_BULLISH';
+  }
+  if (
+    sides.size === 1 &&
+    sides.has('BUY_SIDE') &&
+    displacement.direction === 'BEARISH' &&
+    mss.direction === 'BEARISH'
+  ) {
+    return 'ALIGNED_BEARISH';
+  }
+  return 'CONFLICT';
+}
+
 function confirmationState(h4, fiveMinute) {
   const observation = fiveMinute &&
     fiveMinute.potentialObservation;
@@ -35,17 +79,30 @@ function summarize(h4, h1, fiveMinute) {
     h4.bias !== 'BULLISH' &&
     h4.bias !== 'BEARISH'
   ) {
-    return (
-      '4H方向尚未明确，1H与5m当前仅反映局部市场状态，' +
-      '整体保持观察。'
-    );
+    return '4H方向尚未明确，5m局部事件暂不足以形成可执行叙事。';
   }
 
   const structure = h4.bias === 'BULLISH'
     ? '4H结构保持多头'
     : '4H结构保持空头';
   const relation = h1.relationToH4;
+  const ltfNarrative = ltfNarrativeState(fiveMinute);
   const confirmation = confirmationState(h4, fiveMinute);
+
+  if (ltfNarrative === 'CONFLICT') {
+    const delivery = relation === 'ALIGNED'
+      ? '1H正在顺应4H方向交付'
+      : relation === 'RETRACEMENT'
+        ? '1H目前处于回调阶段'
+        : relation === 'COUNTER_TREND'
+          ? '1H正在呈现逆向交付'
+          : '1H方向暂不清晰';
+    return (
+      structure + '，' + delivery + '。' +
+      '5m已出现局部结构事件，但扫取方向、位移方向与MSS' +
+      '未形成一致叙事。'
+    );
+  }
 
   if (relation === 'RETRACEMENT') {
     if (confirmation === 'ALIGNED') {
@@ -114,5 +171,6 @@ function summarize(h4, h1, fiveMinute) {
 
 module.exports = {
   confirmationState,
+  ltfNarrativeState,
   summarize,
 };

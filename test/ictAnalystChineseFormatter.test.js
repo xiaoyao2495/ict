@@ -120,6 +120,9 @@ test('Neutral report produces a waiting judgment', () => {
   assert.ok(text.includes('暂无明确主要流动性目标'));
   assert.ok(text.includes('Potential Long/Short/None：None'));
   assert.ok(text.includes('- 偏多/偏空/等待：等待'));
+  assert.ok(text.includes(
+    '当前5m收盘未确认新的流动性扫取'
+  ));
 });
 
 test('formatter never exposes prices or execution fields', () => {
@@ -160,6 +163,63 @@ test('formatter includes the human market-state summary', () => {
 
   assert.ok(text.includes('- 市场状态解读：'));
   assert.ok(text.includes(report.current.humanSummary));
+});
+
+test('repeated Sweeps are grouped without mutating report data', () => {
+  const baseTime = Date.UTC(2026, 6, 27, 8);
+  const sweeps = [
+    ...Array.from({ length: 5 }, (_, index) => ({
+      type: 'LTF_SWING_LOW',
+      side: 'SELL_SIDE',
+      availableIndex: index + 1,
+      time: baseTime + index,
+    })),
+    {
+      type: 'EQUAL_LOW',
+      side: 'SELL_SIDE',
+      availableIndex: 6,
+      time: baseTime + 5,
+    },
+    {
+      type: 'H1_SWING_LOW',
+      side: 'SELL_SIDE',
+      availableIndex: 7,
+      time: baseTime + 6,
+    },
+  ];
+  const report = currentReport({ sweeps });
+  const original = JSON.parse(JSON.stringify(report));
+  const text = Formatter.format(report);
+
+  assert.ok(text.includes(
+    'Sweep：已确认扫取卖方流动性，共7个事件'
+  ));
+  assert.ok(text.includes('LTF Swing Low ×5'));
+  assert.ok(text.includes('等低流动性 ×1'));
+  assert.ok(text.includes('1H Swing Low ×1'));
+  assert.ok(text.includes(
+    '最新事件：1H Swing Low，availableIndex：7，时间：' +
+    new Date(baseTime + 6).toISOString()
+  ));
+  assert.deepStrictEqual(report, original);
+});
+
+test('a single Sweep remains a concise one-line description', () => {
+  const report = currentReport({
+    sweeps: [{
+      type: 'LTF_SWING_LOW',
+      side: 'SELL_SIDE',
+      availableIndex: 12,
+      time: Date.UTC(2026, 6, 27, 9),
+    }],
+  });
+  const sweepLine = Formatter.format(report)
+    .split('\n')
+    .find((line) => line.startsWith('- Sweep：'));
+
+  assert.ok(sweepLine.includes('LTF Swing Low'));
+  assert.ok(sweepLine.includes('availableIndex：12'));
+  assert.strictEqual(sweepLine.includes('共1个事件'), false);
 });
 
 console.log('\n' + testsPassed + ' tests passed.');

@@ -41,6 +41,10 @@ const LIQUIDITY_TYPE_TEXT = Object.freeze({
   H4_SWING_LOW: '4H摆动低点流动性',
   EQUAL_HIGH: '等高流动性',
   EQUAL_LOW: '等低流动性',
+  H1_SWING_HIGH: '1H Swing High',
+  H1_SWING_LOW: '1H Swing Low',
+  LTF_SWING_HIGH: 'LTF Swing High',
+  LTF_SWING_LOW: 'LTF Swing Low',
 });
 
 function currentOf(report) {
@@ -109,21 +113,106 @@ function deliveryStageText(h1) {
   return '1H尚未形成清晰的交付阶段';
 }
 
+function sweepTypeText(type) {
+  return LIQUIDITY_TYPE_TEXT[type] || type || '内部流动性';
+}
+
+function sweepSideText(side) {
+  if (side === 'BUY_SIDE') return '买方';
+  if (side === 'SELL_SIDE') return '卖方';
+  return '未知方向';
+}
+
+function eventTimeText(time) {
+  if (Number.isFinite(time)) {
+    return new Date(time).toISOString();
+  }
+  if (typeof time === 'string' && time.length > 0) {
+    return time;
+  }
+  return '不可用';
+}
+
+function latestSweep(sweeps) {
+  return sweeps.reduce((latest, sweep) => {
+    if (!latest) return sweep;
+    const sweepTime = Number.isFinite(sweep.time)
+      ? sweep.time
+      : -Infinity;
+    const latestTime = Number.isFinite(latest.time)
+      ? latest.time
+      : -Infinity;
+    if (sweepTime !== latestTime) {
+      return sweepTime > latestTime ? sweep : latest;
+    }
+    const sweepIndex = Number.isInteger(sweep.availableIndex)
+      ? sweep.availableIndex
+      : -Infinity;
+    const latestIndex = Number.isInteger(latest.availableIndex)
+      ? latest.availableIndex
+      : -Infinity;
+    return sweepIndex >= latestIndex ? sweep : latest;
+  }, null);
+}
+
 function sweepText(sweeps) {
   if (!Array.isArray(sweeps) || sweeps.length === 0) {
     return '当前5m收盘未确认新的流动性扫取';
   }
-  return sweeps.map((sweep) => {
-    const side = sweep.side === 'BUY_SIDE'
-      ? '买方流动性'
-      : sweep.side === 'SELL_SIDE'
-        ? '卖方流动性'
-        : '未知方向流动性';
-    const type = LIQUIDITY_TYPE_TEXT[sweep.type] ||
-      sweep.type ||
-      '内部流动性';
-    return '已确认扫取' + side + '（' + type + '）';
-  }).join('；');
+
+  const newest = latestSweep(sweeps);
+  const newestDetails = (
+    sweepTypeText(newest.type) +
+    '，availableIndex：' +
+    (
+      Number.isInteger(newest.availableIndex)
+        ? newest.availableIndex
+        : '不可用'
+    ) +
+    '，时间：' + eventTimeText(newest.time)
+  );
+  if (sweeps.length === 1) {
+    return (
+      '已确认扫取' + sweepSideText(newest.side) +
+      '流动性：' + newestDetails
+    );
+  }
+
+  const groups = new Map();
+  for (const sweep of sweeps) {
+    const key = sweep.side + '|' + sweep.type;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        side: sweep.side,
+        type: sweep.type,
+        count: 0,
+      });
+    }
+    groups.get(key).count += 1;
+  }
+  const sides = new Set(sweeps.map((sweep) => sweep.side));
+  const sideDescription = sides.size === 1
+    ? sweepSideText(sweeps[0].side)
+    : '买方与卖方';
+  const groupLines = Array.from(groups.values()).map(
+    (group) => (
+      '  - ' +
+      (
+        sides.size > 1
+          ? sweepSideText(group.side) + ' / '
+          : ''
+      ) +
+      sweepTypeText(group.type) +
+      ' ×' + group.count
+    )
+  );
+
+  return [
+    '已确认扫取' + sideDescription +
+      '流动性，共' + sweeps.length + '个事件',
+    ...groupLines,
+    '  - 最新事件：' + newestDetails,
+  ].join('\n');
 }
 
 function displacementText(displacement) {
@@ -190,7 +279,7 @@ function manualView(h4, h1, observation) {
     return {
       view: '等待',
       reason:
-        '4H方向尚未明确，当前5m也没有形成与HTF一致的完整确认。',
+        '4H方向尚未明确，5m局部事件暂不足以形成可执行叙事。',
     };
   }
   return {
@@ -264,6 +353,10 @@ module.exports = {
   mssText,
   potentialText,
   primaryDrawText,
+  eventTimeText,
+  latestSweep,
   structureText,
+  sweepSideText,
   sweepText,
+  sweepTypeText,
 };
