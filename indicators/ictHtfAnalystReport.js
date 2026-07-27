@@ -3,6 +3,9 @@
 const HtfBiasV3 = require('./ictHtfBiasEngineV3');
 const H1Delivery = require('./ictH1DeliveryEngine');
 const LtfExecution = require('./ictLtfExecutionEngine');
+const HumanSummary = require(
+  '../formatters/ictAnalystHumanSummary'
+);
 
 function clone(value) {
   return value === null || value === undefined
@@ -290,36 +293,42 @@ function buildTimeline(
         currentDisplacements.length - 1
       ] || null
     );
+    const fiveMinuteObservation = {
+      index,
+      availableIndex: index,
+      time,
+      currentConfirmed: {
+        liquiditySweeps: currentSweeps.map(projectSweep),
+        mss: currentMss,
+        displacement: currentDisplacement,
+      },
+      latestConfirmed: {
+        liquiditySweep: latestSweep
+          ? projectSweep(latestSweep)
+          : null,
+        mss: projectMss(latestMss),
+        displacement:
+          projectDisplacement(latestDisplacement),
+      },
+      potentialObservation: potentialObservation(
+        h4,
+        h1,
+        currentMss,
+        currentDisplacement
+      ),
+    };
     current = {
       index,
       availableIndex: index,
       asOf: time,
       fourHourAnalysis: h4,
       oneHourAnalysis: h1,
-      fiveMinuteObservation: {
-        index,
-        availableIndex: index,
-        time,
-        currentConfirmed: {
-          liquiditySweeps: currentSweeps.map(projectSweep),
-          mss: currentMss,
-          displacement: currentDisplacement,
-        },
-        latestConfirmed: {
-          liquiditySweep: latestSweep
-            ? projectSweep(latestSweep)
-            : null,
-          mss: projectMss(latestMss),
-          displacement:
-            projectDisplacement(latestDisplacement),
-        },
-        potentialObservation: potentialObservation(
-          h4,
-          h1,
-          currentMss,
-          currentDisplacement
-        ),
-      },
+      fiveMinuteObservation,
+      humanSummary: HumanSummary.summarize(
+        h4,
+        h1,
+        fiveMinuteObservation
+      ),
     };
     if (typeof onSnapshot === 'function') {
       onSnapshot(current);

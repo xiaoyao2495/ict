@@ -151,4 +151,15 @@ test('formatter also accepts the current snapshot directly', () => {
   );
 });
 
+test('formatter includes the human market-state summary', () => {
+  const report = currentReport();
+  report.current.humanSummary =
+    '4H结构保持多头，1H正在顺应4H方向交付，' +
+    '但5m尚未出现新的同向确认。';
+  const text = Formatter.format(report);
+
+  assert.ok(text.includes('- 市场状态解读：'));
+  assert.ok(text.includes(report.current.humanSummary));
+});
+
 console.log('\n' + testsPassed + ' tests passed.');

@@ -1,5 +1,7 @@
 'use strict';
 
+const HumanSummary = require('./ictAnalystHumanSummary');
+
 const DIRECTION_TEXT = Object.freeze({
   BULLISH: '偏多',
   BEARISH: '偏空',
@@ -209,6 +211,8 @@ function format(report) {
   const confirmed = fiveMinute.currentConfirmed || {};
   const observation = fiveMinute.potentialObservation;
   const judgment = manualView(h4, h1, observation);
+  const humanSummary = current.humanSummary ||
+    HumanSummary.summarize(h4, h1, fiveMinute);
   const relation = RELATION_TEXT[h1.relationToH4] ||
     '与4H关系不明确';
   const location = LOCATION_TEXT[h4.premiumDiscount] ||
@@ -239,6 +243,7 @@ function format(report) {
       potentialText(observation),
     '',
     '4. 当前人工判断',
+    '- 市场状态解读：' + humanSummary,
     '- 偏多/偏空/等待：' + judgment.view,
     '- 关注原因：' + judgment.reason,
   ].join('\n');

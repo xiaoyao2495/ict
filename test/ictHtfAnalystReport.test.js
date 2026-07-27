@@ -96,6 +96,8 @@ test('report contains required 4H, 1H and 5m sections', () => {
   assert.ok(
     current.fiveMinuteObservation.potentialObservation
   );
+  assert.strictEqual(typeof current.humanSummary, 'string');
+  assert.ok(current.humanSummary.length > 0);
 });
 
 test('potential observation is informational and HTF aligned', () => {
