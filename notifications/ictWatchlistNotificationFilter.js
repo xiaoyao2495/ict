@@ -18,7 +18,6 @@ const CHANGE_REASONS = Object.freeze({
   H1_DELIVERY_CHANGED: 'H1_DELIVERY_CHANGED',
   H1_RELATION_CHANGED: 'H1_RELATION_CHANGED',
   NEW_5M_MSS: 'NEW_5M_MSS',
-  NEW_5M_SWEEP: 'NEW_5M_SWEEP',
 });
 
 function clone(value) {
@@ -40,15 +39,73 @@ function normalizeSweep(sweep) {
   };
 }
 
-function sweepIdentity(sweep) {
-  if (!sweep) return null;
-  return [
-    sweep.id,
-    sweep.type,
-    sweep.side,
-    sweep.availableIndex,
-    sweep.time,
-  ].join('|');
+function normalizeMss(mss) {
+  if (!mss || typeof mss !== 'object') return null;
+  const level = mss.brokenStructureLevel;
+  return {
+    id: mss.id || null,
+    direction: mss.direction || 'UNKNOWN',
+    index: Number.isInteger(mss.index)
+      ? mss.index
+      : null,
+    availableIndex: Number.isInteger(mss.availableIndex)
+      ? mss.availableIndex
+      : null,
+    time: Number.isFinite(mss.time) ? mss.time : null,
+    brokenStructureLevel: level && typeof level === 'object'
+      ? {
+        id: level.id || null,
+        type: level.type || null,
+        index: Number.isInteger(level.index)
+          ? level.index
+          : null,
+        price: Number.isFinite(level.price)
+          ? level.price
+          : null,
+      }
+      : null,
+  };
+}
+
+function structureLevelIdentity(level) {
+  if (!level) return null;
+  if (level.id) return 'ID:' + level.id;
+  if (Number.isInteger(level.index)) {
+    return [
+      'INDEX',
+      level.type,
+      level.index,
+      level.price,
+    ].join('|');
+  }
+  return null;
+}
+
+function stableMssIdentity(mss) {
+  if (!mss) return null;
+  if (mss.id) return 'ID:' + mss.id;
+  if (Number.isInteger(mss.index)) {
+    return 'INDEX:' + mss.index;
+  }
+  return structureLevelIdentity(mss.brokenStructureLevel);
+}
+
+function isNewMss(previousMss, currentMss) {
+  if (!currentMss) return false;
+  if (!previousMss) return true;
+  if (previousMss.direction !== currentMss.direction) {
+    return true;
+  }
+
+  const previousIdentity =
+    stableMssIdentity(previousMss);
+  const currentIdentity =
+    stableMssIdentity(currentMss);
+  return Boolean(
+    previousIdentity &&
+    currentIdentity &&
+    previousIdentity !== currentIdentity
+  );
 }
 
 function extractSymbolState(input) {
@@ -85,9 +142,7 @@ function extractSymbolState(input) {
     h1DeliveryDirection:
       current.oneHourAnalysis.deliveryDirection ||
       'UNAVAILABLE',
-    latestMss: AnalystNotificationState.normalizeMss(
-      latest.mss
-    ),
+    latestMss: normalizeMss(latest.mss),
     latestSweep: normalizeSweep(latest.liquiditySweep),
   };
 }
@@ -116,24 +171,11 @@ function compareSymbolStates(previousState, currentState) {
     reasons.push(CHANGE_REASONS.H1_RELATION_CHANGED);
   }
 
-  const currentMss = AnalystNotificationState.mssIdentity(
+  if (isNewMss(
+    previousState.latestMss,
     currentState.latestMss
-  );
-  const previousMss = AnalystNotificationState.mssIdentity(
-    previousState.latestMss
-  );
-  if (currentMss && currentMss !== previousMss) {
+  )) {
     reasons.push(CHANGE_REASONS.NEW_5M_MSS);
-  }
-
-  const currentSweep = sweepIdentity(
-    currentState.latestSweep
-  );
-  const previousSweep = sweepIdentity(
-    previousState.latestSweep
-  );
-  if (currentSweep && currentSweep !== previousSweep) {
-    reasons.push(CHANGE_REASONS.NEW_5M_SWEEP);
   }
 
   return {
@@ -275,9 +317,12 @@ module.exports = {
   createMemoryStore,
   evaluate,
   extractSymbolState,
+  isNewMss,
+  normalizeMss,
   normalizePersistedState,
   normalizeSweep,
   processNotifications,
-  sweepIdentity,
+  stableMssIdentity,
+  structureLevelIdentity,
   webhookSucceeded,
 };

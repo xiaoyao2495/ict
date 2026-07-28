@@ -18,6 +18,7 @@ function test(name, callback) {
 function mss(index, direction) {
   return {
     direction: direction || 'BULLISH',
+    index,
     availableIndex: index,
     time: 1000 + index,
   };
@@ -132,13 +133,19 @@ test('4H Bias change sends', () => {
   );
 });
 
-test('new 5m MSS identity sends even with same direction', () => {
+test('new stable 5m MSS event sends even with same direction', () => {
   const initial = Filter.evaluate(
     [result('BTCUSDT', { mss: mss(10) })],
     null
   );
-  const duplicate = Filter.evaluate(
-    [result('BTCUSDT', { mss: mss(10) })],
+  const sameEventLaterPublication = Filter.evaluate(
+    [result('BTCUSDT', {
+      mss: {
+        ...mss(10),
+        availableIndex: 99,
+        time: 9999,
+      },
+    })],
     committed(initial)
   );
   const changed = Filter.evaluate(
@@ -146,10 +153,77 @@ test('new 5m MSS identity sends even with same direction', () => {
     committed(initial)
   );
 
-  assert.strictEqual(duplicate.shouldNotify, false);
+  assert.strictEqual(
+    sameEventLaterPublication.shouldNotify,
+    false
+  );
   assert.deepStrictEqual(
     changed.changes[0].reasons,
     ['NEW_5M_MSS']
+  );
+});
+
+test('MSS direction change sends without time identity', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', {
+      mss: {
+        direction: 'BULLISH',
+        availableIndex: 10,
+        time: 1000,
+      },
+    })],
+    null
+  );
+  const changed = Filter.evaluate(
+    [result('BTCUSDT', {
+      mss: {
+        direction: 'BEARISH',
+        availableIndex: 20,
+        time: 2000,
+      },
+    })],
+    committed(initial)
+  );
+
+  assert.deepStrictEqual(
+    changed.changes[0].reasons,
+    ['NEW_5M_MSS']
+  );
+});
+
+test('Sweep identity count index and time changes never send', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', {
+      sweep: sweep(10, 'SELL_SIDE'),
+    })],
+    null
+  );
+  const changedSweepOnly = Filter.evaluate(
+    [result('BTCUSDT', {
+      sweep: sweep(20, 'BUY_SIDE'),
+    })],
+    committed(initial)
+  );
+
+  assert.strictEqual(changedSweepOnly.shouldNotify, false);
+  assert.deepStrictEqual(changedSweepOnly.changes, []);
+});
+
+test('1H relation change sends', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT')],
+    null
+  );
+  const changed = Filter.evaluate(
+    [result('BTCUSDT', {
+      relation: 'RETRACEMENT',
+    })],
+    committed(initial)
+  );
+
+  assert.deepStrictEqual(
+    changed.changes[0].reasons,
+    ['H1_RELATION_CHANGED']
   );
 });
 
@@ -181,7 +255,6 @@ test('symbols maintain independent state', () => {
     [
       'H1_DELIVERY_CHANGED',
       'H1_RELATION_CHANGED',
-      'NEW_5M_SWEEP',
     ]
   );
   assert.deepStrictEqual(

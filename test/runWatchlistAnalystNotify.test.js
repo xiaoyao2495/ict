@@ -168,6 +168,50 @@ test('duplicate Watchlist state does not call webhook', async () => {
   assert.strictEqual(webhookCalls, 1);
 });
 
+test('Sweep-only changes do not call Watchlist webhook', async () => {
+  const runner = mutableRunner([
+    symbolResult('BTCUSDT', {
+      sweep: {
+        id: 'SWEEP-1',
+        type: 'LTF_SWING_LOW',
+        side: 'SELL_SIDE',
+        availableIndex: 10,
+        time: 1000,
+      },
+    }),
+  ]);
+  const store = Filter.createMemoryStore();
+  let webhookCalls = 0;
+  const options = {
+    watchlistRunner: runner,
+    stateStore: store,
+    webhookUrl: 'https://example.test/watchlist',
+    httpClient: {
+      async post() {
+        webhookCalls += 1;
+        return { data: { errcode: 0 } };
+      },
+    },
+  };
+  await NotifyRunner.run(options);
+
+  runner.setResults([
+    symbolResult('BTCUSDT', {
+      sweep: {
+        id: 'SWEEP-2',
+        type: 'EQUAL_LOW',
+        side: 'SELL_SIDE',
+        availableIndex: 20,
+        time: 2000,
+      },
+    }),
+  ]);
+  const sweepOnly = await NotifyRunner.run(options);
+
+  assert.strictEqual(sweepOnly.sent, false);
+  assert.strictEqual(webhookCalls, 1);
+});
+
 test('only the independently changed symbol is sent', async () => {
   const runner = mutableRunner([
     symbolResult('BTCUSDT'),
