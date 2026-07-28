@@ -1,6 +1,7 @@
 'use strict';
 
 const HumanSummary = require('./ictAnalystHumanSummary');
+const BeijingTime = require('./beijingTime');
 
 const DIRECTION_TEXT = Object.freeze({
   BULLISH: '偏多',
@@ -124,13 +125,7 @@ function sweepSideText(side) {
 }
 
 function eventTimeText(time) {
-  if (Number.isFinite(time)) {
-    return new Date(time).toISOString();
-  }
-  if (typeof time === 'string' && time.length > 0) {
-    return time;
-  }
-  return '不可用';
+  return BeijingTime.formatBeijingTime(time);
 }
 
 function latestSweep(sweeps) {
@@ -309,6 +304,8 @@ function format(report) {
 
   return [
     '【ICT市场分析】',
+    '',
+    '时间：' + BeijingTime.formatBeijingTime(current.asOf),
     '',
     '1. 4H HTF Bias',
     '- 结构：' + structureText(h4),

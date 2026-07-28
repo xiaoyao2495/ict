@@ -5,6 +5,7 @@ const AnalystReportRunner = require('./runAnalystReport');
 const NotificationState = require(
   '../notifications/ictAnalystNotificationState'
 );
+const BeijingTime = require('../formatters/beijingTime');
 
 const NOTIFICATION_HEADER = '检测---ICT市场分析';
 const WEBHOOK_ENV_NAME = 'DINGTALK_WEBHOOK_URL';
@@ -12,12 +13,11 @@ const WEBHOOK_ENV_NAME = 'DINGTALK_WEBHOOK_URL';
 function formatReportTime(report, fallbackTime) {
   const asOf = report &&
     report.current &&
-    Number.isFinite(report.current.asOf)
+    report.current.asOf !== undefined
     ? report.current.asOf
     : fallbackTime;
 
-  if (!Number.isFinite(asOf)) return '不可用';
-  return new Date(asOf).toISOString();
+  return BeijingTime.formatBeijingTime(asOf);
 }
 
 function buildNotificationText(options) {
@@ -30,16 +30,21 @@ function buildNotificationText(options) {
   const lines = formatted.split(/\r?\n/);
   const title = lines.shift();
   while (lines.length > 0 && lines[0] === '') lines.shift();
+  const timeLine = lines.length > 0 &&
+    lines[0].startsWith('时间：')
+    ? lines.shift()
+    : '时间：' + formatReportTime(
+      options.report,
+      options.currentTime
+    );
+  while (lines.length > 0 && lines[0] === '') lines.shift();
 
   return [
     NOTIFICATION_HEADER,
     '',
     title,
     '',
-    '时间：' + formatReportTime(
-      options.report,
-      options.currentTime
-    ),
+    timeLine,
     '品种：' + (options.symbol || AnalystReportRunner.SYMBOL),
     '',
     ...lines,

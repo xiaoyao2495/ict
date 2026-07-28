@@ -22,6 +22,9 @@ function currentReport(options) {
   options = options || {};
   return {
     current: {
+      asOf: options.asOf === undefined
+        ? Date.UTC(2026, 6, 28, 0)
+        : options.asOf,
       fourHourAnalysis: {
         currentStructure:
           options.h4Structure || 'BULLISH',
@@ -76,6 +79,7 @@ test('Chinese message contains every required fixed field', () => {
   const text = Formatter.format(currentReport());
   for (const field of [
     '【ICT市场分析】',
+    '时间：2026-07-28 08:00:00',
     '1. 4H HTF Bias',
     '- 结构：',
     '- Bias：',
@@ -199,7 +203,7 @@ test('repeated Sweeps are grouped without mutating report data', () => {
   assert.ok(text.includes('1H Swing Low ×1'));
   assert.ok(text.includes(
     '最新事件：1H Swing Low，availableIndex：7，时间：' +
-    new Date(baseTime + 6).toISOString()
+    '2026-07-27 16:00:00'
   ));
   assert.deepStrictEqual(report, original);
 });

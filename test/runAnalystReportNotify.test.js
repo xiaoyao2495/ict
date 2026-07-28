@@ -70,7 +70,7 @@ test('notification text keeps keyword and formatter output', () => {
 
   assert.ok(text.startsWith('检测---ICT市场分析'));
   assert.ok(text.includes('【ICT市场分析】'));
-  assert.ok(text.includes('时间：2026-07-27T08:00:00.000Z'));
+  assert.ok(text.includes('时间：2026-07-27 16:00:00'));
   assert.ok(text.includes('品种：BTCUSDT'));
   assert.ok(text.includes('1. 4H HTF Bias'));
   assert.ok(text.includes('2. 1H Delivery'));
@@ -171,8 +171,17 @@ test('closed Klines flow to Formatter and DingTalk webhook', async () => {
     result.report.current.humanSummary
   ));
   assert.ok(result.message.includes(
-    new Date(result.report.current.asOf).toISOString()
+    require('../formatters/beijingTime').formatBeijingTime(
+      result.report.current.asOf
+    )
   ));
+  assert.strictEqual(
+    result.message
+      .split('\n')
+      .filter((line) => line.startsWith('时间：'))
+      .length,
+    1
+  );
 
   for (const forbidden of [
     'Entry',
