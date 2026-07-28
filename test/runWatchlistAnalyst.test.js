@@ -125,6 +125,7 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
     'BTCUSDT',
     'ETHUSDT',
     'SKHYUSDT',
+    'NOTEXISTUSDT',
   ];
   const marketCalls = [];
   const output = [];
@@ -136,6 +137,21 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
       loadWatchlist() {
         watchlistLoads += 1;
         return { symbols };
+      },
+    },
+    symbolAvailabilityChecker: {
+      async checkSymbols(inputSymbols) {
+        assert.deepStrictEqual(inputSymbols, symbols);
+        return {
+          validSymbols: [
+            'BTCUSDT',
+            'ETHUSDT',
+            'SKHYUSDT',
+          ],
+          invalidSymbols: ['NOTEXISTUSDT'],
+          checkFailed: false,
+          error: null,
+        };
       },
     },
     marketData: {
@@ -158,6 +174,10 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
 
   assert.strictEqual(watchlistLoads, 1);
   assert.deepStrictEqual(result.symbols, symbols);
+  assert.deepStrictEqual(
+    result.availability.invalidSymbols,
+    ['NOTEXISTUSDT']
+  );
   assert.strictEqual(result.results.length, 3);
   assert.deepStrictEqual(
     result.results.map((item) => item.status),
@@ -168,7 +188,11 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
   assert.strictEqual(output.length, 1);
   assert.strictEqual(output[0], result.message);
 
-  for (const symbol of symbols) {
+  for (const symbol of [
+    'BTCUSDT',
+    'ETHUSDT',
+    'SKHYUSDT',
+  ]) {
     assert.ok(marketCalls.some(
       (call) => call.symbol === symbol
     ));
@@ -176,6 +200,12 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
       '===== ' + symbol + ' ====='
     ));
   }
+  assert.strictEqual(
+    marketCalls.some(
+      (call) => call.symbol === 'NOTEXISTUSDT'
+    ),
+    false
+  );
   for (const symbol of ['BTCUSDT', 'ETHUSDT']) {
     assert.deepStrictEqual(
       marketCalls
@@ -199,6 +229,10 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
   );
   assert.ok(result.message.includes(
     '===== SKHYUSDT =====\n\n数据获取失败'
+  ));
+  assert.ok(result.message.includes('有效交易对：'));
+  assert.ok(result.message.includes(
+    'NOTEXISTUSDT（Binance不存在）'
   ));
   assert.strictEqual(
     result.results[0].report.symbol,

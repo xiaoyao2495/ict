@@ -2,6 +2,9 @@
 
 const Binance = require('../api/binance');
 const WatchlistLoader = require('../config/watchlistLoader');
+const SymbolAvailabilityChecker = require(
+  '../config/symbolAvailabilityChecker'
+);
 const AnalystReport = require(
   '../indicators/ictHtfAnalystReport'
 );
@@ -112,12 +115,36 @@ async function analyzeSymbol(symbol, options) {
   }
 }
 
-function formatWatchlistReport(results, currentTime) {
+function formatWatchlistReport(
+  results,
+  currentTime,
+  availability
+) {
   const sections = [
     REPORT_HEADER,
     '',
     '时间：' + BeijingTime.formatBeijingTime(currentTime),
+    '',
+    '有效交易对：',
+    ...availability.validSymbols,
+    '',
+    '跳过：',
+    ...(
+      availability.invalidSymbols.length > 0
+        ? availability.invalidSymbols.map(
+          (symbol) => (
+            symbol + '（Binance不存在）'
+          )
+        )
+        : ['无']
+    ),
   ];
+  if (availability.checkFailed) {
+    sections.push(
+      '',
+      '交易对有效性检查失败，已保留原Watchlist继续分析'
+    );
+  }
 
   for (const result of results) {
     sections.push(
@@ -142,19 +169,35 @@ async function run(options) {
   const watchlist = loader.loadWatchlist(
     options.watchlistPath
   );
+  const availabilityChecker =
+    options.symbolAvailabilityChecker ||
+    SymbolAvailabilityChecker;
+  const exchangeInfoApi = options.exchangeInfoApi ||
+    (
+      options.marketData &&
+      typeof options.marketData.getExchangeInfo === 'function'
+        ? options.marketData
+        : Binance
+    );
+  const availability =
+    await availabilityChecker.checkSymbols(
+      watchlist.symbols,
+      { binanceApi: exchangeInfoApi }
+    );
   const analysisOptions = {
     currentTime,
     limit: options.limit,
     marketData: options.marketData || Binance,
   };
   const results = await Promise.all(
-    watchlist.symbols.map(
+    availability.validSymbols.map(
       (symbol) => analyzeSymbol(symbol, analysisOptions)
     )
   );
   const message = formatWatchlistReport(
     results,
-    currentTime
+    currentTime,
+    availability
   );
   const output = typeof options.output === 'function'
     ? options.output
@@ -164,6 +207,7 @@ async function run(options) {
   return {
     currentTime,
     symbols: watchlist.symbols.slice(),
+    availability,
     results,
     message,
   };

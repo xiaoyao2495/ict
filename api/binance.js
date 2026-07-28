@@ -24,6 +24,14 @@ function getKlines(symbol, interval, limit) {
     });
 }
 
+function getExchangeInfo() {
+    return axios.get(BASE_URL + '/fapi/v1/exchangeInfo')
+        .then(function (response) {
+            return response.data;
+        });
+}
+
 module.exports = {
+    getExchangeInfo: getExchangeInfo,
     getKlines: getKlines
 };
