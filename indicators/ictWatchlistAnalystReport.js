@@ -3,6 +3,10 @@
 const HtfBiasV3 = require('./ictHtfBiasEngineV3');
 const M15Delivery = require('./ictM15DeliveryEngine');
 const LtfExecution = require('./ictLtfExecutionEngine');
+const FiveMinuteConfirmation = require(
+  './ict5mConfirmationEngine'
+);
+const Alignment = require('./ictAlignmentEngine');
 const AnalystReport = require('./ictHtfAnalystReport');
 const HumanSummary = require(
   '../formatters/ictAnalystHumanSummary'
@@ -41,7 +45,77 @@ function normalizeMss(mss) {
   };
 }
 
-function normalizeFiveMinuteObservation(observation) {
+function projectConfirmation(confirmation) {
+  if (!confirmation) return null;
+  return {
+    status: confirmation.status,
+    direction: confirmation.direction,
+    sweep: normalizeSweep(confirmation.sweep),
+    mss: normalizeMss(
+      AnalystReport.projectMss(confirmation.mss)
+    ),
+    displacement: AnalystReport.projectDisplacement(
+      confirmation.displacement
+    ),
+    index: confirmation.index,
+    availableIndex: confirmation.availableIndex,
+    time: confirmation.time,
+  };
+}
+
+function strictPotentialObservation(
+  h4,
+  m15,
+  confirmation
+) {
+  if (!confirmation) {
+    return {
+      state: 'NONE',
+      side: null,
+      confirmedAt: null,
+      availableIndex: null,
+      reasons: ['NO_STRICT_5M_CONFIRMATION_CHAIN'],
+      informationalOnly: true,
+    };
+  }
+  const aligned = h4.bias === confirmation.direction;
+  if (!aligned) {
+    return {
+      state: 'NONE',
+      side: null,
+      confirmedAt: confirmation.time,
+      availableIndex: confirmation.availableIndex,
+      reasons: [
+        'STRICT_5M_CHAIN_NOT_ALIGNED_WITH_4H_BIAS',
+        'M15_RELATION_' + m15.relationToH4,
+      ],
+      informationalOnly: true,
+    };
+  }
+  return {
+    state: confirmation.direction === 'BULLISH'
+      ? 'POTENTIAL_LONG_OBSERVATION'
+      : 'POTENTIAL_SHORT_OBSERVATION',
+    side: confirmation.direction === 'BULLISH'
+      ? 'LONG'
+      : 'SHORT',
+    confirmedAt: confirmation.time,
+    availableIndex: confirmation.availableIndex,
+    reasons: [
+      'STRICT_SWEEP_MSS_DISPLACEMENT_CHAIN',
+      'ALIGNED_WITH_4H_BIAS',
+      'M15_RELATION_' + m15.relationToH4,
+    ],
+    informationalOnly: true,
+  };
+}
+
+function normalizeFiveMinuteObservation(
+  observation,
+  confirmationState,
+  h4,
+  m15
+) {
   const result = clone(observation);
   const current = result.currentConfirmed || {};
   const latest = result.latestConfirmed || {};
@@ -52,31 +126,55 @@ function normalizeFiveMinuteObservation(observation) {
   latest.liquiditySweep =
     normalizeSweep(latest.liquiditySweep);
   latest.mss = normalizeMss(latest.mss);
-  const potential = result.potentialObservation;
-  if (potential && Array.isArray(potential.reasons)) {
-    potential.reasons = potential.reasons.map(
-      (reason) => reason.replace(
-        /^H1_RELATION_/,
-        'M15_RELATION_'
-      )
-    );
+  const confirmation = projectConfirmation(
+    confirmationState
+      ? confirmationState.currentConfirmation
+      : null
+  );
+  result.currentConfirmed.confirmation = confirmation;
+  result.latestConfirmed.confirmation = projectConfirmation(
+    confirmationState
+      ? confirmationState.latestConfirmation
+      : null
+  );
+  if (h4 && m15) {
+    result.potentialObservation =
+      strictPotentialObservation(h4, m15, confirmation);
   }
   return result;
 }
 
-function normalizeSnapshot(snapshot) {
+function normalizeSnapshot(snapshot, confirmationState) {
   if (!snapshot) return snapshot;
   const m15 = {
     ...clone(snapshot.oneHourAnalysis),
     timeframe: '15m',
   };
   const fiveMinute = normalizeFiveMinuteObservation(
-    snapshot.fiveMinuteObservation
+    snapshot.fiveMinuteObservation,
+    confirmationState,
+    snapshot.fourHourAnalysis,
+    m15
   );
+  const currentConfirmation =
+    fiveMinute.currentConfirmed.confirmation;
   const normalized = {
     ...clone(snapshot),
     fifteenMinuteAnalysis: m15,
     fiveMinuteObservation: fiveMinute,
+    alignment: Alignment.analyze({
+      h4Bias: snapshot.fourHourAnalysis.bias,
+      m15DeliveryDirection: m15.deliveryDirection,
+      m15Relation: m15.relationToH4,
+      fiveMinuteConfirmationDirection:
+        currentConfirmation
+          ? currentConfirmation.direction
+          : null,
+      fiveMinuteConfirmationStatus:
+        currentConfirmation
+          ? currentConfirmation.status
+          : 'NONE',
+    }),
     humanSummary: HumanSummary.summarize(
       snapshot.fourHourAnalysis,
       m15,
@@ -105,6 +203,10 @@ function analyze(input) {
     h1DeliverySnapshots: m15.states,
     retainStates: false,
   });
+  const confirmation = FiveMinuteConfirmation.analyze({
+    events: ltf.events,
+    ltf5mKlines: input.ltf5mKlines,
+  });
   const needsSnapshots = (
     input.retainSnapshots === true ||
     typeof input.onSnapshot === 'function'
@@ -117,7 +219,10 @@ function analyze(input) {
     needsSnapshots
   );
   const snapshots = rawTimeline.snapshots.map(
-    normalizeSnapshot
+    (snapshot, index) => normalizeSnapshot(
+      snapshot,
+      confirmation.states[index]
+    )
   );
   if (typeof input.onSnapshot === 'function') {
     for (const snapshot of snapshots) {
@@ -137,6 +242,7 @@ function analyze(input) {
       usesConfirmedCandles: true,
       usesAvailableIndex: true,
       prefixInvariant: true,
+      includesAlignment: true,
       readsTrades: false,
       readsBaseline: false,
       callsEntryEngine: false,
@@ -159,7 +265,12 @@ function analyze(input) {
         input.ltf5mKlines.length - 1
       ].closeTime,
     },
-    current: normalizeSnapshot(rawTimeline.current),
+    current: normalizeSnapshot(
+      rawTimeline.current,
+      confirmation.states[
+        confirmation.states.length - 1
+      ]
+    ),
     snapshots: input.retainSnapshots === true
       ? snapshots
       : [],
@@ -172,5 +283,7 @@ module.exports = {
   normalizeMss,
   normalizeSnapshot,
   normalizeSweep,
+  projectConfirmation,
   renameIntermediateLiquidityType,
+  strictPotentialObservation,
 };
