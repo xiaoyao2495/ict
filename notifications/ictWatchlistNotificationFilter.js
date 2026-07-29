@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const { isDeepStrictEqual } = require('util');
 const AnalystNotificationState = require(
   './ictAnalystNotificationState'
 );
@@ -20,10 +21,205 @@ const CHANGE_REASONS = Object.freeze({
   NEW_5M_MSS: 'NEW_5M_MSS',
 });
 
+const DYNAMIC_STATE_FIELDS = Object.freeze([
+  'reportTime',
+  'analysisTime',
+  'generatedAt',
+  'time',
+  'timestamp',
+  'availableIndex',
+]);
+
 function clone(value) {
   return value === undefined
     ? undefined
     : JSON.parse(JSON.stringify(value));
+}
+
+function debugNotificationEnabled(options) {
+  if (
+    options &&
+    typeof options.debugNotification === 'boolean'
+  ) {
+    return options.debugNotification;
+  }
+  return String(
+    process.env.DEBUG_NOTIFICATION || ''
+  ).toLowerCase() === 'true';
+}
+
+function debugLog(logger, value) {
+  if (logger && typeof logger.log === 'function') {
+    logger.log(value);
+  }
+}
+
+function printableValue(value) {
+  if (value === undefined) return 'undefined';
+  if (
+    value === null ||
+    typeof value === 'object'
+  ) {
+    return JSON.stringify(value, null, 2);
+  }
+  return String(value);
+}
+
+function changedFieldNames(previousState, currentState) {
+  const names = new Set([
+    ...Object.keys(previousState || {}),
+    ...Object.keys(currentState || {}),
+  ]);
+  names.delete('symbol');
+  return Array.from(names).filter((name) => (
+    !isDeepStrictEqual(
+      previousState
+        ? previousState[name]
+        : undefined,
+      currentState
+        ? currentState[name]
+        : undefined
+    )
+  ));
+}
+
+function collectDynamicFields(value, detected) {
+  if (!value || typeof value !== 'object') return;
+  for (const [name, child] of Object.entries(value)) {
+    if (DYNAMIC_STATE_FIELDS.includes(name)) {
+      detected.add(name);
+    }
+    collectDynamicFields(child, detected);
+  }
+}
+
+function logStateLoad(
+  logger,
+  stateFilePath,
+  loadSuccess,
+  previousState
+) {
+  debugLog(logger, 'State File:');
+  debugLog(logger, stateFilePath);
+  debugLog(logger, '');
+  debugLog(logger, 'Load Success:');
+  debugLog(logger, String(loadSuccess));
+  debugLog(logger, '');
+  debugLog(logger, 'Previous State Exists:');
+  debugLog(logger, String(Boolean(previousState)));
+}
+
+function logComparedStates(
+  logger,
+  previousSymbols,
+  currentSymbols,
+  symbolComparisons
+) {
+  debugLog(
+    logger,
+    '========== Previous Watchlist State =========='
+  );
+  debugLog(
+    logger,
+    JSON.stringify(previousSymbols, null, 2)
+  );
+  debugLog(
+    logger,
+    '========== Current Watchlist State =========='
+  );
+  debugLog(
+    logger,
+    JSON.stringify(currentSymbols, null, 2)
+  );
+
+  for (const comparison of symbolComparisons) {
+    const changedFields = changedFieldNames(
+      comparison.previousState,
+      comparison.currentState
+    );
+    debugLog(
+      logger,
+      '================================'
+    );
+    debugLog(logger, '');
+    debugLog(logger, 'Symbol:');
+    debugLog(logger, comparison.currentState.symbol);
+    debugLog(logger, '');
+    debugLog(logger, 'Changed Fields:');
+    debugLog(
+      logger,
+      changedFields.length
+        ? changedFields.join('\n')
+        : 'NONE'
+    );
+
+    for (const field of changedFields) {
+      debugLog(logger, '');
+      debugLog(logger, field);
+      debugLog(logger, '');
+      debugLog(logger, 'Previous:');
+      debugLog(
+        logger,
+        printableValue(
+          comparison.previousState
+            ? comparison.previousState[field]
+            : undefined
+        )
+      );
+      debugLog(logger, '');
+      debugLog(logger, 'Current:');
+      debugLog(
+        logger,
+        printableValue(comparison.currentState[field])
+      );
+    }
+    debugLog(logger, '');
+    debugLog(
+      logger,
+      '================================'
+    );
+  }
+
+  const detected = new Set();
+  collectDynamicFields(previousSymbols, detected);
+  collectDynamicFields(currentSymbols, detected);
+  for (const field of DYNAMIC_STATE_FIELDS) {
+    if (!detected.has(field)) continue;
+    debugLog(logger, 'WARNING:');
+    debugLog(logger, '');
+    debugLog(logger, 'Dynamic field detected:');
+    debugLog(logger, field);
+  }
+}
+
+function logDecision(logger, decision) {
+  const changedSymbols = decision.changes.map(
+    (change) => change.symbol
+  );
+  debugLog(logger, '================================');
+  debugLog(logger, '');
+  debugLog(logger, 'Notification Decision');
+  debugLog(logger, '');
+  debugLog(logger, 'shouldNotify:');
+  debugLog(logger, String(decision.shouldNotify));
+  debugLog(logger, '');
+  debugLog(logger, 'Reason:');
+  debugLog(
+    logger,
+    changedSymbols.length
+      ? changedSymbols.join(', ') + ' changed'
+      : 'No state changed'
+  );
+  debugLog(logger, '');
+  debugLog(logger, '================================');
+
+  if (!decision.shouldNotify) return;
+  debugLog(logger, '');
+  debugLog(logger, 'Changed Symbols:');
+  debugLog(
+    logger,
+    JSON.stringify(changedSymbols, null, 2)
+  );
 }
 
 function normalizeSweep(sweep) {
@@ -197,7 +393,7 @@ function normalizePersistedState(value) {
   };
 }
 
-function evaluate(results, persistedState) {
+function evaluate(results, persistedState, debugComparison) {
   if (!Array.isArray(results)) {
     throw new Error(
       'Watchlist Analyst results must be an array.'
@@ -222,6 +418,19 @@ function evaluate(results, persistedState) {
       previousState,
       currentState
     );
+    if (debugComparison) {
+      debugComparison.previousSymbols[
+        currentState.symbol
+      ] = previousState;
+      debugComparison.currentSymbols[
+        currentState.symbol
+      ] = currentState;
+      debugComparison.symbolComparisons.push({
+        symbol: currentState.symbol,
+        previousState,
+        currentState,
+      });
+    }
     if (!comparison.shouldNotify) continue;
 
     changes.push({
@@ -260,11 +469,58 @@ async function processNotifications(options) {
   options = options || {};
   const store = options.store ||
     createFileStore(options.stateFilePath);
-  const previousState = await store.load();
+  const debugEnabled =
+    debugNotificationEnabled(options);
+  const logger = options.logger || console;
+  const stateFilePath = store.filePath ||
+    options.stateFilePath ||
+    '<memory/custom store>';
+  const debugComparison = debugEnabled
+    ? {
+      previousSymbols: {},
+      currentSymbols: {},
+      symbolComparisons: [],
+    }
+    : null;
+  let previousState;
+
+  try {
+    previousState = await store.load();
+    if (debugEnabled) {
+      logStateLoad(
+        logger,
+        stateFilePath,
+        true,
+        previousState
+      );
+    }
+  } catch (error) {
+    if (debugEnabled) {
+      logStateLoad(
+        logger,
+        stateFilePath,
+        false,
+        null
+      );
+    }
+    throw error;
+  }
+
   const decision = evaluate(
     options.results,
-    previousState
+    previousState,
+    debugComparison
   );
+
+  if (debugEnabled) {
+    logComparedStates(
+      logger,
+      debugComparison.previousSymbols,
+      debugComparison.currentSymbols,
+      debugComparison.symbolComparisons
+    );
+    logDecision(logger, decision);
+  }
 
   if (!decision.shouldNotify) {
     return {
@@ -286,6 +542,20 @@ async function processNotifications(options) {
   if (!webhookSucceeded(response)) {
     throw new Error(
       'DingTalk webhook did not accept the notification.'
+    );
+  }
+  if (debugEnabled) {
+    debugLog(logger, '');
+    debugLog(logger, 'Notification Symbols:');
+    debugLog(
+      logger,
+      JSON.stringify(
+        decision.changes.map(
+          (change) => change.symbol
+        ),
+        null,
+        2
+      )
     );
   }
   await store.save(decision.nextState);
@@ -312,9 +582,13 @@ function createMemoryStore(initialState) {
 module.exports = {
   CHANGE_REASONS,
   DEFAULT_STATE_PATH,
+  DYNAMIC_STATE_FIELDS,
+  changedFieldNames,
+  collectDynamicFields,
   compareSymbolStates,
   createFileStore,
   createMemoryStore,
+  debugNotificationEnabled,
   evaluate,
   extractSymbolState,
   isNewMss,

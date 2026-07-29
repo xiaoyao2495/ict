@@ -335,6 +335,176 @@ test('file store persists independent symbol states', async () => {
   }
 });
 
+test('notification debug is silent when disabled', async () => {
+  const logs = [];
+  const processed = await Filter.processNotifications({
+    results: [result('BTCUSDT')],
+    store: Filter.createMemoryStore(),
+    debugNotification: false,
+    logger: {
+      log(value) {
+        logs.push(value);
+      },
+    },
+    async send() {
+      return { data: { errcode: 0 } };
+    },
+  });
+
+  assert.strictEqual(processed.sent, true);
+  assert.deepStrictEqual(logs, []);
+});
+
+test('DEBUG_NOTIFICATION environment switch is supported', () => {
+  const original = process.env.DEBUG_NOTIFICATION;
+
+  try {
+    process.env.DEBUG_NOTIFICATION = 'true';
+    assert.strictEqual(
+      Filter.debugNotificationEnabled(),
+      true
+    );
+    process.env.DEBUG_NOTIFICATION = 'false';
+    assert.strictEqual(
+      Filter.debugNotificationEnabled(),
+      false
+    );
+  } finally {
+    if (original === undefined) {
+      delete process.env.DEBUG_NOTIFICATION;
+    } else {
+      process.env.DEBUG_NOTIFICATION = original;
+    }
+  }
+});
+
+test('notification debug prints compared states and decision', async () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', {
+      mss: mss(10),
+      sweep: sweep(10, 'SELL_SIDE'),
+    })],
+    null
+  ).nextState;
+  const logs = [];
+  const processed = await Filter.processNotifications({
+    results: [result('BTCUSDT', {
+      mss: {
+        ...mss(10),
+        availableIndex: 99,
+        time: 9999,
+      },
+      sweep: sweep(20, 'BUY_SIDE'),
+    })],
+    store: Filter.createMemoryStore(initial),
+    debugNotification: true,
+    logger: {
+      log(value) {
+        logs.push(value);
+      },
+    },
+  });
+  const output = logs.join('\n');
+
+  assert.strictEqual(processed.shouldNotify, false);
+  assert.ok(output.includes('State File:'));
+  assert.ok(output.includes('<memory/custom store>'));
+  assert.ok(output.includes('Load Success:\ntrue'));
+  assert.ok(output.includes(
+    'Previous State Exists:\ntrue'
+  ));
+  assert.ok(output.includes(
+    '========== Previous Watchlist State =========='
+  ));
+  assert.ok(output.includes(
+    '========== Current Watchlist State =========='
+  ));
+  assert.ok(output.includes('Symbol:\nBTCUSDT'));
+  assert.ok(output.includes(
+    'Changed Fields:\nlatestMss\nlatestSweep'
+  ));
+  assert.ok(output.includes(
+    'Dynamic field detected:\ntime'
+  ));
+  assert.ok(output.includes(
+    'Dynamic field detected:\navailableIndex'
+  ));
+  assert.ok(output.includes(
+    'shouldNotify:\nfalse'
+  ));
+  assert.ok(output.includes(
+    'Reason:\nNo state changed'
+  ));
+  assert.strictEqual(
+    output.includes('Notification Symbols:'),
+    false
+  );
+});
+
+test('notification debug prints changed and sent symbols', async () => {
+  const logs = [];
+  const processed = await Filter.processNotifications({
+    results: [result('SPCXUSDT')],
+    store: Filter.createMemoryStore(),
+    debugNotification: true,
+    logger: {
+      log(value) {
+        logs.push(value);
+      },
+    },
+    async send() {
+      return { data: { errcode: 0 } };
+    },
+  });
+  const output = logs.join('\n');
+
+  assert.strictEqual(processed.sent, true);
+  assert.ok(output.includes(
+    'shouldNotify:\ntrue'
+  ));
+  assert.ok(output.includes(
+    'Reason:\nSPCXUSDT changed'
+  ));
+  assert.ok(output.includes(
+    'Changed Symbols:\n[\n  "SPCXUSDT"\n]'
+  ));
+  assert.ok(output.includes(
+    'Notification Symbols:\n[\n  "SPCXUSDT"\n]'
+  ));
+});
+
+test('notification debug records state load failure', async () => {
+  const logs = [];
+
+  await assert.rejects(
+    () => Filter.processNotifications({
+      results: [result('BTCUSDT')],
+      store: {
+        filePath: '/tmp/broken-state.json',
+        async load() {
+          throw new Error('state read failed');
+        },
+      },
+      debugNotification: true,
+      logger: {
+        log(value) {
+          logs.push(value);
+        },
+      },
+    }),
+    /state read failed/
+  );
+
+  const output = logs.join('\n');
+  assert.ok(output.includes(
+    'State File:\n/tmp/broken-state.json'
+  ));
+  assert.ok(output.includes('Load Success:\nfalse'));
+  assert.ok(output.includes(
+    'Previous State Exists:\nfalse'
+  ));
+});
+
 (async () => {
   for (const item of tests) {
     try {
