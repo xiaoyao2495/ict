@@ -6,7 +6,7 @@ const SymbolAvailabilityChecker = require(
   '../config/symbolAvailabilityChecker'
 );
 const AnalystReport = require(
-  '../indicators/ictHtfAnalystReport'
+  '../indicators/ictWatchlistAnalystReport'
 );
 const ChineseFormatter = require(
   '../formatters/ictAnalystChineseFormatter'
@@ -16,7 +16,11 @@ const AnalystReportRunner = require('./runAnalystReport');
 
 const REPORT_HEADER = '检测---ICT Watchlist';
 const DEFAULT_LIMIT = AnalystReportRunner.DEFAULT_LIMIT;
-const TIMEFRAMES = AnalystReportRunner.TIMEFRAMES;
+const TIMEFRAMES = Object.freeze({
+  h4Klines: { interval: '4h' },
+  m15Klines: { interval: '15m' },
+  ltf5mKlines: { interval: '5m' },
+});
 
 function marketDataFetcher(marketData) {
   if (
@@ -92,7 +96,7 @@ async function analyzeSymbol(symbol, options) {
     const report = AnalystReport.analyze({
       symbol,
       h4Klines: klines.h4Klines,
-      h1Klines: klines.h1Klines,
+      m15Klines: klines.m15Klines,
       ltf5mKlines: klines.ltf5mKlines,
       retainSnapshots: false,
     });

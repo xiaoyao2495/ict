@@ -70,10 +70,13 @@ function confirmationState(h4, fiveMinute) {
   return 'NONE';
 }
 
-function summarize(h4, h1, fiveMinute) {
+function summarize(h4, delivery, fiveMinute) {
   h4 = h4 || {};
-  h1 = h1 || {};
+  delivery = delivery || {};
   fiveMinute = fiveMinute || {};
+  const timeframe = delivery.timeframe === '15m'
+    ? '15m'
+    : '1H';
 
   if (
     h4.bias !== 'BULLISH' &&
@@ -85,18 +88,18 @@ function summarize(h4, h1, fiveMinute) {
   const structure = h4.bias === 'BULLISH'
     ? '4H结构保持多头'
     : '4H结构保持空头';
-  const relation = h1.relationToH4;
+  const relation = delivery.relationToH4;
   const ltfNarrative = ltfNarrativeState(fiveMinute);
   const confirmation = confirmationState(h4, fiveMinute);
 
   if (ltfNarrative === 'CONFLICT') {
     const delivery = relation === 'ALIGNED'
-      ? '1H正在顺应4H方向交付'
+      ? timeframe + '正在顺应4H方向交付'
       : relation === 'RETRACEMENT'
-        ? '1H目前处于回调阶段'
+        ? timeframe + '目前处于回调阶段'
         : relation === 'COUNTER_TREND'
-          ? '1H正在呈现逆向交付'
-          : '1H方向暂不清晰';
+          ? timeframe + '正在呈现逆向交付'
+          : timeframe + '方向暂不清晰';
     return (
       structure + '，' + delivery + '。' +
       '5m已出现局部结构事件，但扫取方向、位移方向与MSS' +
@@ -108,13 +111,14 @@ function summarize(h4, h1, fiveMinute) {
     if (confirmation === 'ALIGNED') {
       return (
         structure +
-        '，1H目前处于回调阶段，但5m已出现同向确认，' +
+        '，' + timeframe +
+        '目前处于回调阶段，但5m已出现同向确认，' +
         '多周期状态正在重新收敛。'
       );
     }
     return (
       structure +
-      '，但1H目前处于回调阶段，' +
+      '，但' + timeframe + '目前处于回调阶段，' +
       '等待低周期确认是否重新跟随4H方向。'
     );
   }
@@ -123,13 +127,14 @@ function summarize(h4, h1, fiveMinute) {
     if (confirmation === 'ALIGNED') {
       return (
         structure +
-        '，1H仍在呈现逆向交付，5m虽已出现同向确认，' +
+        '，' + timeframe +
+        '仍在呈现逆向交付，5m虽已出现同向确认，' +
         '但多周期状态仍有分歧。'
       );
     }
     return (
       structure +
-      '，但1H正在呈现逆向交付，' +
+      '，但' + timeframe + '正在呈现逆向交付，' +
       '5m尚未提供清晰的同向确认。'
     );
   }
@@ -138,20 +143,20 @@ function summarize(h4, h1, fiveMinute) {
     if (confirmation === 'ALIGNED') {
       return (
         structure +
-        '，1H正在顺应4H方向交付，' +
+        '，' + timeframe + '正在顺应4H方向交付，' +
         '5m也已出现同向确认，当前多周期状态较为一致。'
       );
     }
     if (confirmation === 'CONFLICT') {
       return (
         structure +
-        '，1H正在顺应4H方向交付，' +
+        '，' + timeframe + '正在顺应4H方向交付，' +
         '但5m确认方向与4H状态不一致。'
       );
     }
     return (
       structure +
-      '，1H正在顺应4H方向交付，' +
+      '，' + timeframe + '正在顺应4H方向交付，' +
       '但5m尚未出现新的同向确认。'
     );
   }
@@ -159,13 +164,15 @@ function summarize(h4, h1, fiveMinute) {
   if (confirmation === 'ALIGNED') {
     return (
       structure +
-      '，1H方向暂不清晰，5m已出现同向确认，' +
+      '，' + timeframe +
+      '方向暂不清晰，5m已出现同向确认，' +
       '当前多周期状态仍需继续观察。'
     );
   }
   return (
     structure +
-    '，但1H方向暂不清晰，5m也尚未提供同向确认。'
+    '，但' + timeframe +
+    '方向暂不清晰，5m也尚未提供同向确认。'
   );
 }
 

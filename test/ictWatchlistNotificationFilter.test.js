@@ -61,7 +61,8 @@ function result(symbol, options) {
         fourHourAnalysis: {
           bias: options.bias || 'BULLISH',
         },
-        oneHourAnalysis: {
+        fifteenMinuteAnalysis: {
+          timeframe: '15m',
           relationToH4:
             options.relation || 'ALIGNED',
           deliveryDirection:
@@ -143,8 +144,8 @@ test('notification state excludes every window locator and Sweep', () => {
   assert.deepStrictEqual(state, {
     symbol: 'BTCUSDT',
     h4Bias: 'BULLISH',
-    h1Relation: 'ALIGNED',
-    h1DeliveryDirection: 'BULLISH',
+    m15Relation: 'ALIGNED',
+    m15DeliveryDirection: 'BULLISH',
     latestMss: {
       direction: 'BULLISH',
       brokenStructureLevel: {
@@ -211,6 +212,28 @@ test('window locator changes keep the same stable MSS state', () => {
     sameEventLaterPublication.changes,
     []
   );
+});
+
+test('15m id index and time changes do not notify', () => {
+  const first = result('BTCUSDT');
+  first.report.current.fifteenMinuteAnalysis.id = 'M15-1';
+  first.report.current.fifteenMinuteAnalysis.index = 10;
+  first.report.current.fifteenMinuteAnalysis.availableIndex = 10;
+  first.report.current.fifteenMinuteAnalysis.time = 1000;
+  const initial = Filter.evaluate([first], null);
+
+  const next = result('BTCUSDT');
+  next.report.current.fifteenMinuteAnalysis.id = 'M15-2';
+  next.report.current.fifteenMinuteAnalysis.index = 20;
+  next.report.current.fifteenMinuteAnalysis.availableIndex = 20;
+  next.report.current.fifteenMinuteAnalysis.time = 2000;
+  const unchanged = Filter.evaluate(
+    [next],
+    committed(initial)
+  );
+
+  assert.strictEqual(unchanged.shouldNotify, false);
+  assert.deepStrictEqual(unchanged.changes, []);
 });
 
 test('new stable 5m MSS event sends even with same direction', () => {
@@ -304,9 +327,20 @@ test('old persisted locator fields are normalized before comparison', () => {
       result('BTCUSDT', { mss: mss(10) })
     )
   );
+  assert.strictEqual(
+    decision.previousState.symbols.BTCUSDT.m15Relation,
+    'ALIGNED'
+  );
+  assert.strictEqual(
+    Object.prototype.hasOwnProperty.call(
+      decision.previousState.symbols.BTCUSDT,
+      'h1Relation'
+    ),
+    false
+  );
 });
 
-test('1H relation change sends', () => {
+test('15m relation change sends', () => {
   const initial = Filter.evaluate(
     [result('BTCUSDT')],
     null
@@ -320,7 +354,7 @@ test('1H relation change sends', () => {
 
   assert.deepStrictEqual(
     changed.changes[0].reasons,
-    ['H1_RELATION_CHANGED']
+    ['M15_RELATION_CHANGED']
   );
 });
 
@@ -350,8 +384,8 @@ test('symbols maintain independent state', () => {
   assert.deepStrictEqual(
     changed.changes[0].reasons,
     [
-      'H1_DELIVERY_CHANGED',
-      'H1_RELATION_CHANGED',
+      'M15_DELIVERY_CHANGED',
+      'M15_RELATION_CHANGED',
     ]
   );
   assert.deepStrictEqual(

@@ -8,6 +8,7 @@ const WatchlistAnalyst = require(
 );
 
 const FIVE_MINUTES = 5 * 60 * 1000;
+const FIFTEEN_MINUTES = 15 * 60 * 1000;
 const START = Date.UTC(2026, 0, 1);
 const tests = [];
 let testsPassed = 0;
@@ -50,9 +51,9 @@ function unfinishedAfter(last, duration) {
 
 function fixture() {
   const fiveMinute = createFiveMinuteBars(2400);
-  const oneHour = HtfContext.aggregateClosedKlines(
+  const fifteenMinute = HtfContext.aggregateClosedKlines(
     fiveMinute,
-    HtfContext.ONE_HOUR
+    FIFTEEN_MINUTES
   );
   const fourHour = HtfContext.aggregateClosedKlines(
     fiveMinute,
@@ -64,7 +65,7 @@ function fixture() {
     currentTime,
     complete: {
       '4h': fourHour,
-      '1h': oneHour,
+      '15m': fifteenMinute,
       '5m': fiveMinute,
     },
     responses: {
@@ -72,9 +73,9 @@ function fixture() {
         fourHour[fourHour.length - 1],
         HtfContext.FOUR_HOURS
       )),
-      '1h': oneHour.concat(unfinishedAfter(
-        oneHour[oneHour.length - 1],
-        HtfContext.ONE_HOUR
+      '15m': fifteenMinute.concat(unfinishedAfter(
+        fifteenMinute[fifteenMinute.length - 1],
+        FIFTEEN_MINUTES
       )),
       '5m': fiveMinute.concat(unfinishedAfter(
         fiveMinute[fiveMinute.length - 1],
@@ -94,7 +95,7 @@ test('getKline uses generic symbol interval and closed bars only', async () => {
   const calls = [];
   const closed = await WatchlistAnalyst.getKline(
     'ETHUSDT',
-    '1h',
+    '15m',
     {
       currentTime: data.currentTime,
       marketData: {
@@ -108,11 +109,11 @@ test('getKline uses generic symbol interval and closed bars only', async () => {
 
   assert.deepStrictEqual(calls, [{
     symbol: 'ETHUSDT',
-    interval: '1h',
+    interval: '15m',
   }]);
   assert.strictEqual(
     closed.length,
-    data.complete['1h'].length
+    data.complete['15m'].length
   );
   assert.ok(closed.every(
     (kline) => kline.closeTime < data.currentTime
@@ -212,7 +213,7 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
         .filter((call) => call.symbol === symbol)
         .map((call) => call.interval)
         .sort(),
-      ['1h', '4h', '5m']
+      ['15m', '4h', '5m']
     );
   }
 
@@ -242,6 +243,24 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
     result.results[1].report.symbol,
     'ETHUSDT'
   );
+  assert.ok(
+    result.results[0].report.current
+      .fifteenMinuteAnalysis
+  );
+  assert.strictEqual(
+    Object.prototype.hasOwnProperty.call(
+      result.results[0].report.current,
+      'oneHourAnalysis'
+    ),
+    false
+  );
+  assert.strictEqual(
+    result.results[0].report.source.m15Klines,
+    data.complete['15m'].length
+  );
+  assert.ok(result.results[0].formatted.includes(
+    '2. 15m Delivery'
+  ));
 });
 
 (async () => {

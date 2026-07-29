@@ -44,9 +44,23 @@ const LIQUIDITY_TYPE_TEXT = Object.freeze({
   EQUAL_LOW: '等低流动性',
   H1_SWING_HIGH: '1H Swing High',
   H1_SWING_LOW: '1H Swing Low',
+  M15_SWING_HIGH: '15m Swing High',
+  M15_SWING_LOW: '15m Swing Low',
   LTF_SWING_HIGH: 'LTF Swing High',
   LTF_SWING_LOW: 'LTF Swing Low',
 });
+
+function deliveryAnalysisOf(current) {
+  return current.fifteenMinuteAnalysis ||
+    current.oneHourAnalysis ||
+    null;
+}
+
+function deliveryTimeframeText(delivery) {
+  return delivery && delivery.timeframe === '15m'
+    ? '15m'
+    : '1H';
+}
 
 function currentOf(report) {
   const current = report && report.current
@@ -55,7 +69,7 @@ function currentOf(report) {
   if (
     !current ||
     !current.fourHourAnalysis ||
-    !current.oneHourAnalysis ||
+    !deliveryAnalysisOf(current) ||
     !current.fiveMinuteObservation
   ) {
     throw new Error(
@@ -98,20 +112,21 @@ function primaryDrawText(draw) {
   return type + '（' + side + '）';
 }
 
-function deliveryStageText(h1) {
-  if (h1.deliveryState === 'ALIGNED_BULLISH') {
-    return '1H正在顺应4H方向向上交付';
+function deliveryStageText(delivery) {
+  const timeframe = deliveryTimeframeText(delivery);
+  if (delivery.deliveryState === 'ALIGNED_BULLISH') {
+    return timeframe + '正在顺应4H方向向上交付';
   }
-  if (h1.deliveryState === 'ALIGNED_BEARISH') {
-    return '1H正在顺应4H方向向下交付';
+  if (delivery.deliveryState === 'ALIGNED_BEARISH') {
+    return timeframe + '正在顺应4H方向向下交付';
   }
-  if (h1.deliveryState === 'RETRACEMENT') {
-    return '1H处于相对4H方向的回撤阶段';
+  if (delivery.deliveryState === 'RETRACEMENT') {
+    return timeframe + '处于相对4H方向的回撤阶段';
   }
-  if (h1.deliveryState === 'COUNTER_TREND') {
-    return '1H处于逆4H结构的交付阶段';
+  if (delivery.deliveryState === 'COUNTER_TREND') {
+    return timeframe + '处于逆4H结构的交付阶段';
   }
-  return '1H尚未形成清晰的交付阶段';
+  return timeframe + '尚未形成清晰的交付阶段';
 }
 
 function sweepTypeText(type) {
@@ -245,7 +260,8 @@ function potentialText(observation) {
   return 'None';
 }
 
-function manualView(h4, h1, observation) {
+function manualView(h4, delivery, observation) {
+  const timeframe = deliveryTimeframeText(delivery);
   if (
     observation &&
     observation.state === 'POTENTIAL_LONG_OBSERVATION'
@@ -254,7 +270,8 @@ function manualView(h4, h1, observation) {
       view: '偏多',
       reason:
         '4H方向偏多，5m已完成卖方流动性扫取、向上位移与向上MSS；' +
-        (RELATION_TEXT[h1.relationToH4] || '1H关系不明确') +
+        (RELATION_TEXT[delivery.relationToH4] ||
+          timeframe + '关系不明确') +
         '。',
     };
   }
@@ -266,7 +283,8 @@ function manualView(h4, h1, observation) {
       view: '偏空',
       reason:
         '4H方向偏空，5m已完成买方流动性扫取、向下位移与向下MSS；' +
-        (RELATION_TEXT[h1.relationToH4] || '1H关系不明确') +
+        (RELATION_TEXT[delivery.relationToH4] ||
+          timeframe + '关系不明确') +
         '。',
     };
   }
@@ -282,7 +300,8 @@ function manualView(h4, h1, observation) {
     reason:
       '4H当前' + directionText(h4.bias) +
       '，但当前5m尚未形成新的同向完整确认；' +
-      (RELATION_TEXT[h1.relationToH4] || '1H关系不明确') +
+      (RELATION_TEXT[delivery.relationToH4] ||
+        timeframe + '关系不明确') +
       '。',
   };
 }
@@ -290,14 +309,15 @@ function manualView(h4, h1, observation) {
 function format(report) {
   const current = currentOf(report);
   const h4 = current.fourHourAnalysis;
-  const h1 = current.oneHourAnalysis;
+  const delivery = deliveryAnalysisOf(current);
+  const timeframe = deliveryTimeframeText(delivery);
   const fiveMinute = current.fiveMinuteObservation;
   const confirmed = fiveMinute.currentConfirmed || {};
   const observation = fiveMinute.potentialObservation;
-  const judgment = manualView(h4, h1, observation);
+  const judgment = manualView(h4, delivery, observation);
   const humanSummary = current.humanSummary ||
-    HumanSummary.summarize(h4, h1, fiveMinute);
-  const relation = RELATION_TEXT[h1.relationToH4] ||
+    HumanSummary.summarize(h4, delivery, fiveMinute);
+  const relation = RELATION_TEXT[delivery.relationToH4] ||
     '与4H关系不明确';
   const location = LOCATION_TEXT[h4.premiumDiscount] ||
     '位置不明确';
@@ -314,10 +334,11 @@ function format(report) {
       primaryDrawText(h4.primaryDraw),
     '- Premium/Discount：' + location,
     '',
-    '2. 1H Delivery',
-    '- 当前方向：' + directionText(h1.deliveryDirection),
+    '2. ' + timeframe + ' Delivery',
+    '- 当前方向：' +
+      directionText(delivery.deliveryDirection),
     '- 与4H关系：' + relation,
-    '- 当前阶段解释：' + deliveryStageText(h1),
+    '- 当前阶段解释：' + deliveryStageText(delivery),
     '',
     '3. 5m Confirmation',
     '- Sweep：' +
@@ -342,7 +363,9 @@ module.exports = {
   RELATION_TEXT,
   STRUCTURE_TEXT,
   currentOf,
+  deliveryAnalysisOf,
   deliveryStageText,
+  deliveryTimeframeText,
   directionText,
   displacementText,
   format,

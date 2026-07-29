@@ -54,7 +54,8 @@ function symbolResult(symbol, options) {
         fourHourAnalysis: {
           bias: options.bias || 'BULLISH',
         },
-        oneHourAnalysis: {
+        fifteenMinuteAnalysis: {
+          timeframe: '15m',
           relationToH4:
             options.relation || 'ALIGNED',
           deliveryDirection:

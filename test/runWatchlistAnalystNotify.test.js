@@ -28,7 +28,7 @@ function symbolResult(symbol, options) {
       '',
       '1. 4H HTF Bias',
       '- Bias：' + (options.bias || 'BULLISH'),
-      '2. 1H Delivery',
+      '2. 15m Delivery',
       '3. 5m Confirmation',
       '4. 当前人工判断',
     ].join('\n'),
@@ -39,7 +39,8 @@ function symbolResult(symbol, options) {
         fourHourAnalysis: {
           bias: options.bias || 'BULLISH',
         },
-        oneHourAnalysis: {
+        fifteenMinuteAnalysis: {
+          timeframe: '15m',
           relationToH4:
             options.relation || 'ALIGNED',
           deliveryDirection:
@@ -272,8 +273,8 @@ test('only the independently changed symbol is sent', async () => {
     changed.notification.changes[0].reasons,
     [
       'H4_BIAS_CHANGED',
-      'H1_DELIVERY_CHANGED',
-      'H1_RELATION_CHANGED',
+      'M15_DELIVERY_CHANGED',
+      'M15_RELATION_CHANGED',
     ]
   );
   const saved = await store.load();
