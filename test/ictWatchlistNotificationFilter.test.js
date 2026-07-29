@@ -15,12 +15,25 @@ function test(name, callback) {
   tests.push({ name, callback });
 }
 
-function mss(index, direction) {
+function mss(index, direction, structurePrice) {
+  direction = direction || 'BULLISH';
   return {
-    direction: direction || 'BULLISH',
+    id: 'MSS-' + index,
+    direction,
     index,
     availableIndex: index,
     time: 1000 + index,
+    brokenStructureLevel: {
+      id: 'PIVOT-' + index,
+      label: direction === 'BULLISH' ? 'LH' : 'HL',
+      type: direction === 'BULLISH' ? 'HIGH' : 'LOW',
+      index: index - 2,
+      availableIndex: index,
+      time: 900 + index,
+      price: structurePrice === undefined
+        ? 100
+        : structurePrice,
+    },
   };
 }
 
@@ -83,6 +96,14 @@ test('first symbol state sends once', () => {
   assert.strictEqual(decision.shouldNotify, true);
   assert.strictEqual(decision.changes.length, 1);
   assert.deepStrictEqual(
+    decision.changedSymbols,
+    ['BTCUSDT']
+  );
+  assert.deepStrictEqual(
+    decision.notificationSymbols,
+    ['BTCUSDT']
+  );
+  assert.deepStrictEqual(
     decision.changes[0].reasons,
     ['INITIAL_STATE']
   );
@@ -104,6 +125,45 @@ test('identical state and ordinary candle changes are filtered', () => {
 
   assert.strictEqual(duplicate.shouldNotify, false);
   assert.deepStrictEqual(duplicate.changes, []);
+  assert.deepStrictEqual(duplicate.changedSymbols, []);
+  assert.deepStrictEqual(
+    duplicate.notificationSymbols,
+    []
+  );
+});
+
+test('notification state excludes every window locator and Sweep', () => {
+  const state = Filter.extractSymbolState(
+    result('BTCUSDT', {
+      mss: mss(10),
+      sweep: sweep(10, 'SELL_SIDE'),
+    })
+  );
+
+  assert.deepStrictEqual(state, {
+    symbol: 'BTCUSDT',
+    h4Bias: 'BULLISH',
+    h1Relation: 'ALIGNED',
+    h1DeliveryDirection: 'BULLISH',
+    latestMss: {
+      direction: 'BULLISH',
+      brokenStructureLevel: {
+        type: 'HIGH',
+        price: 100,
+      },
+    },
+  });
+  assert.strictEqual(
+    JSON.stringify(state).includes('index'),
+    false
+  );
+  assert.strictEqual(
+    Object.prototype.hasOwnProperty.call(
+      state,
+      'latestSweep'
+    ),
+    false
+  );
 });
 
 test('raw symbol Analyst Reports are accepted directly', () => {
@@ -133,23 +193,13 @@ test('4H Bias change sends', () => {
   );
 });
 
-test('new stable 5m MSS event sends even with same direction', () => {
+test('window locator changes keep the same stable MSS state', () => {
   const initial = Filter.evaluate(
     [result('BTCUSDT', { mss: mss(10) })],
     null
   );
   const sameEventLaterPublication = Filter.evaluate(
-    [result('BTCUSDT', {
-      mss: {
-        ...mss(10),
-        availableIndex: 99,
-        time: 9999,
-      },
-    })],
-    committed(initial)
-  );
-  const changed = Filter.evaluate(
-    [result('BTCUSDT', { mss: mss(20) })],
+    [result('BTCUSDT', { mss: mss(99) })],
     committed(initial)
   );
 
@@ -157,6 +207,22 @@ test('new stable 5m MSS event sends even with same direction', () => {
     sameEventLaterPublication.shouldNotify,
     false
   );
+  assert.deepStrictEqual(
+    sameEventLaterPublication.changes,
+    []
+  );
+});
+
+test('new stable 5m MSS event sends even with same direction', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', { mss: mss(10) })],
+    null
+  );
+  const changed = Filter.evaluate(
+    [result('BTCUSDT', { mss: mss(20, null, 120) })],
+    committed(initial)
+  );
+
   assert.deepStrictEqual(
     changed.changes[0].reasons,
     ['NEW_5M_MSS']
@@ -207,6 +273,37 @@ test('Sweep identity count index and time changes never send', () => {
 
   assert.strictEqual(changedSweepOnly.shouldNotify, false);
   assert.deepStrictEqual(changedSweepOnly.changes, []);
+});
+
+test('old persisted locator fields are normalized before comparison', () => {
+  const previous = {
+    version: 1,
+    symbols: {
+      BTCUSDT: {
+        symbol: 'BTCUSDT',
+        h4Bias: 'BULLISH',
+        h1Relation: 'ALIGNED',
+        h1DeliveryDirection: 'BULLISH',
+        latestMss: mss(10),
+        latestSweep: sweep(10, 'SELL_SIDE'),
+      },
+    },
+  };
+  const decision = Filter.evaluate([
+    result('BTCUSDT', {
+      mss: mss(99),
+      sweep: sweep(99, 'BUY_SIDE'),
+    }),
+  ], previous);
+
+  assert.strictEqual(decision.shouldNotify, false);
+  assert.deepStrictEqual(decision.changes, []);
+  assert.deepStrictEqual(
+    decision.previousState.symbols.BTCUSDT,
+    Filter.extractSymbolState(
+      result('BTCUSDT', { mss: mss(10) })
+    )
+  );
 });
 
 test('1H relation change sends', () => {
@@ -389,11 +486,7 @@ test('notification debug prints compared states and decision', async () => {
   const logs = [];
   const processed = await Filter.processNotifications({
     results: [result('BTCUSDT', {
-      mss: {
-        ...mss(10),
-        availableIndex: 99,
-        time: 9999,
-      },
+      mss: mss(99),
       sweep: sweep(20, 'BUY_SIDE'),
     })],
     store: Filter.createMemoryStore(initial),
@@ -421,14 +514,12 @@ test('notification debug prints compared states and decision', async () => {
   ));
   assert.ok(output.includes('Symbol:\nBTCUSDT'));
   assert.ok(output.includes(
-    'Changed Fields:\nlatestMss\nlatestSweep'
+    'Changed Fields:\nNONE'
   ));
-  assert.ok(output.includes(
-    'Dynamic field detected:\ntime'
-  ));
-  assert.ok(output.includes(
-    'Dynamic field detected:\navailableIndex'
-  ));
+  assert.strictEqual(
+    output.includes('Dynamic field detected:'),
+    false
+  );
   assert.ok(output.includes(
     'shouldNotify:\nfalse'
   ));

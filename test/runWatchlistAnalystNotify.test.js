@@ -116,7 +116,7 @@ test('first Watchlist state sends one combined DingTalk message', async () => {
     result.payload
   );
   assert.ok(result.message.startsWith(
-    '检测---ICT Watchlist'
+    '检测---ICT Watchlist 状态变化'
   ));
   assert.ok(result.message.includes(
     '===== BTCUSDT ====='
@@ -124,9 +124,18 @@ test('first Watchlist state sends one combined DingTalk message', async () => {
   assert.ok(result.message.includes(
     '===== ETHUSDT ====='
   ));
-  assert.ok(result.message.includes(
-    'NOTEXISTUSDT（Binance不存在）'
-  ));
+  assert.strictEqual(
+    result.message.includes('NOTEXISTUSDT'),
+    false
+  );
+  assert.deepStrictEqual(
+    result.notificationSymbols,
+    ['BTCUSDT', 'ETHUSDT']
+  );
+  assert.deepStrictEqual(
+    result.renderedNotificationSymbols,
+    ['BTCUSDT', 'ETHUSDT']
+  );
   assert.deepStrictEqual(
     result.notification.changes.map(
       (change) => change.reasons
@@ -165,6 +174,14 @@ test('duplicate Watchlist state does not call webhook', async () => {
   assert.strictEqual(duplicate.sent, false);
   assert.strictEqual(duplicate.message, null);
   assert.strictEqual(duplicate.payload, null);
+  assert.deepStrictEqual(
+    duplicate.notificationSymbols,
+    []
+  );
+  assert.deepStrictEqual(
+    duplicate.renderedNotificationSymbols,
+    []
+  );
   assert.strictEqual(webhookCalls, 1);
 });
 

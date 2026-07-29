@@ -222,39 +222,14 @@ function logDecision(logger, decision) {
   );
 }
 
-function normalizeSweep(sweep) {
-  if (!sweep || typeof sweep !== 'object') return null;
-  return {
-    id: sweep.id || null,
-    type: sweep.type || 'UNKNOWN',
-    side: sweep.side || 'UNKNOWN',
-    availableIndex: Number.isInteger(sweep.availableIndex)
-      ? sweep.availableIndex
-      : null,
-    time: Number.isFinite(sweep.time) ? sweep.time : null,
-  };
-}
-
 function normalizeMss(mss) {
   if (!mss || typeof mss !== 'object') return null;
   const level = mss.brokenStructureLevel;
   return {
-    id: mss.id || null,
     direction: mss.direction || 'UNKNOWN',
-    index: Number.isInteger(mss.index)
-      ? mss.index
-      : null,
-    availableIndex: Number.isInteger(mss.availableIndex)
-      ? mss.availableIndex
-      : null,
-    time: Number.isFinite(mss.time) ? mss.time : null,
     brokenStructureLevel: level && typeof level === 'object'
       ? {
-        id: level.id || null,
         type: level.type || null,
-        index: Number.isInteger(level.index)
-          ? level.index
-          : null,
         price: Number.isFinite(level.price)
           ? level.price
           : null,
@@ -265,25 +240,25 @@ function normalizeMss(mss) {
 
 function structureLevelIdentity(level) {
   if (!level) return null;
-  if (level.id) return 'ID:' + level.id;
-  if (Number.isInteger(level.index)) {
-    return [
-      'INDEX',
-      level.type,
-      level.index,
-      level.price,
-    ].join('|');
-  }
-  return null;
+  if (!Number.isFinite(level.price)) return null;
+  return [
+    'STRUCTURE',
+    level.type || 'UNKNOWN',
+    level.price,
+  ].join('|');
 }
 
 function stableMssIdentity(mss) {
   if (!mss) return null;
-  if (mss.id) return 'ID:' + mss.id;
-  if (Number.isInteger(mss.index)) {
-    return 'INDEX:' + mss.index;
-  }
-  return structureLevelIdentity(mss.brokenStructureLevel);
+  const structureIdentity = structureLevelIdentity(
+    mss.brokenStructureLevel
+  );
+  return structureIdentity
+    ? [
+      mss.direction || 'UNKNOWN',
+      structureIdentity,
+    ].join('|')
+    : null;
 }
 
 function isNewMss(previousMss, currentMss) {
@@ -339,7 +314,6 @@ function extractSymbolState(input) {
       current.oneHourAnalysis.deliveryDirection ||
       'UNAVAILABLE',
     latestMss: normalizeMss(latest.mss),
-    latestSweep: normalizeSweep(latest.liquiditySweep),
   };
 }
 
@@ -381,12 +355,28 @@ function compareSymbolStates(previousState, currentState) {
 }
 
 function normalizePersistedState(value) {
-  const symbols = value &&
+  const sourceSymbols = value &&
     value.symbols &&
     typeof value.symbols === 'object' &&
     !Array.isArray(value.symbols)
-    ? clone(value.symbols)
+    ? value.symbols
     : {};
+  const symbols = {};
+
+  for (const [symbol, state] of Object.entries(
+    sourceSymbols
+  )) {
+    if (!state || typeof state !== 'object') continue;
+    symbols[symbol] = {
+      symbol: state.symbol || symbol,
+      h4Bias: state.h4Bias || 'UNAVAILABLE',
+      h1Relation: state.h1Relation || 'UNCLEAR',
+      h1DeliveryDirection:
+        state.h1DeliveryDirection || 'UNAVAILABLE',
+      latestMss: normalizeMss(state.latestMss),
+    };
+  }
+
   return {
     version: 1,
     symbols,
@@ -443,9 +433,14 @@ function evaluate(results, persistedState, debugComparison) {
     nextState.symbols[currentState.symbol] = currentState;
   }
 
+  const changedSymbols = changes.map(
+    (change) => change.symbol
+  );
   return {
     shouldNotify: changes.length > 0,
     changes,
+    changedSymbols,
+    notificationSymbols: changedSymbols.slice(),
     previousState: previous,
     nextState,
   };
@@ -594,7 +589,6 @@ module.exports = {
   isNewMss,
   normalizeMss,
   normalizePersistedState,
-  normalizeSweep,
   processNotifications,
   stableMssIdentity,
   structureLevelIdentity,
