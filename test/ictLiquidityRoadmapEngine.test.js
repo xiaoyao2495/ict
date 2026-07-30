@@ -398,23 +398,6 @@ test('watchlist projection collects active liquidity by timeframe', () => {
     {
       liquidity: {
         activeLevels: [{
-          type: 'LTF_SWING_HIGH',
-          side: 'BUY_SIDE',
-          price: 105,
-          source: 'INTERNAL',
-          status: 'ACTIVE',
-        }, {
-          type: 'H4_SWING_HIGH',
-          side: 'BUY_SIDE',
-          price: 120,
-          source: 'EXTERNAL',
-          status: 'ACTIVE',
-        }],
-      },
-    },
-    {
-      liquidity: {
-        activeLevels: [{
           type: 'LTF_SWING_LOW',
           side: 'SELL_SIDE',
           price: 95,
@@ -439,7 +422,6 @@ test('watchlist projection collects active liquidity by timeframe', () => {
     [
       ['PDH', undefined],
       ['EQUAL_LOW', '4H'],
-      ['M15_SWING_HIGH', '15m'],
       ['LTF_SWING_LOW', '5m'],
     ]
   );

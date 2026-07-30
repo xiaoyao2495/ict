@@ -19,20 +19,15 @@ function confirmedDirection(input) {
 }
 
 function alignedReason(direction) {
-  const text = direction.toLowerCase();
-  return (
-    '4H ' + text + ' bias + 15m ' + text +
-    ' delivery + 5m ' + text + ' confirmation'
-  );
+  return direction === 'BULLISH'
+    ? '4小时与5分钟方向一致：偏多'
+    : '4小时与5分钟方向一致：偏空';
 }
 
 function conflictReason(h4Bias, confirmationDirection) {
-  return (
-    '4H ' + h4Bias.toLowerCase() +
-    ' but 5m ' +
-    confirmationDirection.toLowerCase() +
-    ' confirmation'
-  );
+  return h4Bias === 'BULLISH'
+    ? '4小时偏多，但5分钟确认偏空'
+    : '4小时偏空，但5分钟确认偏多';
 }
 
 function analyze(input) {
@@ -42,7 +37,7 @@ function analyze(input) {
     return {
       status: 'WAITING',
       direction: null,
-      reason: 'HTF bias is unclear',
+      reason: '等待4小时方向明确',
     };
   }
 
@@ -63,7 +58,6 @@ function analyze(input) {
   }
 
   if (
-    input.m15DeliveryDirection === h4Bias &&
     confirmationDirection === h4Bias
   ) {
     return {
@@ -76,8 +70,7 @@ function analyze(input) {
   return {
     status: 'WAITING',
     direction: null,
-    reason:
-      'Higher timeframe direction exists but lower timeframe confirmation is incomplete',
+    reason: '等待5分钟确认',
   };
 }
 

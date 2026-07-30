@@ -16,8 +16,6 @@ const DEFAULT_STATE_PATH = path.resolve(
 const CHANGE_REASONS = Object.freeze({
   INITIAL_STATE: 'INITIAL_STATE',
   H4_BIAS_CHANGED: 'H4_BIAS_CHANGED',
-  M15_DELIVERY_CHANGED: 'M15_DELIVERY_CHANGED',
-  M15_RELATION_CHANGED: 'M15_RELATION_CHANGED',
   NEW_5M_MSS: 'NEW_5M_MSS',
 });
 
@@ -294,7 +292,6 @@ function extractSymbolState(input) {
     typeof symbol !== 'string' ||
     !current ||
     !current.fourHourAnalysis ||
-    !current.fifteenMinuteAnalysis ||
     !current.fiveMinuteObservation
   ) {
     throw new Error(
@@ -308,12 +305,6 @@ function extractSymbolState(input) {
     symbol,
     h4Bias:
       current.fourHourAnalysis.bias || 'UNAVAILABLE',
-    m15Relation:
-      current.fifteenMinuteAnalysis.relationToH4 ||
-      'UNCLEAR',
-    m15DeliveryDirection:
-      current.fifteenMinuteAnalysis.deliveryDirection ||
-      'UNAVAILABLE',
     latestMss: normalizeMss(latest.mss),
   };
 }
@@ -330,18 +321,6 @@ function compareSymbolStates(previousState, currentState) {
   if (previousState.h4Bias !== currentState.h4Bias) {
     reasons.push(CHANGE_REASONS.H4_BIAS_CHANGED);
   }
-  if (
-    previousState.m15DeliveryDirection !==
-    currentState.m15DeliveryDirection
-  ) {
-    reasons.push(CHANGE_REASONS.M15_DELIVERY_CHANGED);
-  }
-  if (
-    previousState.m15Relation !== currentState.m15Relation
-  ) {
-    reasons.push(CHANGE_REASONS.M15_RELATION_CHANGED);
-  }
-
   if (isNewMss(
     previousState.latestMss,
     currentState.latestMss
@@ -371,20 +350,12 @@ function normalizePersistedState(value) {
     symbols[symbol] = {
       symbol: state.symbol || symbol,
       h4Bias: state.h4Bias || 'UNAVAILABLE',
-      m15Relation:
-        state.m15Relation ||
-        state.h1Relation ||
-        'UNCLEAR',
-      m15DeliveryDirection:
-        state.m15DeliveryDirection ||
-        state.h1DeliveryDirection ||
-        'UNAVAILABLE',
       latestMss: normalizeMss(state.latestMss),
     };
   }
 
   return {
-    version: 2,
+    version: 3,
     symbols,
   };
 }

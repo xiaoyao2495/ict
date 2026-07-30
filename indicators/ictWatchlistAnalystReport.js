@@ -1,7 +1,6 @@
 'use strict';
 
 const HtfBiasV3 = require('./ictHtfBiasEngineV3');
-const M15Delivery = require('./ictM15DeliveryEngine');
 const LtfExecution = require('./ictLtfExecutionEngine');
 const FiveMinuteConfirmation = require(
   './ict5mConfirmationEngine'
@@ -24,18 +23,9 @@ function clone(value) {
     : JSON.parse(JSON.stringify(value));
 }
 
-function renameIntermediateLiquidityType(type) {
-  return typeof type === 'string'
-    ? type.replace(/^H1_SWING_/, 'M15_SWING_')
-    : type;
-}
-
 function normalizeSweep(sweep) {
   if (!sweep) return sweep;
-  return {
-    ...sweep,
-    type: renameIntermediateLiquidityType(sweep.type),
-  };
+  return { ...sweep };
 }
 
 function normalizeMss(mss) {
@@ -71,7 +61,6 @@ function projectConfirmation(confirmation) {
 
 function strictPotentialObservation(
   h4,
-  m15,
   confirmation
 ) {
   if (!confirmation) {
@@ -93,7 +82,6 @@ function strictPotentialObservation(
       availableIndex: confirmation.availableIndex,
       reasons: [
         'STRICT_5M_CHAIN_NOT_ALIGNED_WITH_4H_BIAS',
-        'M15_RELATION_' + m15.relationToH4,
       ],
       informationalOnly: true,
     };
@@ -110,7 +98,6 @@ function strictPotentialObservation(
     reasons: [
       'STRICT_SWEEP_MSS_DISPLACEMENT_CHAIN',
       'ALIGNED_WITH_4H_BIAS',
-      'M15_RELATION_' + m15.relationToH4,
     ],
     informationalOnly: true,
   };
@@ -119,8 +106,7 @@ function strictPotentialObservation(
 function normalizeFiveMinuteObservation(
   observation,
   confirmationState,
-  h4,
-  m15
+  h4
 ) {
   const result = clone(observation);
   const current = result.currentConfirmed || {};
@@ -143,35 +129,27 @@ function normalizeFiveMinuteObservation(
       ? confirmationState.latestConfirmation
       : null
   );
-  if (h4 && m15) {
+  if (h4) {
     result.potentialObservation =
-      strictPotentialObservation(h4, m15, confirmation);
+      strictPotentialObservation(h4, confirmation);
   }
   return result;
 }
 
 function normalizeSnapshot(snapshot, confirmationState) {
   if (!snapshot) return snapshot;
-  const m15 = {
-    ...clone(snapshot.oneHourAnalysis),
-    timeframe: '15m',
-  };
   const fiveMinute = normalizeFiveMinuteObservation(
     snapshot.fiveMinuteObservation,
     confirmationState,
-    snapshot.fourHourAnalysis,
-    m15
+    snapshot.fourHourAnalysis
   );
   const currentConfirmation =
     fiveMinute.currentConfirmed.confirmation;
   const normalized = {
     ...clone(snapshot),
-    fifteenMinuteAnalysis: m15,
     fiveMinuteObservation: fiveMinute,
     alignment: Alignment.analyze({
       h4Bias: snapshot.fourHourAnalysis.bias,
-      m15DeliveryDirection: m15.deliveryDirection,
-      m15Relation: m15.relationToH4,
       fiveMinuteConfirmationDirection:
         currentConfirmation
           ? currentConfirmation.direction
@@ -183,7 +161,6 @@ function normalizeSnapshot(snapshot, confirmationState) {
     }),
     humanSummary: HumanSummary.summarize(
       snapshot.fourHourAnalysis,
-      m15,
       fiveMinute
     ),
   };
@@ -200,7 +177,7 @@ function latestStateAtOrBefore(states, timestamp) {
   return index >= 0 ? states[index] : null;
 }
 
-function internalLiquidityLevels(state, timeframe) {
+function internalLiquidityLevels(state) {
   const levels = state &&
     state.liquidity &&
     Array.isArray(state.liquidity.activeLevels)
@@ -210,17 +187,11 @@ function internalLiquidityLevels(state, timeframe) {
     .filter((level) => level.source === 'INTERNAL')
     .map((level) => ({
       ...level,
-      type: timeframe === '15m'
-        ? level.type.replace(
-          /^LTF_SWING_/,
-          'M15_SWING_'
-        )
-        : level.type,
-      timeframe,
+      timeframe: '5m',
     }));
 }
 
-function collectRoadmapLiquidity(h4State, m15State, ltfState) {
+function collectRoadmapLiquidity(h4State, ltfState) {
   const h4Liquidity = h4State && h4State.liquidity
     ? h4State.liquidity
     : {};
@@ -235,9 +206,9 @@ function collectRoadmapLiquidity(h4State, m15State, ltfState) {
       : undefined,
   }));
 
-  return h4Levels
-    .concat(internalLiquidityLevels(m15State, '15m'))
-    .concat(internalLiquidityLevels(ltfState, '5m'));
+  return h4Levels.concat(
+    internalLiquidityLevels(ltfState)
+  );
 }
 
 function analyze(input) {
@@ -246,16 +217,10 @@ function analyze(input) {
   const h4 = HtfBiasV3.analyze({
     h4Klines: input.h4Klines,
   });
-  const m15 = M15Delivery.analyze15mDelivery({
-    m15Klines: input.m15Klines,
-    h4BiasSnapshots: h4.states,
-  });
   const ltf = LtfExecution.analyze({
     ltfKlines: input.ltf5mKlines,
     intervalMilliseconds: LtfExecution.FIVE_MINUTES,
     h4BiasSnapshots: h4.states,
-    // Compatibility boundary for the unchanged 5m engine.
-    h1DeliverySnapshots: m15.states,
     retainStates: true,
   });
   const confirmation = FiveMinuteConfirmation.analyze({
@@ -268,7 +233,7 @@ function analyze(input) {
   );
   const rawTimeline = AnalystReport.buildTimeline(
     h4.states,
-    m15.states,
+    [],
     ltf.events,
     input.ltf5mKlines,
     needsSnapshots
@@ -294,10 +259,6 @@ function analyze(input) {
     h4.states,
     currentTime
   );
-  const m15State = latestStateAtOrBefore(
-    m15.states,
-    currentTime
-  );
   const ltfState = latestStateAtOrBefore(
     ltf.states,
     currentTime
@@ -313,7 +274,6 @@ function analyze(input) {
     h4Bias: current.fourHourAnalysis.bias,
     liquidity: collectRoadmapLiquidity(
       h4State,
-      m15State,
       ltfState
     ),
   });
@@ -327,7 +287,6 @@ function analyze(input) {
   });
   const summaryInput = {
     h4: current.fourHourAnalysis,
-    delivery: current.fifteenMinuteAnalysis,
     fiveMinute: current.fiveMinuteObservation,
     alignment: current.alignment,
     liquidityRoadmap: current.liquidityRoadmap,
@@ -346,11 +305,10 @@ function analyze(input) {
 
   return {
     protocol: {
-      version: 'ICT_WATCHLIST_ANALYST_REPORT_M15_V1',
+      version: 'ICT_WATCHLIST_ANALYST_REPORT_H4_5M_V1',
       purpose: 'Human discretionary analysis assistance only',
       inputs: [
         'Complete closed 4H Klines',
-        'Complete closed 15m Klines',
         'Complete closed 5m Klines',
       ],
       usesConfirmedCandles: true,
@@ -372,7 +330,6 @@ function analyze(input) {
     symbol,
     source: {
       h4Klines: input.h4Klines.length,
-      m15Klines: input.m15Klines.length,
       ltf5mKlines: input.ltf5mKlines.length,
       from: input.ltf5mKlines[0].openTime,
       to: input.ltf5mKlines[
@@ -396,6 +353,5 @@ module.exports = {
   normalizeSnapshot,
   normalizeSweep,
   projectConfirmation,
-  renameIntermediateLiquidityType,
   strictPotentialObservation,
 };

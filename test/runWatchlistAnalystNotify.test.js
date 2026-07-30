@@ -28,9 +28,8 @@ function symbolResult(symbol, options) {
       '',
       '1. 4H HTF Bias',
       '- Bias：' + (options.bias || 'BULLISH'),
-      '2. 15分钟状态',
-      '3. 【5分钟确认】',
-      '4. 当前人工判断',
+      '2. 【5分钟确认】',
+      '3. 当前人工判断',
     ].join('\n'),
     report: {
       symbol,
@@ -38,13 +37,6 @@ function symbolResult(symbol, options) {
         asOf: CURRENT_TIME,
         fourHourAnalysis: {
           bias: options.bias || 'BULLISH',
-        },
-        fifteenMinuteAnalysis: {
-          timeframe: '15m',
-          relationToH4:
-            options.relation || 'ALIGNED',
-          deliveryDirection:
-            options.delivery || 'BULLISH',
         },
         fiveMinuteObservation: {
           latestConfirmed: {
@@ -254,8 +246,6 @@ test('only the independently changed symbol is sent', async () => {
     symbolResult('BTCUSDT'),
     symbolResult('ETHUSDT', {
       bias: 'BEARISH',
-      delivery: 'BEARISH',
-      relation: 'RETRACEMENT',
     }),
   ]);
   const changed = await NotifyRunner.run(options);
@@ -271,11 +261,7 @@ test('only the independently changed symbol is sent', async () => {
   );
   assert.deepStrictEqual(
     changed.notification.changes[0].reasons,
-    [
-      'H4_BIAS_CHANGED',
-      'M15_DELIVERY_CHANGED',
-      'M15_RELATION_CHANGED',
-    ]
+    ['H4_BIAS_CHANGED']
   );
   const saved = await store.load();
   assert.strictEqual(

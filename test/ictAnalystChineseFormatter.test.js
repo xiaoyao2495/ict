@@ -265,82 +265,20 @@ test('a single Sweep shows source price formation and taken time', () => {
   assert.strictEqual(text.includes('availableIndex'), false);
 });
 
-test('15分钟状态使用指定中文映射', () => {
-  const cases = [
-    {
-      deliveryState: 'RETRACEMENT',
-      direction: 'NEUTRAL',
-      expected: '回调中',
-    },
-    {
-      deliveryState: 'ALIGNED_BULLISH',
-      direction: 'BULLISH',
-      expected: '开始顺势上涨',
-    },
-    {
-      deliveryState: 'ALIGNED_BEARISH',
-      direction: 'BEARISH',
-      expected: '开始顺势下跌',
-    },
-    {
-      deliveryState: 'NEUTRAL',
-      direction: 'NEUTRAL',
-      expected: '方向不明确',
-    },
-  ];
-
-  for (const item of cases) {
-    const report = currentReport({
-      h1Direction: item.direction,
-      deliveryState: item.deliveryState,
-    });
-    report.current.fifteenMinuteAnalysis = {
-      ...report.current.oneHourAnalysis,
-      timeframe: '15m',
-    };
-    delete report.current.oneHourAnalysis;
-    const text = Formatter.format(report);
-
-    assert.ok(text.includes('2. 15分钟状态'));
-    assert.ok(text.includes('- 状态：' + item.expected));
-  }
-});
-
-test('15分钟状态机显示回调流动性侧和关注方向', () => {
-  const report = currentReport({
-    h4Bias: 'BEARISH',
-    h1Direction: 'NEUTRAL',
-    deliveryState: 'RETRACEMENT',
-    relation: 'RETRACEMENT',
-    m15DeliveryStage: 'WAITING_LIQUIDITY',
-    waitingLiquiditySide: 'BUY_SIDE',
-  });
-  report.current.fifteenMinuteAnalysis = {
-    ...report.current.oneHourAnalysis,
-    timeframe: '15m',
-  };
+test('Watchlist display supports 4H plus 5m without Delivery', () => {
+  const report = currentReport();
   delete report.current.oneHourAnalysis;
+  report.current.alignment = {
+    status: 'WAITING',
+    direction: null,
+    reason: '等待5分钟确认',
+  };
   const text = Formatter.format(report);
 
-  assert.ok(text.includes('当前15分钟状态：'));
-  assert.ok(text.includes('- 正在回调'));
-  assert.ok(text.includes('- 等待买方流动性'));
-  assert.ok(text.includes('- 等待空头确认'));
-});
-
-test('15分钟失效状态使用明确中文展示', () => {
-  const report = currentReport({
-    m15DeliveryStage: 'INVALIDATED',
-  });
-  report.current.fifteenMinuteAnalysis = {
-    ...report.current.oneHourAnalysis,
-    timeframe: '15m',
-  };
-  delete report.current.oneHourAnalysis;
-
-  assert.ok(Formatter.format(report).includes(
-    '当前15分钟状态：\n- 当前交付链已失效'
-  ));
+  assert.strictEqual(text.includes('15分钟'), false);
+  assert.strictEqual(text.includes('Delivery'), false);
+  assert.ok(text.includes('2. 【5分钟确认】'));
+  assert.ok(text.includes('3. 当前人工判断'));
 });
 
 test('5分钟确认不再输出英文事件名称', () => {

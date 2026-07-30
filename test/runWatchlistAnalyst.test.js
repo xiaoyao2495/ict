@@ -8,7 +8,6 @@ const WatchlistAnalyst = require(
 );
 
 const FIVE_MINUTES = 5 * 60 * 1000;
-const FIFTEEN_MINUTES = 15 * 60 * 1000;
 const START = Date.UTC(2026, 0, 1);
 const tests = [];
 let testsPassed = 0;
@@ -51,10 +50,6 @@ function unfinishedAfter(last, duration) {
 
 function fixture() {
   const fiveMinute = createFiveMinuteBars(2400);
-  const fifteenMinute = HtfContext.aggregateClosedKlines(
-    fiveMinute,
-    FIFTEEN_MINUTES
-  );
   const fourHour = HtfContext.aggregateClosedKlines(
     fiveMinute,
     HtfContext.FOUR_HOURS
@@ -65,17 +60,12 @@ function fixture() {
     currentTime,
     complete: {
       '4h': fourHour,
-      '15m': fifteenMinute,
       '5m': fiveMinute,
     },
     responses: {
       '4h': fourHour.concat(unfinishedAfter(
         fourHour[fourHour.length - 1],
         HtfContext.FOUR_HOURS
-      )),
-      '15m': fifteenMinute.concat(unfinishedAfter(
-        fifteenMinute[fifteenMinute.length - 1],
-        FIFTEEN_MINUTES
       )),
       '5m': fiveMinute.concat(unfinishedAfter(
         fiveMinute[fiveMinute.length - 1],
@@ -95,7 +85,7 @@ test('getKline uses generic symbol interval and closed bars only', async () => {
   const calls = [];
   const closed = await WatchlistAnalyst.getKline(
     'ETHUSDT',
-    '15m',
+    '5m',
     {
       currentTime: data.currentTime,
       marketData: {
@@ -109,11 +99,11 @@ test('getKline uses generic symbol interval and closed bars only', async () => {
 
   assert.deepStrictEqual(calls, [{
     symbol: 'ETHUSDT',
-    interval: '15m',
+    interval: '5m',
   }]);
   assert.strictEqual(
     closed.length,
-    data.complete['15m'].length
+    data.complete['5m'].length
   );
   assert.ok(closed.every(
     (kline) => kline.closeTime < data.currentTime
@@ -213,7 +203,7 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
         .filter((call) => call.symbol === symbol)
         .map((call) => call.interval)
         .sort(),
-      ['15m', '4h', '5m']
+      ['4h', '5m']
     );
   }
 
@@ -243,13 +233,12 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
     result.results[1].report.symbol,
     'ETHUSDT'
   );
-  assert.ok(
-    result.results[0].report.current
-      .fifteenMinuteAnalysis
-  );
-  assert.ok(
-    result.results[0].report.current
-      .fifteenMinuteAnalysis.m15DeliveryStage
+  assert.strictEqual(
+    Object.prototype.hasOwnProperty.call(
+      result.results[0].report.current,
+      'fifteenMinuteAnalysis'
+    ),
+    false
   );
   assert.strictEqual(
     Object.prototype.hasOwnProperty.call(
@@ -259,11 +248,18 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
     false
   );
   assert.strictEqual(
-    result.results[0].report.source.m15Klines,
-    data.complete['15m'].length
+    Object.prototype.hasOwnProperty.call(
+      result.results[0].report.source,
+      'm15Klines'
+    ),
+    false
+  );
+  assert.strictEqual(
+    result.results[0].formatted.includes('15分钟'),
+    false
   );
   assert.ok(result.results[0].formatted.includes(
-    '2. 15分钟状态'
+    '2. 【5分钟确认】'
   ));
   assert.ok(
     result.results[0].report.current.positionContext

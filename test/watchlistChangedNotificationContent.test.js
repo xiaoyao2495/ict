@@ -54,13 +54,6 @@ function symbolResult(symbol, options) {
         fourHourAnalysis: {
           bias: options.bias || 'BULLISH',
         },
-        fifteenMinuteAnalysis: {
-          timeframe: '15m',
-          relationToH4:
-            options.relation || 'ALIGNED',
-          deliveryDirection:
-            options.delivery || 'BULLISH',
-        },
         fiveMinuteObservation: {
           latestConfirmed: {
             mss: options.mss || null,
@@ -175,7 +168,7 @@ test('6个交易对只有1个变化时只渲染1个', async () => {
 test('6个交易对有2个变化时只渲染2个', async () => {
   const changedRows = rows({
     BTCUSDT: { bias: 'BEARISH' },
-    XAUUSDT: { relation: 'RETRACEMENT' },
+    XAUUSDT: { mss: stableMss(20, 120) },
   });
   const { result } = await primeAndRun(changedRows);
 
@@ -379,7 +372,7 @@ test('Debug中的Notification与Rendered Symbols一致', async () => {
   await NotifyRunner.run(baseOptions);
   runner.setResults(rows({
     BTCUSDT: { bias: 'BEARISH' },
-    XAUUSDT: { relation: 'RETRACEMENT' },
+    XAUUSDT: { mss: stableMss(20, 120) },
   }));
   const result = await NotifyRunner.run({
     ...baseOptions,

@@ -18,8 +18,6 @@ function test(name, callback) {
 function input(overrides) {
   return {
     h4Bias: 'BULLISH',
-    m15DeliveryDirection: 'BULLISH',
-    m15Relation: 'ALIGNED',
     fiveMinuteConfirmationDirection: 'BULLISH',
     fiveMinuteConfirmationStatus: 'CONFIRMED',
     ...(overrides || {}),
@@ -32,8 +30,7 @@ test('Bullish multi-timeframe agreement is ALIGNED', () => {
     {
       status: 'ALIGNED',
       direction: 'BULLISH',
-      reason:
-        '4H bullish bias + 15m bullish delivery + 5m bullish confirmation',
+      reason: '4小时与5分钟方向一致：偏多',
     }
   );
 });
@@ -42,14 +39,27 @@ test('Bearish multi-timeframe agreement is ALIGNED', () => {
   assert.deepStrictEqual(
     Alignment.analyze(input({
       h4Bias: 'BEARISH',
-      m15DeliveryDirection: 'BEARISH',
       fiveMinuteConfirmationDirection: 'BEARISH',
     })),
     {
       status: 'ALIGNED',
       direction: 'BEARISH',
-      reason:
-        '4H bearish bias + 15m bearish delivery + 5m bearish confirmation',
+      reason: '4小时与5分钟方向一致：偏空',
+    }
+  );
+});
+
+test('legacy 15m fields do not affect Alignment', () => {
+  assert.deepStrictEqual(
+    Alignment.analyze({
+      ...input(),
+      m15DeliveryDirection: 'BEARISH',
+      m15Relation: 'RETRACEMENT',
+    }),
+    {
+      status: 'ALIGNED',
+      direction: 'BULLISH',
+      reason: '4小时与5分钟方向一致：偏多',
     }
   );
 });
@@ -58,13 +68,12 @@ test('Bearish 4H with Bullish 5m is CONFLICT', () => {
   assert.deepStrictEqual(
     Alignment.analyze(input({
       h4Bias: 'BEARISH',
-      m15DeliveryDirection: 'BEARISH',
       fiveMinuteConfirmationDirection: 'BULLISH',
     })),
     {
       status: 'CONFLICT',
       direction: null,
-      reason: '4H bearish but 5m bullish confirmation',
+      reason: '4小时偏空，但5分钟确认偏多',
     }
   );
 });
@@ -77,7 +86,7 @@ test('Bullish 4H with Bearish 5m is CONFLICT', () => {
     {
       status: 'CONFLICT',
       direction: null,
-      reason: '4H bullish but 5m bearish confirmation',
+      reason: '4小时偏多，但5分钟确认偏空',
     }
   );
 });
@@ -86,16 +95,13 @@ test('HTF direction with incomplete lower timeframe is WAITING', () => {
   assert.deepStrictEqual(
     Alignment.analyze(input({
       h4Bias: 'BEARISH',
-      m15DeliveryDirection: 'NEUTRAL',
-      m15Relation: 'RETRACEMENT',
       fiveMinuteConfirmationDirection: null,
       fiveMinuteConfirmationStatus: 'NONE',
     })),
     {
       status: 'WAITING',
       direction: null,
-      reason:
-        'Higher timeframe direction exists but lower timeframe confirmation is incomplete',
+      reason: '等待5分钟确认',
     }
   );
 });
@@ -104,14 +110,13 @@ test('Neutral 4H is WAITING without forced direction', () => {
   assert.deepStrictEqual(
     Alignment.analyze(input({
       h4Bias: 'NEUTRAL',
-      m15DeliveryDirection: 'NEUTRAL',
       fiveMinuteConfirmationDirection: null,
       fiveMinuteConfirmationStatus: 'NONE',
     })),
     {
       status: 'WAITING',
       direction: null,
-      reason: 'HTF bias is unclear',
+      reason: '等待4小时方向明确',
     }
   );
 });
@@ -123,13 +128,6 @@ test('Watchlist report projection adds alignment only', () => {
     asOf: 1000,
     fourHourAnalysis: {
       bias: 'BULLISH',
-    },
-    oneHourAnalysis: {
-      deliveryDirection: 'BULLISH',
-      deliveryState: 'ALIGNED_BULLISH',
-      relationToH4: 'ALIGNED',
-      m15DeliveryStage: 'DELIVERY_CONFIRMED',
-      waitingLiquiditySide: null,
     },
     fiveMinuteObservation: {
       currentConfirmed: {
@@ -158,24 +156,18 @@ test('Watchlist report projection adds alignment only', () => {
   assert.deepStrictEqual(normalized.alignment, {
     status: 'WAITING',
     direction: null,
-    reason:
-      'Higher timeframe direction exists but lower timeframe confirmation is incomplete',
+    reason: '等待5分钟确认',
   });
   assert.strictEqual(
     normalized.fourHourAnalysis.bias,
     'BULLISH'
   );
   assert.strictEqual(
-    normalized.fifteenMinuteAnalysis.deliveryDirection,
-    'BULLISH'
-  );
-  assert.strictEqual(
-    normalized.fifteenMinuteAnalysis.m15DeliveryStage,
-    'DELIVERY_CONFIRMED'
-  );
-  assert.strictEqual(
-    normalized.fifteenMinuteAnalysis.waitingLiquiditySide,
-    null
+    Object.prototype.hasOwnProperty.call(
+      normalized,
+      'fifteenMinuteAnalysis'
+    ),
+    false
   );
 });
 

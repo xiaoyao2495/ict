@@ -9,8 +9,6 @@ const LIQUIDITY_TYPE_TEXT = Object.freeze({
   H4_SWING_LOW: '4小时摆动低点',
   H1_SWING_HIGH: '1小时摆动高点',
   H1_SWING_LOW: '1小时摆动低点',
-  M15_SWING_HIGH: '15分钟摆动高点',
-  M15_SWING_LOW: '15分钟摆动低点',
   LTF_SWING_HIGH: '5分钟摆动高点',
   LTF_SWING_LOW: '5分钟摆动低点',
   EQUAL_HIGH: '等高',
@@ -89,11 +87,38 @@ function confirmationState(h4, fiveMinute) {
 
 function summarize(h4, delivery, fiveMinute) {
   h4 = h4 || {};
+  if (fiveMinute === undefined) {
+    fiveMinute = delivery || {};
+    const confirmation = fiveMinute &&
+      fiveMinute.currentConfirmed &&
+      fiveMinute.currentConfirmed.confirmation;
+    if (
+      h4.bias !== 'BULLISH' &&
+      h4.bias !== 'BEARISH'
+    ) {
+      return '等待4小时方向明确。';
+    }
+    if (!confirmation) {
+      return (
+        (h4.bias === 'BULLISH'
+          ? '4H结构保持多头'
+          : '4H结构保持空头') +
+        '，等待5分钟确认。'
+      );
+    }
+    if (confirmation.direction !== h4.bias) {
+      return '4H方向与5m确认方向存在冲突。';
+    }
+    return (
+      (h4.bias === 'BULLISH'
+        ? '4H结构保持多头'
+        : '4H结构保持空头') +
+      '，5m已形成同向完整确认。'
+    );
+  }
   delivery = delivery || {};
   fiveMinute = fiveMinute || {};
-  const timeframe = delivery.timeframe === '15m'
-    ? '15m'
-    : '1H';
+  const timeframe = '1H';
 
   if (
     h4.bias !== 'BULLISH' &&
@@ -200,29 +225,6 @@ function h4DirectionText(h4) {
   return '方向不明确';
 }
 
-function deliveryStatusText(delivery) {
-  delivery = delivery || {};
-  if (delivery.deliveryState === 'RETRACEMENT') {
-    return '回调中';
-  }
-  if (delivery.deliveryState === 'ALIGNED_BULLISH') {
-    return '开始顺势上涨';
-  }
-  if (delivery.deliveryState === 'ALIGNED_BEARISH') {
-    return '开始顺势下跌';
-  }
-  if (delivery.deliveryState === 'COUNTER_TREND') {
-    return '逆向交付中';
-  }
-  if (delivery.deliveryDirection === 'BULLISH') {
-    return '偏多交付';
-  }
-  if (delivery.deliveryDirection === 'BEARISH') {
-    return '偏空交付';
-  }
-  return '方向不明确';
-}
-
 function fiveMinuteStatusText(fiveMinute, alignment) {
   const confirmation = fiveMinute &&
     fiveMinute.currentConfirmed &&
@@ -268,7 +270,6 @@ function positionZoneText(positionContext) {
 
 function focusDirection(input) {
   const h4 = input.h4 || {};
-  const delivery = input.delivery || {};
   const alignment = input.alignment || {};
   if (h4.bias !== 'BULLISH' && h4.bias !== 'BEARISH') {
     return '等待4H方向明确';
@@ -276,12 +277,6 @@ function focusDirection(input) {
   const direction = h4.bias === 'BULLISH'
     ? '多头'
     : '空头';
-  if (
-    delivery.relationToH4 === 'RETRACEMENT' ||
-    delivery.relationToH4 === 'COUNTER_TREND'
-  ) {
-    return '等待' + direction + '重新交付';
-  }
   if (alignment.status === 'ALIGNED') {
     return '关注多周期偏' +
       (h4.bias === 'BULLISH' ? '多' : '空') +
@@ -292,35 +287,14 @@ function focusDirection(input) {
 
 const SETUP_STAGES = Object.freeze({
   WAITING_HTF: 'WAITING_HTF',
-  WAITING_M15_DELIVERY: 'WAITING_M15_DELIVERY',
   WAITING_LTF_CONFIRMATION: 'WAITING_LTF_CONFIRMATION',
   READY_OBSERVATION: 'READY_OBSERVATION',
-  INVALIDATED: 'INVALIDATED',
 });
 
 function hasDirectionalH4(h4) {
   return Boolean(
     h4 &&
     (h4.bias === 'BULLISH' || h4.bias === 'BEARISH')
-  );
-}
-
-function hasConfirmedM15(h4, delivery) {
-  if (!delivery) return false;
-  if (delivery.m15DeliveryStage) {
-    return (
-      delivery.m15DeliveryStage ===
-      'DELIVERY_CONFIRMED'
-    );
-  }
-  const relation = delivery.m15Relation ||
-    delivery.relationToH4;
-  const direction = delivery.m15DeliveryDirection ||
-    delivery.deliveryDirection;
-  return Boolean(
-    h4 &&
-    relation === 'ALIGNED' &&
-    direction === h4.bias
   );
 }
 
@@ -338,59 +312,25 @@ function hasConfirmedLtf(h4, fiveMinute, alignment) {
   );
 }
 
-function m15ConditionText(h4) {
-  if (h4 && h4.bias === 'BEARISH') {
-    return '15分钟空头交付确认';
-  }
-  if (h4 && h4.bias === 'BULLISH') {
-    return '15分钟多头交付确认';
-  }
-  return '15分钟顺势交付确认';
-}
-
 function analyzeSetupStage(input) {
   input = input || {};
   const h4 = input.h4 || {};
-  const delivery = input.delivery || {};
   const fiveMinute = input.fiveMinute || {};
   const alignment = input.alignment || null;
   const h4Ready = hasDirectionalH4(h4);
-  const m15Ready = hasConfirmedM15(h4, delivery);
   const ltfReady = hasConfirmedLtf(
     h4,
     fiveMinute,
     alignment
   );
 
-  if (delivery.m15DeliveryStage === 'INVALIDATED') {
-    return {
-      setupStage: SETUP_STAGES.INVALIDATED,
-      missingConditions: [
-        '有效的15分钟交付链',
-      ],
-    };
-  }
   if (!h4Ready) {
     return {
       setupStage: SETUP_STAGES.WAITING_HTF,
       missingConditions: [
         '明确的4小时方向',
-        '15分钟顺势交付确认',
         '5分钟完整确认',
       ],
-    };
-  }
-  if (!m15Ready) {
-    const missingConditions = [
-      m15ConditionText(h4),
-    ];
-    if (!ltfReady) {
-      missingConditions.push('5分钟完整确认');
-    }
-    return {
-      setupStage:
-        SETUP_STAGES.WAITING_M15_DELIVERY,
-      missingConditions,
     };
   }
   if (!ltfReady) {
@@ -410,17 +350,11 @@ function setupStageText(stage) {
   if (stage === SETUP_STAGES.WAITING_HTF) {
     return '等待4小时方向明确';
   }
-  if (stage === SETUP_STAGES.WAITING_M15_DELIVERY) {
-    return '等待15分钟交付确认';
-  }
   if (stage === SETUP_STAGES.WAITING_LTF_CONFIRMATION) {
     return '等待5分钟完整确认';
   }
   if (stage === SETUP_STAGES.READY_OBSERVATION) {
     return '多周期观察条件已经完整';
-  }
-  if (stage === SETUP_STAGES.INVALIDATED) {
-    return '当前分析链已经失效';
   }
   return '当前阶段不明确';
 }
@@ -489,7 +423,7 @@ function keyReasons(input) {
   }
 
   if (alignment.status === 'ALIGNED') {
-    reasons.push('4H、15m与5m方向已经形成一致状态。');
+    reasons.push('4H与5m方向已经形成一致状态。');
   } else if (alignment.status === 'CONFLICT') {
     reasons.push('5m确认与高周期方向存在分歧。');
   } else {
@@ -501,7 +435,6 @@ function keyReasons(input) {
 function summarizeTraderContext(input) {
   input = input || {};
   const h4 = input.h4 || {};
-  const delivery = input.delivery || {};
   const fiveMinute = input.fiveMinute || {};
   const alignment = input.alignment || null;
   const reasons = keyReasons(input);
@@ -516,7 +449,6 @@ function summarizeTraderContext(input) {
   return [
     '【市场环境】',
     '4H方向：' + h4DirectionText(h4),
-    '15m状态：' + deliveryStatusText(delivery),
     '5m确认：' +
       fiveMinuteStatusText(fiveMinute, alignment),
     '多周期关系：' + alignmentText(alignment),
@@ -539,11 +471,9 @@ module.exports = {
   alignmentText,
   analyzeSetupStage,
   confirmationState,
-  deliveryStatusText,
   fiveMinuteStatusText,
   focusDirection,
   hasConfirmedLtf,
-  hasConfirmedM15,
   hasDirectionalH4,
   h4DirectionText,
   keyReasons,

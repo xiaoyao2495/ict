@@ -44,22 +44,16 @@ const LIQUIDITY_TYPE_TEXT = Object.freeze({
   EQUAL_LOW: '等低',
   H1_SWING_HIGH: '1小时摆动高点',
   H1_SWING_LOW: '1小时摆动低点',
-  M15_SWING_HIGH: '15分钟摆动高点',
-  M15_SWING_LOW: '15分钟摆动低点',
   LTF_SWING_HIGH: '5分钟摆动高点',
   LTF_SWING_LOW: '5分钟摆动低点',
 });
 
 function deliveryAnalysisOf(current) {
-  return current.fifteenMinuteAnalysis ||
-    current.oneHourAnalysis ||
-    null;
+  return current.oneHourAnalysis || null;
 }
 
 function deliveryTimeframeText(delivery) {
-  return delivery && delivery.timeframe === '15m'
-    ? '15m'
-    : '1H';
+  return '1H';
 }
 
 function currentOf(report) {
@@ -69,7 +63,6 @@ function currentOf(report) {
   if (
     !current ||
     !current.fourHourAnalysis ||
-    !deliveryAnalysisOf(current) ||
     !current.fiveMinuteObservation
   ) {
     throw new Error(
@@ -127,83 +120,6 @@ function deliveryStageText(delivery) {
     return timeframe + '处于逆4H结构的交付阶段';
   }
   return timeframe + '尚未形成清晰的交付阶段';
-}
-
-function fifteenMinuteStatusText(delivery) {
-  if (delivery.deliveryState === 'RETRACEMENT') {
-    return '回调中';
-  }
-  if (
-    delivery.deliveryState === 'ALIGNED_BULLISH' ||
-    delivery.deliveryDirection === 'BULLISH'
-  ) {
-    return '开始顺势上涨';
-  }
-  if (
-    delivery.deliveryState === 'ALIGNED_BEARISH' ||
-    delivery.deliveryDirection === 'BEARISH'
-  ) {
-    return '开始顺势下跌';
-  }
-  return '方向不明确';
-}
-
-function liquiditySideDisplay(side) {
-  if (side === 'BUY_SIDE') return '买方';
-  if (side === 'SELL_SIDE') return '卖方';
-  return '';
-}
-
-function deliveryDirectionDisplay(h4) {
-  if (h4 && h4.bias === 'BEARISH') return '空头';
-  if (h4 && h4.bias === 'BULLISH') return '多头';
-  return '方向';
-}
-
-function m15StageLines(delivery, h4) {
-  const stage = delivery && delivery.m15DeliveryStage;
-  const waitingSide = liquiditySideDisplay(
-    delivery && delivery.waitingLiquiditySide
-  );
-  const direction = deliveryDirectionDisplay(h4);
-
-  if (
-    stage === 'RETRACEMENT' ||
-    (
-      stage === 'WAITING_LIQUIDITY' &&
-      waitingSide
-    )
-  ) {
-    return [
-      '- 正在回调',
-      waitingSide
-        ? '- 等待' + waitingSide + '流动性'
-        : '- 等待流动性',
-      '- 等待' + direction + '确认',
-    ];
-  }
-  if (stage === 'WAITING_LIQUIDITY') {
-    return ['- 等待15分钟回调形成'];
-  }
-  if (stage === 'LIQUIDITY_TAKEN') {
-    return [
-      '- 流动性已扫取',
-      '- 等待' + direction + '确认',
-    ];
-  }
-  if (stage === 'STRUCTURE_SHIFT') {
-    return [
-      '- 已完成' + direction + '结构转换',
-      '- 等待' + direction + '确认',
-    ];
-  }
-  if (stage === 'DELIVERY_CONFIRMED') {
-    return ['- ' + direction + '交付已确认'];
-  }
-  if (stage === 'INVALIDATED') {
-    return ['- 当前交付链已失效'];
-  }
-  return ['- ' + fifteenMinuteStatusText(delivery || {})];
 }
 
 function sweepTypeText(type) {
@@ -442,7 +358,9 @@ function positionContextLines(positionContext) {
 }
 
 function manualView(h4, delivery, observation) {
-  const timeframe = deliveryTimeframeText(delivery);
+  const relation = delivery
+    ? RELATION_TEXT[delivery.relationToH4]
+    : null;
   if (
     observation &&
     observation.state === 'POTENTIAL_LONG_OBSERVATION'
@@ -451,10 +369,8 @@ function manualView(h4, delivery, observation) {
       view: '偏多',
       reason:
         '4H方向偏多，5m已完成卖方流动性扫取、' +
-        '向上位移与向上市场结构转换；' +
-        (RELATION_TEXT[delivery.relationToH4] ||
-          timeframe + '关系不明确') +
-        '。',
+        '向上位移与向上市场结构转换' +
+        (relation ? '；' + relation : '') + '。',
     };
   }
   if (
@@ -465,10 +381,8 @@ function manualView(h4, delivery, observation) {
       view: '偏空',
       reason:
         '4H方向偏空，5m已完成买方流动性扫取、' +
-        '向下位移与向下市场结构转换；' +
-        (RELATION_TEXT[delivery.relationToH4] ||
-          timeframe + '关系不明确') +
-        '。',
+        '向下位移与向下市场结构转换' +
+        (relation ? '；' + relation : '') + '。',
     };
   }
   if (h4.bias === 'NEUTRAL' || h4.bias === 'UNAVAILABLE') {
@@ -482,10 +396,8 @@ function manualView(h4, delivery, observation) {
     view: '等待',
     reason:
       '4H当前' + directionText(h4.bias) +
-      '，但当前5m尚未形成新的同向完整确认；' +
-      (RELATION_TEXT[delivery.relationToH4] ||
-        timeframe + '关系不明确') +
-      '。',
+      '，但当前5m尚未形成新的同向完整确认' +
+      (relation ? '；' + relation : '') + '。',
   };
 }
 
@@ -493,38 +405,32 @@ function format(report) {
   const current = currentOf(report);
   const h4 = current.fourHourAnalysis;
   const delivery = deliveryAnalysisOf(current);
-  const timeframe = deliveryTimeframeText(delivery);
   const fiveMinute = current.fiveMinuteObservation;
   const confirmed = fiveMinute.currentConfirmed || {};
   const observation = fiveMinute.potentialObservation;
   const humanSummary = current.humanSummary ||
     HumanSummary.summarizeTraderContext({
       h4,
-      delivery,
       fiveMinute,
       alignment: current.alignment,
       liquidityRoadmap: current.liquidityRoadmap,
       positionContext: current.positionContext,
     });
-  const relation = RELATION_TEXT[delivery.relationToH4] ||
-    '与4H关系不明确';
   const location = LOCATION_TEXT[h4.premiumDiscount] ||
     '位置不明确';
-  const deliveryLines = timeframe === '15m'
+  const deliveryLines = delivery
     ? [
-      '2. 15分钟状态',
-      '- 状态：' + fifteenMinuteStatusText(delivery),
-      '当前15分钟状态：',
-      ...m15StageLines(delivery, h4),
-      '- 与4H关系：' + relation,
-    ]
-    : [
-      '2. ' + timeframe + ' Delivery',
+      '2. 1H Delivery',
       '- 当前方向：' +
         directionText(delivery.deliveryDirection),
-      '- 与4H关系：' + relation,
+      '- 与4H关系：' +
+        (RELATION_TEXT[delivery.relationToH4] ||
+          '与4H关系不明确'),
       '- 当前阶段解释：' + deliveryStageText(delivery),
-    ];
+    ]
+    : [];
+  const confirmationSection = delivery ? '3' : '2';
+  const judgmentSection = delivery ? '4' : '3';
 
   return [
     '【ICT市场分析】',
@@ -540,7 +446,7 @@ function format(report) {
     '',
     ...deliveryLines,
     '',
-    '3. 【5分钟确认】',
+    confirmationSection + '. 【5分钟确认】',
     sweepText(confirmed.liquiditySweeps),
     mssText(confirmed.mss),
     displacementText(confirmed.displacement),
@@ -552,7 +458,7 @@ function format(report) {
     '【当前位置】',
     ...positionContextLines(current.positionContext),
     '',
-    '4. 当前人工判断',
+    judgmentSection + '. 当前人工判断',
     humanSummary,
   ].join('\n');
 }
@@ -569,7 +475,6 @@ module.exports = {
   deliveryTimeframeText,
   directionText,
   displacementText,
-  fifteenMinuteStatusText,
   format,
   manualView,
   mssText,
@@ -578,10 +483,8 @@ module.exports = {
   primaryDrawText,
   eventTimeText,
   latestSweep,
-  liquiditySideDisplay,
   liquidityRoadmapLines,
   metricNumberText,
-  m15StageLines,
   roadmapNumber,
   sweepDetailLines,
   sweepFormationTime,
