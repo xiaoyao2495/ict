@@ -326,7 +326,7 @@ function liquidityRoadmapLines(roadmap) {
   });
 }
 
-function positionContextLines(positionContext) {
+function positionContextLines(positionContext, h4) {
   const value = positionContext || {};
   const zone = LOCATION_TEXT[value.positionZone] ||
     '位置不明确';
@@ -345,8 +345,10 @@ function positionContextLines(positionContext) {
   )
     ? value.distancePercent.toFixed(2)
     : '--';
-  const context = value.context ||
-    '暂无当前位置说明。';
+  const context = HumanSummary.positionWaitingNarrative(
+    h4,
+    value
+  );
   return [
     '区域：' + zone,
     '最近流动性：' + nearest,
@@ -456,7 +458,7 @@ function format(report) {
     ...liquidityRoadmapLines(current.liquidityRoadmap),
     '',
     '【当前位置】',
-    ...positionContextLines(current.positionContext),
+    ...positionContextLines(current.positionContext, h4),
     '',
     judgmentSection + '. 当前人工判断',
     humanSummary,

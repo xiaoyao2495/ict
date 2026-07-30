@@ -252,18 +252,22 @@ test('trader summary combines every requested context layer', () => {
   );
 
   for (const text of [
-    '【市场环境】',
+    '【当前市场环境】',
     '4H方向：偏空',
-    '5m确认：等待完整确认',
+    '5m确认状态：等待严格事件链确认',
     '多周期关系：等待低周期确认',
     '当前位置：溢价区',
-    '【当前阶段】',
-    '等待5分钟完整确认',
-    '缺少：',
-    '- 5分钟完整确认',
-    '【关键原因】',
-    '流动性路线首先指向昨日低点',
-    '价格已经接近目标流动性',
+    '位置叙事：4H偏空且价格位于溢价区，' +
+      '等待5分钟空头确认路径完成。',
+    '【已完成事件】',
+    '当前5分钟尚无已确认的局部结构事件。',
+    '【下一步等待路径】',
+    'Buy Side Liquidity Sweep',
+    '→ Bearish MSS',
+    '→ Bearish Displacement',
+    '【等待原因】',
+    '5分钟尚未形成符合4小时方向的' +
+      '流动性扫取→MSS→位移事件链。',
   ]) {
     assert.ok(summary.includes(text), text);
   }
@@ -304,12 +308,17 @@ test('aligned context describes confirmation without execution advice', () => {
     })
   );
 
-  assert.ok(summary.includes('5m确认：已形成向上确认'));
+  assert.ok(summary.includes(
+    '5m确认状态：已形成向上完整确认'
+  ));
   assert.ok(summary.includes('多周期方向一致'));
   assert.ok(summary.includes(
-    '多周期观察条件已经完整'
+    '5分钟严格多头确认链已经完成。'
   ));
-  assert.ok(summary.includes('缺少：\n- 无'));
+  assert.ok(summary.includes(
+    '当前5分钟确认链已完成，等待新的市场状态变化。'
+  ));
+  assert.strictEqual(summary.includes('缺少：'), false);
   for (const forbidden of [
     'LONG',
     'SHORT',
@@ -359,6 +368,129 @@ test('setup stage ignores legacy M15 state', () => {
     setupStage: 'WAITING_LTF_CONFIRMATION',
     missingConditions: ['5分钟完整确认'],
   });
+});
+
+test('confirmation status only follows the strict chain result', () => {
+  const independentEvents = traderContext({
+    fiveMinute: {
+      currentConfirmed: {
+        liquiditySweeps: [{
+          side: 'SELL_SIDE',
+        }],
+        mss: { direction: 'BULLISH' },
+        displacement: { direction: 'BULLISH' },
+        confirmation: null,
+      },
+    },
+  });
+  const bullish = traderContext({
+    fiveMinute: {
+      currentConfirmed: {
+        confirmation: {
+          status: 'CONFIRMED',
+          direction: 'BULLISH',
+        },
+      },
+    },
+  });
+  const bearish = traderContext({
+    fiveMinute: {
+      currentConfirmed: {
+        confirmation: {
+          status: 'CONFIRMED',
+          direction: 'BEARISH',
+        },
+      },
+    },
+  });
+
+  assert.strictEqual(
+    HumanSummary.fiveMinuteConfirmationStatus(
+      independentEvents.fiveMinute
+    ),
+    'WAITING'
+  );
+  assert.strictEqual(
+    HumanSummary.fiveMinuteConfirmationStatus(
+      bullish.fiveMinute
+    ),
+    'CONFIRMED_BULLISH'
+  );
+  assert.strictEqual(
+    HumanSummary.fiveMinuteConfirmationStatus(
+      bearish.fiveMinute
+    ),
+    'CONFIRMED_BEARISH'
+  );
+});
+
+test('independent 5m events are not described as complete confirmation', () => {
+  const input = traderContext({
+    h4: { bias: 'BULLISH' },
+    fiveMinute: {
+      currentConfirmed: {
+        liquiditySweeps: [{
+          side: 'SELL_SIDE',
+        }],
+        mss: { direction: 'BULLISH' },
+        displacement: { direction: 'BULLISH' },
+        confirmation: null,
+      },
+    },
+  });
+  const summary = HumanSummary.summarizeTraderContext(input);
+
+  assert.ok(summary.includes(
+    '上述为局部事件，尚未构成同一条严格确认链。'
+  ));
+  assert.ok(summary.includes(
+    'Sell Side Liquidity Sweep\n' +
+    '→ Bullish MSS\n' +
+    '→ Bullish Displacement'
+  ));
+  assert.strictEqual(
+    summary.includes('5分钟严格多头确认链已经完成。'),
+    false
+  );
+});
+
+test('next scenario follows bullish and bearish HTF direction', () => {
+  assert.strictEqual(
+    HumanSummary.nextScenario(
+      { bias: 'BULLISH' },
+      'WAITING'
+    ),
+    '等待：\nSell Side Liquidity Sweep\n' +
+      '→ Bullish MSS\n→ Bullish Displacement'
+  );
+  assert.strictEqual(
+    HumanSummary.nextScenario(
+      { bias: 'BEARISH' },
+      'WAITING'
+    ),
+    '等待：\nBuy Side Liquidity Sweep\n' +
+      '→ Bearish MSS\n→ Bearish Displacement'
+  );
+});
+
+test('position narrative uses H4 bias and premium discount', () => {
+  const bullish = HumanSummary.positionWaitingNarrative(
+    { bias: 'BULLISH' },
+    { positionZone: 'DISCOUNT' }
+  );
+  const bearish = HumanSummary.positionWaitingNarrative(
+    { bias: 'BEARISH' },
+    { positionZone: 'PREMIUM' }
+  );
+
+  assert.ok(bullish.includes(
+    '4H偏多且价格位于折价区'
+  ));
+  assert.ok(bearish.includes(
+    '4H偏空且价格位于溢价区'
+  ));
+  assert.strictEqual(bullish.includes('不适合追单'), false);
+  assert.strictEqual(bearish.includes('不适合追单'), false);
 });
 
 test('setup stage waits for 5m confirmation', () => {

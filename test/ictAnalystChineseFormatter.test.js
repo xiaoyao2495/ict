@@ -73,6 +73,13 @@ function currentReport(options) {
           mss: options.mss === undefined
             ? { direction: 'BULLISH' }
             : options.mss,
+          confirmation:
+            options.confirmation === undefined
+              ? {
+                status: 'CONFIRMED',
+                direction: 'BULLISH',
+              }
+              : options.confirmation,
         },
         potentialObservation: options.observation || {
           state: 'POTENTIAL_LONG_OBSERVATION',
@@ -117,12 +124,13 @@ test('Chinese message contains every required fixed field', () => {
     '区域：位置不明确',
     '最近流动性：暂无明确流动性',
     '距离：--',
-    '说明：暂无当前位置说明。',
+    '说明：价格位于4H区间位置不明确，' +
+      '等待5分钟多头确认路径完成。',
     '4. 当前人工判断',
-    '【市场环境】',
-    '【当前阶段】',
-    '缺少：',
-    '【关键原因】',
+    '【当前市场环境】',
+    '【已完成事件】',
+    '【下一步等待路径】',
+    '【等待原因】',
   ]) {
     assert.ok(text.includes(field), field);
   }
@@ -140,6 +148,7 @@ test('Neutral report produces a waiting judgment', () => {
     sweeps: [],
     displacement: null,
     mss: null,
+    confirmation: null,
     observation: {
       state: 'NONE',
       side: null,
@@ -150,7 +159,11 @@ test('Neutral report produces a waiting judgment', () => {
   assert.ok(text.includes('暂无明确主要流动性目标'));
   assert.ok(text.includes('- 当前观察：暂无'));
   assert.ok(text.includes(
-    '【当前阶段】\n等待4小时方向明确'
+    '【下一步等待路径】\n等待：4小时方向明确'
+  ));
+  assert.ok(text.includes(
+    '【等待原因】\n4小时方向尚未明确，' +
+    '暂不建立方向性5分钟等待路径。'
   ));
   assert.ok(text.includes('□ 等待流动性扫取'));
   assert.ok(text.includes('□ 等待市场结构转换'));
@@ -369,7 +382,11 @@ test('当前位置显示区域最近流动性距离和说明', () => {
   assert.ok(text.includes('最近流动性：昨日低点'));
   assert.ok(text.includes('价格：99.58'));
   assert.ok(text.includes('距离：0.42（0.42%）'));
-  assert.ok(text.includes('说明：' + context.context));
+  assert.ok(text.includes(
+    '说明：4H偏多但价格位于溢价区，' +
+    '等待价格完成流动性处理并重新形成5分钟多头确认。'
+  ));
+  assert.strictEqual(text.includes('不适合追单'), false);
 });
 
 test('价格距离按绝对值和百分比共同显示', () => {

@@ -226,26 +226,39 @@ function h4DirectionText(h4) {
 }
 
 function fiveMinuteStatusText(fiveMinute, alignment) {
-  const confirmation = fiveMinute &&
-    fiveMinute.currentConfirmed &&
-    fiveMinute.currentConfirmed.confirmation;
+  const status = fiveMinuteConfirmationStatus(fiveMinute);
   if (
     alignment &&
     alignment.status === 'CONFLICT'
   ) {
     return '确认方向存在冲突';
   }
-  if (
-    confirmation &&
-    confirmation.status === 'CONFIRMED'
-  ) {
-    return confirmation.direction === 'BULLISH'
-      ? '已形成向上确认'
-      : confirmation.direction === 'BEARISH'
-        ? '已形成向下确认'
-        : '确认方向不明确';
+  if (status === 'CONFIRMED_BULLISH') {
+    return '已形成向上完整确认';
   }
-  return '等待完整确认';
+  if (status === 'CONFIRMED_BEARISH') {
+    return '已形成向下完整确认';
+  }
+  return '等待严格事件链确认';
+}
+
+function fiveMinuteConfirmationStatus(fiveMinute) {
+  const confirmation = fiveMinute &&
+    fiveMinute.currentConfirmed &&
+    fiveMinute.currentConfirmed.confirmation;
+  if (
+    !confirmation ||
+    confirmation.status !== 'CONFIRMED'
+  ) {
+    return 'WAITING';
+  }
+  if (confirmation.direction === 'BULLISH') {
+    return 'CONFIRMED_BULLISH';
+  }
+  if (confirmation.direction === 'BEARISH') {
+    return 'CONFIRMED_BEARISH';
+  }
+  return 'WAITING';
 }
 
 function alignmentText(alignment) {
@@ -266,6 +279,34 @@ function positionZoneText(positionContext) {
   if (zone === 'DISCOUNT') return '折价区';
   if (zone === 'EQUILIBRIUM') return '均衡区';
   return '位置不明确';
+}
+
+function positionWaitingNarrative(h4, positionContext) {
+  const bias = h4 && h4.bias;
+  const zone = positionContext &&
+    positionContext.positionZone;
+  if (bias !== 'BULLISH' && bias !== 'BEARISH') {
+    return '4H方向尚未明确，当前位置仅作为区间信息观察。';
+  }
+  if (bias === 'BULLISH' && zone === 'DISCOUNT') {
+    return '4H偏多且价格位于折价区，等待5分钟多头确认路径完成。';
+  }
+  if (bias === 'BULLISH' && zone === 'PREMIUM') {
+    return '4H偏多但价格位于溢价区，等待价格完成流动性处理并重新形成5分钟多头确认。';
+  }
+  if (bias === 'BEARISH' && zone === 'PREMIUM') {
+    return '4H偏空且价格位于溢价区，等待5分钟空头确认路径完成。';
+  }
+  if (bias === 'BEARISH' && zone === 'DISCOUNT') {
+    return '4H偏空但价格位于折价区，等待价格完成流动性处理并重新形成5分钟空头确认。';
+  }
+  return (
+    '价格位于4H区间' +
+    positionZoneText(positionContext) +
+    '，等待5分钟' +
+    (bias === 'BULLISH' ? '多头' : '空头') +
+    '确认路径完成。'
+  );
 }
 
 function focusDirection(input) {
@@ -432,36 +473,172 @@ function keyReasons(input) {
   return reasons;
 }
 
+function completedEventTexts(fiveMinute) {
+  const confirmed = fiveMinute &&
+    fiveMinute.currentConfirmed
+    ? fiveMinute.currentConfirmed
+    : {};
+  const sweeps = Array.isArray(confirmed.liquiditySweeps)
+    ? confirmed.liquiditySweeps
+    : [];
+  const sellSideCount = sweeps.filter(
+    (event) => event.side === 'SELL_SIDE'
+  ).length;
+  const buySideCount = sweeps.filter(
+    (event) => event.side === 'BUY_SIDE'
+  ).length;
+  const events = [];
+
+  if (sellSideCount > 0) {
+    events.push(
+      '已确认卖方流动性扫取，共' +
+      sellSideCount + '项。'
+    );
+  }
+  if (buySideCount > 0) {
+    events.push(
+      '已确认买方流动性扫取，共' +
+      buySideCount + '项。'
+    );
+  }
+  if (confirmed.mss) {
+    events.push(
+      confirmed.mss.direction === 'BULLISH'
+        ? '已观测到向上市场结构转换事件。'
+        : confirmed.mss.direction === 'BEARISH'
+          ? '已观测到向下市场结构转换事件。'
+          : '已观测到方向未明的市场结构转换事件。'
+    );
+  }
+  if (confirmed.displacement) {
+    events.push(
+      confirmed.displacement.direction === 'BULLISH'
+        ? '已观测到向上位移事件。'
+        : confirmed.displacement.direction === 'BEARISH'
+          ? '已观测到向下位移事件。'
+          : '已观测到方向未明的位移事件。'
+    );
+  }
+
+  const status = fiveMinuteConfirmationStatus(fiveMinute);
+  if (status === 'CONFIRMED_BULLISH') {
+    events.push('5分钟严格多头确认链已经完成。');
+  } else if (status === 'CONFIRMED_BEARISH') {
+    events.push('5分钟严格空头确认链已经完成。');
+  } else if (events.length > 0) {
+    events.push(
+      '上述为局部事件，尚未构成同一条严格确认链。'
+    );
+  } else {
+    events.push('当前5分钟尚无已确认的局部结构事件。');
+  }
+  return events;
+}
+
+function nextScenario(h4, confirmationStatus) {
+  const bias = h4 && h4.bias;
+  if (
+    (bias === 'BULLISH' &&
+      confirmationStatus === 'CONFIRMED_BULLISH') ||
+    (bias === 'BEARISH' &&
+      confirmationStatus === 'CONFIRMED_BEARISH')
+  ) {
+    return '当前5分钟确认链已完成，等待新的市场状态变化。';
+  }
+  if (bias === 'BULLISH') {
+    return [
+      '等待：',
+      'Sell Side Liquidity Sweep',
+      '→ Bullish MSS',
+      '→ Bullish Displacement',
+    ].join('\n');
+  }
+  if (bias === 'BEARISH') {
+    return [
+      '等待：',
+      'Buy Side Liquidity Sweep',
+      '→ Bearish MSS',
+      '→ Bearish Displacement',
+    ].join('\n');
+  }
+  return '等待：4小时方向明确';
+}
+
+function waitingReason(input, status, completedEvents) {
+  const h4 = input.h4 || {};
+  const alignment = input.alignment || {};
+  if (!hasDirectionalH4(h4)) {
+    return '4小时方向尚未明确，暂不建立方向性5分钟等待路径。';
+  }
+  if (
+    status === 'CONFIRMED_BULLISH' ||
+    status === 'CONFIRMED_BEARISH'
+  ) {
+    if (alignment.status === 'CONFLICT') {
+      return '5分钟完整确认方向与4小时方向存在冲突，等待多周期叙事重新一致。';
+    }
+    return '4小时与5分钟确认方向一致，当前等待新的市场状态变化。';
+  }
+  if (
+    completedEvents.length > 1 ||
+    !completedEvents[0].startsWith('当前5分钟尚无')
+  ) {
+    return '5分钟已出现局部事件，但事件方向、顺序或距离尚未构成符合4小时方向的严格确认链。';
+  }
+  return '5分钟尚未形成符合4小时方向的流动性扫取→MSS→位移事件链。';
+}
+
+function analyzeNarrative(input) {
+  input = input || {};
+  const fiveMinute = input.fiveMinute || {};
+  const status = fiveMinuteConfirmationStatus(fiveMinute);
+  const completedEvents = completedEventTexts(fiveMinute);
+  return {
+    fiveMinuteConfirmationStatus: status,
+    marketEnvironment: [
+      '4H方向：' + h4DirectionText(input.h4),
+      '当前位置：' +
+        positionZoneText(input.positionContext),
+      '位置叙事：' + positionWaitingNarrative(
+        input.h4,
+        input.positionContext
+      ),
+      '5m确认状态：' + fiveMinuteStatusText(
+        fiveMinute,
+        input.alignment
+      ),
+      '多周期关系：' +
+        alignmentText(input.alignment),
+    ],
+    completedEvents,
+    nextScenario: nextScenario(input.h4, status),
+    waitingReason: waitingReason(
+      input,
+      status,
+      completedEvents
+    ),
+  };
+}
+
 function summarizeTraderContext(input) {
   input = input || {};
-  const h4 = input.h4 || {};
-  const fiveMinute = input.fiveMinute || {};
-  const alignment = input.alignment || null;
-  const reasons = keyReasons(input);
-  const setup = input.setupAnalysis ||
-    analyzeSetupStage(input);
-  const missing = setup.missingConditions.length > 0
-    ? setup.missingConditions.map(
-      (condition) => '- ' + condition
-    )
-    : ['- 无'];
+  const narrative = input.narrative ||
+    analyzeNarrative(input);
 
   return [
-    '【市场环境】',
-    '4H方向：' + h4DirectionText(h4),
-    '5m确认：' +
-      fiveMinuteStatusText(fiveMinute, alignment),
-    '多周期关系：' + alignmentText(alignment),
-    '当前位置：' +
-      positionZoneText(input.positionContext),
+    '【当前市场环境】',
+    ...narrative.marketEnvironment,
     '',
-    '【当前阶段】',
-    setupStageText(setup.setupStage),
-    '缺少：',
-    ...missing,
+    '【已完成事件】',
+    ...narrative.completedEvents.map(
+      (event) => '- ' + event
+    ),
     '',
-    '【关键原因】',
-    ...reasons.map((reason) => '- ' + reason),
+    '【下一步等待路径】',
+    narrative.nextScenario,
+    '',
+    '【等待原因】',
+    narrative.waitingReason,
   ].join('\n');
 }
 
@@ -469,8 +646,11 @@ module.exports = {
   LIQUIDITY_TYPE_TEXT,
   SETUP_STAGES,
   alignmentText,
+  analyzeNarrative,
   analyzeSetupStage,
+  completedEventTexts,
   confirmationState,
+  fiveMinuteConfirmationStatus,
   fiveMinuteStatusText,
   focusDirection,
   hasConfirmedLtf,
@@ -479,9 +659,12 @@ module.exports = {
   keyReasons,
   liquidityTypeText,
   ltfNarrativeState,
+  nextScenario,
   percentText,
   positionZoneText,
+  positionWaitingNarrative,
   setupStageText,
   summarize,
   summarizeTraderContext,
+  waitingReason,
 };

@@ -275,10 +275,16 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
   assert.ok(result.results[0].formatted.includes(
     '【当前位置】'
   ));
+  assert.strictEqual(
+    result.results[0].report.current.positionContext
+      .context.includes('不适合追单'),
+    false
+  );
   for (const heading of [
-    '【市场环境】',
-    '【当前阶段】',
-    '【关键原因】',
+    '【当前市场环境】',
+    '【已完成事件】',
+    '【下一步等待路径】',
+    '【等待原因】',
   ]) {
     assert.ok(
       result.results[0].report.current.humanSummary
@@ -295,6 +301,18 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
   assert.ok(Array.isArray(
     result.results[0].report.current.missingConditions
   ));
+  assert.ok([
+    'CONFIRMED_BULLISH',
+    'CONFIRMED_BEARISH',
+    'WAITING',
+  ].includes(
+    result.results[0].report.current
+      .fiveMinuteConfirmationStatus
+  ));
+  assert.strictEqual(
+    typeof result.results[0].report.current.nextScenario,
+    'string'
+  );
 });
 
 (async () => {

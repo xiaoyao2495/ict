@@ -145,24 +145,35 @@ function normalizeSnapshot(snapshot, confirmationState) {
   );
   const currentConfirmation =
     fiveMinute.currentConfirmed.confirmation;
+  const alignment = Alignment.analyze({
+    h4Bias: snapshot.fourHourAnalysis.bias,
+    fiveMinuteConfirmationDirection:
+      currentConfirmation
+        ? currentConfirmation.direction
+        : null,
+    fiveMinuteConfirmationStatus:
+      currentConfirmation
+        ? currentConfirmation.status
+        : 'NONE',
+  });
+  const summaryInput = {
+    h4: snapshot.fourHourAnalysis,
+    fiveMinute,
+    alignment,
+  };
+  const narrative =
+    HumanSummary.analyzeNarrative(summaryInput);
   const normalized = {
     ...clone(snapshot),
     fiveMinuteObservation: fiveMinute,
-    alignment: Alignment.analyze({
-      h4Bias: snapshot.fourHourAnalysis.bias,
-      fiveMinuteConfirmationDirection:
-        currentConfirmation
-          ? currentConfirmation.direction
-          : null,
-      fiveMinuteConfirmationStatus:
-        currentConfirmation
-          ? currentConfirmation.status
-          : 'NONE',
+    alignment,
+    fiveMinuteConfirmationStatus:
+      narrative.fiveMinuteConfirmationStatus,
+    nextScenario: narrative.nextScenario,
+    humanSummary: HumanSummary.summarizeTraderContext({
+      ...summaryInput,
+      narrative,
     }),
-    humanSummary: HumanSummary.summarize(
-      snapshot.fourHourAnalysis,
-      fiveMinute
-    ),
   };
   delete normalized.oneHourAnalysis;
   return normalized;
@@ -285,6 +296,11 @@ function analyze(input) {
       current.fourHourAnalysis.premiumDiscount,
     liquidityRoadmap: current.liquidityRoadmap,
   });
+  current.positionContext.context =
+    HumanSummary.positionWaitingNarrative(
+      current.fourHourAnalysis,
+      current.positionContext
+    );
   const summaryInput = {
     h4: current.fourHourAnalysis,
     fiveMinute: current.fiveMinuteObservation,
@@ -294,13 +310,19 @@ function analyze(input) {
   };
   const setupAnalysis =
     HumanSummary.analyzeSetupStage(summaryInput);
+  const narrative =
+    HumanSummary.analyzeNarrative(summaryInput);
   current.setupStage = setupAnalysis.setupStage;
   current.missingConditions =
     setupAnalysis.missingConditions.slice();
+  current.fiveMinuteConfirmationStatus =
+    narrative.fiveMinuteConfirmationStatus;
+  current.nextScenario = narrative.nextScenario;
   current.humanSummary =
     HumanSummary.summarizeTraderContext({
       ...summaryInput,
       setupAnalysis,
+      narrative,
     });
 
   return {
