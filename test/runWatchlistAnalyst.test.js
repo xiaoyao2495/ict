@@ -282,6 +282,7 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
   );
   for (const heading of [
     '【当前市场环境】',
+    '【交易机会观察】',
     '【已完成事件】',
     '【下一步等待路径】',
     '【等待原因】',
@@ -313,6 +314,15 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
     typeof result.results[0].report.current.nextScenario,
     'string'
   );
+  assert.ok(
+    result.results[0].report.current.opportunity
+  );
+  assert.ok([
+    'WAITING',
+    'WATCH_ZONE',
+  ].includes(
+    result.results[0].report.current.opportunity.status
+  ));
 });
 
 (async () => {

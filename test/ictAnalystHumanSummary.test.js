@@ -493,6 +493,90 @@ test('position narrative uses H4 bias and premium discount', () => {
   assert.strictEqual(bearish.includes('不适合追单'), false);
 });
 
+test('bullish WATCH_ZONE becomes a LONG observation', () => {
+  const summary = HumanSummary.summarizeTraderContext(
+    traderContext({
+      h4: { bias: 'BULLISH' },
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'PDL',
+        price: 99.6,
+      },
+    })
+  );
+
+  for (const text of [
+    '【交易机会观察】',
+    '方向：LONG',
+    'HTF原因：4H Bias bullish',
+    '关注流动性：PDL',
+    '当前阶段：WATCH_ZONE：等待流动性扫取',
+    '下一步路径：Sell Side Liquidity Sweep → ' +
+      'Bullish MSS → Bullish Displacement',
+  ]) {
+    assert.ok(summary.includes(text), text);
+  }
+});
+
+test('expected Sweep advances opportunity to CONFIRMING', () => {
+  const summary = HumanSummary.summarizeTraderContext(
+    traderContext({
+      h4: { bias: 'BULLISH' },
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'H4_SWING_LOW',
+        price: 99.7,
+      },
+      fiveMinute: {
+        currentConfirmed: {
+          liquiditySweeps: [{
+            side: 'SELL_SIDE',
+            type: 'H4_SWING_LOW',
+          }],
+          confirmation: null,
+        },
+      },
+    })
+  );
+
+  assert.ok(summary.includes(
+    '关注流动性：H4 Swing Low'
+  ));
+  assert.ok(summary.includes(
+    '当前阶段：CONFIRMING：等待MSS/Displacement'
+  ));
+  assert.strictEqual(
+    summary.includes(
+      '当前阶段：WATCH_ZONE：等待流动性扫取'
+    ),
+    false
+  );
+});
+
+test('bearish opportunity uses SHORT and buy-side path', () => {
+  const lines = HumanSummary.opportunityObservationLines(
+    traderContext({
+      h4: { bias: 'BEARISH' },
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BEARISH',
+        liquidityType: 'EQUAL_HIGH',
+        price: 100.3,
+      },
+    })
+  ).join('\n');
+
+  assert.ok(lines.includes('方向：SHORT'));
+  assert.ok(lines.includes('HTF原因：4H Bias bearish'));
+  assert.ok(lines.includes('关注流动性：Equal High'));
+  assert.ok(lines.includes(
+    'Buy Side Liquidity Sweep → Bearish MSS → ' +
+    'Bearish Displacement'
+  ));
+});
+
 test('setup stage waits for 5m confirmation', () => {
   const result = HumanSummary.analyzeSetupStage(
     traderContext()

@@ -20,6 +20,7 @@ const CHANGE_REASONS = Object.freeze({
     'CONFIRMATION_STATUS_CHANGED',
   ALIGNMENT_STATUS_CHANGED:
     'ALIGNMENT_STATUS_CHANGED',
+  OPPORTUNITY_CHANGED: 'OPPORTUNITY_CHANGED',
 });
 
 const DYNAMIC_STATE_FIELDS = Object.freeze([
@@ -336,6 +337,30 @@ function normalizeAlignment(value) {
   };
 }
 
+function normalizeOpportunity(value) {
+  value = value && typeof value === 'object'
+    ? value
+    : {};
+  return {
+    status: value.status === 'WATCH_ZONE'
+      ? 'WATCH_ZONE'
+      : 'WAITING',
+    direction: (
+      value.direction === 'BULLISH' ||
+      value.direction === 'BEARISH'
+    )
+      ? value.direction
+      : null,
+    liquidityType:
+      typeof value.liquidityType === 'string'
+        ? value.liquidityType
+        : null,
+    price: Number.isFinite(value.price)
+      ? value.price
+      : null,
+  };
+}
+
 function confirmationFromCurrent(current) {
   const observed = current &&
     current.fiveMinuteObservation &&
@@ -382,6 +407,9 @@ function extractSymbolState(input) {
       current.fourHourAnalysis.bias || 'UNAVAILABLE',
     confirmation: confirmationFromCurrent(current),
     alignment: normalizeAlignment(current.alignment),
+    opportunity: normalizeOpportunity(
+      current.opportunity
+    ),
     latestMss: normalizeMss(latest.mss),
   };
 }
@@ -418,6 +446,16 @@ function compareSymbolStates(previousState, currentState) {
       CHANGE_REASONS.ALIGNMENT_STATUS_CHANGED
     );
   }
+  if (
+    previousState.opportunity.status !==
+      currentState.opportunity.status ||
+    previousState.opportunity.direction !==
+      currentState.opportunity.direction ||
+    previousState.opportunity.liquidityType !==
+      currentState.opportunity.liquidityType
+  ) {
+    reasons.push(CHANGE_REASONS.OPPORTUNITY_CHANGED);
+  }
 
   return {
     shouldNotify: reasons.length > 0,
@@ -445,12 +483,15 @@ function normalizePersistedState(value) {
         state.confirmation
       ),
       alignment: normalizeAlignment(state.alignment),
+      opportunity: normalizeOpportunity(
+        state.opportunity
+      ),
       latestMss: normalizeMss(state.latestMss),
     };
   }
 
   return {
-    version: 4,
+    version: 5,
     symbols,
   };
 }
@@ -662,6 +703,7 @@ module.exports = {
   normalizeAlignment,
   normalizeConfirmation,
   normalizeMss,
+  normalizeOpportunity,
   normalizePersistedState,
   processNotifications,
   stableMssIdentity,

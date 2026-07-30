@@ -6,6 +6,9 @@ const WatchlistFilter = require(
 );
 const DingTalk = require('./runAnalystReportNotify');
 const BeijingTime = require('../formatters/beijingTime');
+const OpportunityHistory = require(
+  '../history/ictOpportunityHistory'
+);
 
 const CHANGE_REPORT_HEADER =
   '检测---ICT Watchlist 状态变化';
@@ -127,6 +130,13 @@ async function run(options) {
     exchangeInfoApi: options.exchangeInfoApi,
     output() {},
   });
+  const opportunityHistory =
+    await OpportunityHistory.recordResults({
+      results: analysis.results,
+      store: options.opportunityHistoryStore,
+      historyFilePath: options.opportunityHistoryPath,
+      recordedAt: analysis.currentTime,
+    });
   const stateStore = options.stateStore ||
     WatchlistFilter.createFileStore(
       options.stateFilePath
@@ -177,6 +187,7 @@ async function run(options) {
   return {
     ...analysis,
     watchlistMessage: analysis.message,
+    opportunityHistory,
     notification,
     changedSymbols: notification.changedSymbols,
     notificationSymbols,

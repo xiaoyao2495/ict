@@ -415,6 +415,7 @@ function format(report) {
       h4,
       fiveMinute,
       alignment: current.alignment,
+      opportunity: current.opportunity,
       liquidityRoadmap: current.liquidityRoadmap,
       positionContext: current.positionContext,
     });

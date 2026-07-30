@@ -15,6 +15,17 @@ const LIQUIDITY_TYPE_TEXT = Object.freeze({
   EQUAL_LOW: '等低',
 });
 
+const OPPORTUNITY_LIQUIDITY_TEXT = Object.freeze({
+  PDL: 'PDL',
+  PWL: 'PWL',
+  H4_SWING_LOW: 'H4 Swing Low',
+  EQUAL_LOW: 'Equal Low',
+  PDH: 'PDH',
+  PWH: 'PWH',
+  H4_SWING_HIGH: 'H4 Swing High',
+  EQUAL_HIGH: 'Equal High',
+});
+
 function ltfNarrativeState(fiveMinute) {
   const confirmed = fiveMinute &&
     fiveMinute.currentConfirmed
@@ -620,14 +631,143 @@ function analyzeNarrative(input) {
   };
 }
 
+function opportunityDirection(input) {
+  const opportunity = input.opportunity || {};
+  const h4Bias = input.h4 && input.h4.bias;
+  const direction = (
+    h4Bias === 'BULLISH' || h4Bias === 'BEARISH'
+  )
+    ? h4Bias
+    : opportunity.direction;
+  if (direction === 'BULLISH') return 'LONG';
+  if (direction === 'BEARISH') return 'SHORT';
+  return 'NONE';
+}
+
+function opportunityLiquidityText(input) {
+  const opportunity = input.opportunity || {};
+  if (
+    OPPORTUNITY_LIQUIDITY_TEXT[
+      opportunity.liquidityType
+    ]
+  ) {
+    return OPPORTUNITY_LIQUIDITY_TEXT[
+      opportunity.liquidityType
+    ];
+  }
+  const direction = opportunityDirection(input);
+  if (direction === 'LONG') {
+    return 'PDL / PWL / H4 Swing Low / Equal Low';
+  }
+  if (direction === 'SHORT') {
+    return 'PDH / PWH / H4 Swing High / Equal High';
+  }
+  return '等待4H方向明确';
+}
+
+function hasExpectedOpportunitySweep(input) {
+  const direction = opportunityDirection(input);
+  const sweeps = input.fiveMinute &&
+    input.fiveMinute.currentConfirmed &&
+    Array.isArray(
+      input.fiveMinute.currentConfirmed.liquiditySweeps
+    )
+    ? input.fiveMinute.currentConfirmed.liquiditySweeps
+    : [];
+  const expectedSide = direction === 'LONG'
+    ? 'SELL_SIDE'
+    : direction === 'SHORT'
+      ? 'BUY_SIDE'
+      : null;
+  return Boolean(
+    expectedSide &&
+    sweeps.some((sweep) => sweep.side === expectedSide)
+  );
+}
+
+function opportunityStage(input) {
+  const opportunity = input.opportunity || {};
+  const direction = opportunityDirection(input);
+  const confirmationStatus =
+    fiveMinuteConfirmationStatus(input.fiveMinute);
+  if (
+    (direction === 'LONG' &&
+      confirmationStatus === 'CONFIRMED_BULLISH') ||
+    (direction === 'SHORT' &&
+      confirmationStatus === 'CONFIRMED_BEARISH')
+  ) {
+    return {
+      status: 'CONFIRMED',
+      text: 'Sweep、MSS与Displacement已完成',
+    };
+  }
+  if (
+    opportunity.status === 'WATCH_ZONE' &&
+    hasExpectedOpportunitySweep(input)
+  ) {
+    return {
+      status: 'CONFIRMING',
+      text: '等待MSS/Displacement',
+    };
+  }
+  if (opportunity.status === 'WATCH_ZONE') {
+    return {
+      status: 'WATCH_ZONE',
+      text: '等待流动性扫取',
+    };
+  }
+  return {
+    status: 'WAITING',
+    text: '尚未进入关键流动性观察区域',
+  };
+}
+
+function opportunityPath(input) {
+  const direction = opportunityDirection(input);
+  if (direction === 'LONG') {
+    return 'Sell Side Liquidity Sweep → ' +
+      'Bullish MSS → Bullish Displacement';
+  }
+  if (direction === 'SHORT') {
+    return 'Buy Side Liquidity Sweep → ' +
+      'Bearish MSS → Bearish Displacement';
+  }
+  return '等待4H Bias明确 → Sweep → MSS → Displacement';
+}
+
+function opportunityObservationLines(input) {
+  const direction = opportunityDirection(input);
+  const h4Reason = direction === 'LONG'
+    ? '4H Bias bullish'
+    : direction === 'SHORT'
+      ? '4H Bias bearish'
+      : '4H Bias unclear';
+  const stage = opportunityStage(input);
+  return [
+    '【交易机会观察】',
+    '方向：' + direction,
+    'HTF原因：' + h4Reason,
+    '关注流动性：' + opportunityLiquidityText(input),
+    '当前阶段：' + stage.status + '：' + stage.text,
+    '下一步路径：' + opportunityPath(input),
+  ];
+}
+
 function summarizeTraderContext(input) {
   input = input || {};
   const narrative = input.narrative ||
     analyzeNarrative(input);
+  const opportunityLines = input.opportunity
+    ? [
+      '',
+      ...opportunityObservationLines(input),
+    ]
+    : [];
 
   return [
     '【当前市场环境】',
     ...narrative.marketEnvironment,
+    ...opportunityLines,
     '',
     '【已完成事件】',
     ...narrative.completedEvents.map(
@@ -644,6 +784,7 @@ function summarizeTraderContext(input) {
 
 module.exports = {
   LIQUIDITY_TYPE_TEXT,
+  OPPORTUNITY_LIQUIDITY_TEXT,
   SETUP_STAGES,
   alignmentText,
   analyzeNarrative,
@@ -660,6 +801,11 @@ module.exports = {
   liquidityTypeText,
   ltfNarrativeState,
   nextScenario,
+  opportunityDirection,
+  opportunityLiquidityText,
+  opportunityObservationLines,
+  opportunityPath,
+  opportunityStage,
   percentText,
   positionZoneText,
   positionWaitingNarrative,

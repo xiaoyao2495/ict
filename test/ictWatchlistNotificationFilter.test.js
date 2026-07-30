@@ -68,6 +68,7 @@ function result(symbol, options) {
           direction: options.alignmentDirection || null,
           reason: options.alignmentReason || '',
         },
+        opportunity: options.opportunity,
         fiveMinuteObservation: {
           currentConfirmed: {
             confirmation:
@@ -128,7 +129,7 @@ test('first symbol state sends once', () => {
     decision.nextState.symbols.BTCUSDT.symbol,
     'BTCUSDT'
   );
-  assert.strictEqual(decision.nextState.version, 4);
+  assert.strictEqual(decision.nextState.version, 5);
 });
 
 test('identical state and ordinary candle changes are filtered', () => {
@@ -169,6 +170,12 @@ test('notification state excludes every window locator and Sweep', () => {
       status: 'WAITING',
       direction: null,
       reason: '',
+    },
+    opportunity: {
+      status: 'WAITING',
+      direction: null,
+      liquidityType: null,
+      price: null,
     },
     latestMss: {
       direction: 'BULLISH',
@@ -435,6 +442,170 @@ test('confirmation reason change does not send', () => {
   assert.deepStrictEqual(changedReasonOnly.changes, []);
 });
 
+test('opportunity WAITING to WATCH_ZONE sends', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', {
+      opportunity: {
+        status: 'WAITING',
+        direction: 'BULLISH',
+        liquidityType: null,
+        price: null,
+      },
+    })],
+    null
+  );
+  const changed = Filter.evaluate(
+    [result('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'PDL',
+        price: 99.6,
+        distancePercent: 0.4,
+        reason: 'PRICE_NEAR_PDL',
+      },
+    })],
+    committed(initial)
+  );
+
+  assert.deepStrictEqual(
+    changed.changes[0].reasons,
+    ['OPPORTUNITY_CHANGED']
+  );
+  assert.deepStrictEqual(
+    changed.changes[0].currentState.opportunity,
+    {
+      status: 'WATCH_ZONE',
+      direction: 'BULLISH',
+      liquidityType: 'PDL',
+      price: 99.6,
+    }
+  );
+});
+
+test('repeated WATCH_ZONE ignores price and distance changes', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'PDL',
+        price: 99.6,
+        distancePercent: 0.4,
+      },
+    })],
+    null
+  );
+  const repeated = Filter.evaluate(
+    [result('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'PDL',
+        price: 99.7,
+        distancePercent: 0.3,
+      },
+    })],
+    committed(initial)
+  );
+
+  assert.strictEqual(repeated.shouldNotify, false);
+  assert.deepStrictEqual(repeated.changes, []);
+});
+
+test('opportunity reason change does not send', () => {
+  const base = {
+    status: 'WATCH_ZONE',
+    direction: 'BEARISH',
+    liquidityType: 'PDH',
+    price: 100.2,
+  };
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', {
+      opportunity: {
+        ...base,
+        reason: '初始解释',
+      },
+    })],
+    null
+  );
+  const changedReasonOnly = Filter.evaluate(
+    [result('BTCUSDT', {
+      opportunity: {
+        ...base,
+        reason: '更新后的解释',
+      },
+    })],
+    committed(initial)
+  );
+
+  assert.strictEqual(
+    changedReasonOnly.shouldNotify,
+    false
+  );
+  assert.deepStrictEqual(changedReasonOnly.changes, []);
+});
+
+test('opportunity liquidity type change sends', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'PDL',
+        price: 99.6,
+      },
+    })],
+    null
+  );
+  const changed = Filter.evaluate(
+    [result('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'PWL',
+        price: 99.5,
+      },
+    })],
+    committed(initial)
+  );
+
+  assert.deepStrictEqual(
+    changed.changes[0].reasons,
+    ['OPPORTUNITY_CHANGED']
+  );
+});
+
+test('opportunity direction change sends', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'PDL',
+        price: 99.6,
+      },
+    })],
+    null
+  );
+  const changed = Filter.evaluate(
+    [result('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BEARISH',
+        liquidityType: 'PDL',
+        price: 99.6,
+      },
+    })],
+    committed(initial)
+  );
+
+  assert.deepStrictEqual(
+    changed.changes[0].reasons,
+    ['OPPORTUNITY_CHANGED']
+  );
+});
+
 test('Sweep identity count index and time changes never send', () => {
   const initial = Filter.evaluate(
     [result('BTCUSDT', {
@@ -511,6 +682,15 @@ test('old persisted locator fields are normalized before comparison', () => {
       status: 'WAITING',
       direction: null,
       reason: '',
+    }
+  );
+  assert.deepStrictEqual(
+    decision.previousState.symbols.BTCUSDT.opportunity,
+    {
+      status: 'WAITING',
+      direction: null,
+      liquidityType: null,
+      price: null,
     }
   );
 });

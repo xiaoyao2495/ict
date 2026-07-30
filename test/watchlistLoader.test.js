@@ -21,6 +21,7 @@ test('default watchlist loads configured symbols', () => {
 
   assert.deepStrictEqual(watchlist.symbols, [
     'BTCUSDT',
+    'ETHUSDT',
     'SNDKUSDT',
     'MUUSDT',
     'XAUUSDT',

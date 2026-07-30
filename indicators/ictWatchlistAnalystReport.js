@@ -12,6 +12,9 @@ const LiquidityRoadmap = require(
 const PositionContext = require(
   './ictPositionContextEngine'
 );
+const OpportunityDetector = require(
+  './ictOpportunityDetector'
+);
 const AnalystReport = require('./ictHtfAnalystReport');
 const HumanSummary = require(
   '../formatters/ictAnalystHumanSummary'
@@ -280,13 +283,19 @@ function analyze(input) {
       confirmation.states.length - 1
     ]
   );
+  const roadmapLiquidity = collectRoadmapLiquidity(
+    h4State,
+    ltfState
+  );
   current.liquidityRoadmap = LiquidityRoadmap.analyze({
     currentPrice,
     h4Bias: current.fourHourAnalysis.bias,
-    liquidity: collectRoadmapLiquidity(
-      h4State,
-      ltfState
-    ),
+    liquidity: roadmapLiquidity,
+  });
+  current.opportunity = OpportunityDetector.detect({
+    currentPrice,
+    h4Bias: current.fourHourAnalysis.bias,
+    liquidity: roadmapLiquidity,
   });
   current.positionContext = PositionContext.analyze({
     currentPrice,
@@ -305,6 +314,7 @@ function analyze(input) {
     h4: current.fourHourAnalysis,
     fiveMinute: current.fiveMinuteObservation,
     alignment: current.alignment,
+    opportunity: current.opportunity,
     liquidityRoadmap: current.liquidityRoadmap,
     positionContext: current.positionContext,
   };

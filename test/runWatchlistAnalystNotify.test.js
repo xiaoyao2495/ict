@@ -7,6 +7,9 @@ const Filter = require(
 const NotifyRunner = require(
   '../scripts/runWatchlistAnalystNotify'
 );
+const OpportunityHistory = require(
+  '../history/ictOpportunityHistory'
+);
 
 const CURRENT_TIME = Date.UTC(2026, 6, 28, 0);
 const tests = [];
@@ -108,6 +111,8 @@ test('first Watchlist state sends one combined DingTalk message', async () => {
   const result = await NotifyRunner.run({
     watchlistRunner: runner,
     stateStore: store,
+    opportunityHistoryStore:
+      OpportunityHistory.createMemoryStore(),
     webhookUrl: 'https://example.test/watchlist',
     httpClient: {
       async post(url, payload) {
@@ -157,6 +162,16 @@ test('first Watchlist state sends one combined DingTalk message', async () => {
   const saved = await store.load();
   assert.ok(saved.symbols.BTCUSDT);
   assert.ok(saved.symbols.ETHUSDT);
+  assert.strictEqual(
+    result.opportunityHistory.changed,
+    true
+  );
+  assert.deepStrictEqual(
+    result.opportunityHistory.changes.map(
+      (change) => change.symbol
+    ),
+    ['BTCUSDT', 'ETHUSDT']
+  );
 });
 
 test('duplicate Watchlist state does not call webhook', async () => {
@@ -170,6 +185,8 @@ test('duplicate Watchlist state does not call webhook', async () => {
   const options = {
     watchlistRunner: runner,
     stateStore: store,
+    opportunityHistoryStore:
+      OpportunityHistory.createMemoryStore(),
     webhookUrl: 'https://example.test/watchlist',
     httpClient: {
       async post() {
@@ -184,6 +201,14 @@ test('duplicate Watchlist state does not call webhook', async () => {
 
   assert.strictEqual(first.sent, true);
   assert.strictEqual(duplicate.sent, false);
+  assert.strictEqual(
+    first.opportunityHistory.changed,
+    true
+  );
+  assert.strictEqual(
+    duplicate.opportunityHistory.changed,
+    false
+  );
   assert.strictEqual(duplicate.message, null);
   assert.strictEqual(duplicate.payload, null);
   assert.deepStrictEqual(
@@ -214,6 +239,8 @@ test('Sweep-only changes do not call Watchlist webhook', async () => {
   const options = {
     watchlistRunner: runner,
     stateStore: store,
+    opportunityHistoryStore:
+      OpportunityHistory.createMemoryStore(),
     webhookUrl: 'https://example.test/watchlist',
     httpClient: {
       async post() {
@@ -251,6 +278,8 @@ test('only the independently changed symbol is sent', async () => {
   const options = {
     watchlistRunner: runner,
     stateStore: store,
+    opportunityHistoryStore:
+      OpportunityHistory.createMemoryStore(),
     webhookUrl: 'https://example.test/watchlist',
     httpClient: {
       async post(url, payload) {

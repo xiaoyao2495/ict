@@ -96,6 +96,11 @@ function currentReport(options) {
         : {
           positionContext: options.positionContext,
         }),
+      ...(options.opportunity === undefined
+        ? {}
+        : {
+          opportunity: options.opportunity,
+        }),
     },
   };
 }
@@ -292,6 +297,28 @@ test('Watchlist display supports 4H plus 5m without Delivery', () => {
   assert.strictEqual(text.includes('Delivery'), false);
   assert.ok(text.includes('2. 【5分钟确认】'));
   assert.ok(text.includes('3. 当前人工判断'));
+});
+
+test('formatter includes the opportunity observation chapter', () => {
+  const text = Formatter.format(currentReport({
+    opportunity: {
+      status: 'WATCH_ZONE',
+      direction: 'BULLISH',
+      liquidityType: 'PWL',
+      price: 99.6,
+    },
+    confirmation: null,
+    sweeps: [],
+    mss: null,
+    displacement: null,
+  }));
+
+  assert.ok(text.includes('【交易机会观察】'));
+  assert.ok(text.includes('方向：LONG'));
+  assert.ok(text.includes('关注流动性：PWL'));
+  assert.ok(text.includes(
+    '当前阶段：WATCH_ZONE：等待流动性扫取'
+  ));
 });
 
 test('5分钟确认不再输出英文事件名称', () => {

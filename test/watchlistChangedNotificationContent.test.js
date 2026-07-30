@@ -7,6 +7,9 @@ const Filter = require(
 const NotifyRunner = require(
   '../scripts/runWatchlistAnalystNotify'
 );
+const OpportunityHistory = require(
+  '../history/ictOpportunityHistory'
+);
 
 const CURRENT_TIME = Date.UTC(2026, 6, 29, 0);
 const SYMBOLS = [
@@ -140,6 +143,8 @@ async function primeAndRun(nextRows, symbols) {
   const options = {
     watchlistRunner: runner,
     stateStore: store,
+    opportunityHistoryStore:
+      OpportunityHistory.createMemoryStore(),
     webhookUrl: 'https://example.test/watchlist',
     httpClient: httpRecorder(messages),
   };
@@ -233,6 +238,8 @@ test('首次运行发送完整有效Watchlist', async () => {
   const result = await NotifyRunner.run({
     watchlistRunner: runner,
     stateStore: Filter.createMemoryStore(),
+    opportunityHistoryStore:
+      OpportunityHistory.createMemoryStore(),
     webhookUrl: 'https://example.test/watchlist',
     httpClient: httpRecorder(messages),
   });
@@ -289,6 +296,8 @@ test('Sweep-only变化不发送', async () => {
   const options = {
     watchlistRunner: runner,
     stateStore: store,
+    opportunityHistoryStore:
+      OpportunityHistory.createMemoryStore(),
     webhookUrl: 'https://example.test/watchlist',
     httpClient: httpRecorder(messages),
   };
@@ -321,6 +330,8 @@ test('动态MSS定位字段变化不发送', async () => {
   const options = {
     watchlistRunner: runner,
     stateStore: store,
+    opportunityHistoryStore:
+      OpportunityHistory.createMemoryStore(),
     webhookUrl: 'https://example.test/watchlist',
     httpClient: httpRecorder(messages),
   };
@@ -346,6 +357,8 @@ test('缺失Symbol报告时不回退发送完整Watchlist', async () => {
   const options = {
     watchlistRunner: runner,
     stateStore: store,
+    opportunityHistoryStore:
+      OpportunityHistory.createMemoryStore(),
     webhookUrl: 'https://example.test/watchlist',
     httpClient: httpRecorder(messages),
   };
@@ -389,6 +402,8 @@ test('Debug中的Notification与Rendered Symbols一致', async () => {
   const baseOptions = {
     watchlistRunner: runner,
     stateStore: store,
+    opportunityHistoryStore:
+      OpportunityHistory.createMemoryStore(),
     webhookUrl: 'https://example.test/watchlist',
     httpClient: httpRecorder(messages),
   };
