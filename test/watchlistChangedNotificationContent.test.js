@@ -54,7 +54,26 @@ function symbolResult(symbol, options) {
         fourHourAnalysis: {
           bias: options.bias || 'BULLISH',
         },
+        fiveMinuteConfirmationStatus:
+          options.confirmationStatus || 'WAITING',
+        alignment: {
+          status: options.alignmentStatus || 'WAITING',
+          direction: options.alignmentDirection || null,
+          reason: options.alignmentReason || '',
+        },
         fiveMinuteObservation: {
+          currentConfirmed: {
+            confirmation:
+              options.confirmationStatus &&
+              options.confirmationStatus !== 'WAITING'
+                ? {
+                  status: 'CONFIRMED',
+                  direction:
+                    options.confirmationDirection ||
+                    'BULLISH',
+                }
+                : null,
+          },
           latestConfirmed: {
             mss: options.mss || null,
             liquiditySweep: options.sweep || null,
@@ -168,7 +187,12 @@ test('6个交易对只有1个变化时只渲染1个', async () => {
 test('6个交易对有2个变化时只渲染2个', async () => {
   const changedRows = rows({
     BTCUSDT: { bias: 'BEARISH' },
-    XAUUSDT: { mss: stableMss(20, 120) },
+    XAUUSDT: {
+      confirmationStatus: 'CONFIRMED_BULLISH',
+      confirmationDirection: 'BULLISH',
+      alignmentStatus: 'ALIGNED',
+      alignmentDirection: 'BULLISH',
+    },
   });
   const { result } = await primeAndRun(changedRows);
 
@@ -372,7 +396,12 @@ test('Debug中的Notification与Rendered Symbols一致', async () => {
   await NotifyRunner.run(baseOptions);
   runner.setResults(rows({
     BTCUSDT: { bias: 'BEARISH' },
-    XAUUSDT: { mss: stableMss(20, 120) },
+    XAUUSDT: {
+      confirmationStatus: 'CONFIRMED_BULLISH',
+      confirmationDirection: 'BULLISH',
+      alignmentStatus: 'ALIGNED',
+      alignmentDirection: 'BULLISH',
+    },
   }));
   const result = await NotifyRunner.run({
     ...baseOptions,

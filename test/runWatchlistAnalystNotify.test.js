@@ -38,7 +38,26 @@ function symbolResult(symbol, options) {
         fourHourAnalysis: {
           bias: options.bias || 'BULLISH',
         },
+        fiveMinuteConfirmationStatus:
+          options.confirmationStatus || 'WAITING',
+        alignment: {
+          status: options.alignmentStatus || 'WAITING',
+          direction: options.alignmentDirection || null,
+          reason: options.alignmentReason || '',
+        },
         fiveMinuteObservation: {
+          currentConfirmed: {
+            confirmation:
+              options.confirmationStatus &&
+              options.confirmationStatus !== 'WAITING'
+                ? {
+                  status: 'CONFIRMED',
+                  direction:
+                    options.confirmationDirection ||
+                    'BULLISH',
+                }
+                : null,
+          },
           latestConfirmed: {
             mss: options.mss || null,
             liquiditySweep: options.sweep || null,

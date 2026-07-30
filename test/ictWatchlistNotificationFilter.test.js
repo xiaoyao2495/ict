@@ -61,7 +61,29 @@ function result(symbol, options) {
         fourHourAnalysis: {
           bias: options.bias || 'BULLISH',
         },
+        fiveMinuteConfirmationStatus:
+          options.confirmationStatus || 'WAITING',
+        alignment: {
+          status: options.alignmentStatus || 'WAITING',
+          direction: options.alignmentDirection || null,
+          reason: options.alignmentReason || '',
+        },
         fiveMinuteObservation: {
+          currentConfirmed: {
+            confirmation:
+              options.confirmationStatus &&
+              options.confirmationStatus !== 'WAITING'
+                ? {
+                  status: 'CONFIRMED',
+                  direction:
+                    options.confirmationDirection ||
+                    (options.confirmationStatus ===
+                      'CONFIRMED_BULLISH'
+                      ? 'BULLISH'
+                      : 'BEARISH'),
+                }
+                : null,
+          },
           latestConfirmed: {
             mss: options.mss === undefined
               ? null
@@ -105,6 +127,7 @@ test('first symbol state sends once', () => {
     decision.nextState.symbols.BTCUSDT.symbol,
     'BTCUSDT'
   );
+  assert.strictEqual(decision.nextState.version, 4);
 });
 
 test('identical state and ordinary candle changes are filtered', () => {
@@ -137,6 +160,15 @@ test('notification state excludes every window locator and Sweep', () => {
   assert.deepStrictEqual(state, {
     symbol: 'BTCUSDT',
     h4Bias: 'BULLISH',
+    confirmation: {
+      status: 'WAITING',
+      direction: null,
+    },
+    alignment: {
+      status: 'WAITING',
+      direction: null,
+      reason: '',
+    },
     latestMss: {
       direction: 'BULLISH',
       brokenStructureLevel: {
@@ -231,7 +263,7 @@ test('legacy 15m fields do not notify', () => {
   assert.deepStrictEqual(unchanged.changes, []);
 });
 
-test('new stable 5m MSS event sends even with same direction', () => {
+test('new stable 5m MSS event does not send', () => {
   const initial = Filter.evaluate(
     [result('BTCUSDT', { mss: mss(10) })],
     null
@@ -241,13 +273,11 @@ test('new stable 5m MSS event sends even with same direction', () => {
     committed(initial)
   );
 
-  assert.deepStrictEqual(
-    changed.changes[0].reasons,
-    ['NEW_5M_MSS']
-  );
+  assert.strictEqual(changed.shouldNotify, false);
+  assert.deepStrictEqual(changed.changes, []);
 });
 
-test('MSS direction change sends without time identity', () => {
+test('MSS direction change does not send without confirmation', () => {
   const initial = Filter.evaluate(
     [result('BTCUSDT', {
       mss: {
@@ -269,9 +299,66 @@ test('MSS direction change sends without time identity', () => {
     committed(initial)
   );
 
+  assert.strictEqual(changed.shouldNotify, false);
+  assert.deepStrictEqual(changed.changes, []);
+});
+
+test('WAITING to CONFIRMED_BULLISH sends', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT')],
+    null
+  );
+  const changed = Filter.evaluate(
+    [result('BTCUSDT', {
+      confirmationStatus: 'CONFIRMED_BULLISH',
+      confirmationDirection: 'BULLISH',
+    })],
+    committed(initial)
+  );
+
   assert.deepStrictEqual(
     changed.changes[0].reasons,
-    ['NEW_5M_MSS']
+    ['CONFIRMATION_STATUS_CHANGED']
+  );
+  assert.deepStrictEqual(
+    changed.changes[0].currentState.confirmation,
+    {
+      status: 'CONFIRMED_BULLISH',
+      direction: 'BULLISH',
+    }
+  );
+});
+
+test('alignment WAITING to ALIGNED sends', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', {
+      confirmationStatus: 'CONFIRMED_BULLISH',
+      confirmationDirection: 'BULLISH',
+    })],
+    null
+  );
+  const changed = Filter.evaluate(
+    [result('BTCUSDT', {
+      confirmationStatus: 'CONFIRMED_BULLISH',
+      confirmationDirection: 'BULLISH',
+      alignmentStatus: 'ALIGNED',
+      alignmentDirection: 'BULLISH',
+      alignmentReason: '4小时与5分钟方向一致：偏多',
+    })],
+    committed(initial)
+  );
+
+  assert.deepStrictEqual(
+    changed.changes[0].reasons,
+    ['ALIGNMENT_STATUS_CHANGED']
+  );
+  assert.deepStrictEqual(
+    changed.changes[0].currentState.alignment,
+    {
+      status: 'ALIGNED',
+      direction: 'BULLISH',
+      reason: '4小时与5分钟方向一致：偏多',
+    }
   );
 });
 
@@ -337,6 +424,21 @@ test('old persisted locator fields are normalized before comparison', () => {
       'm15Relation'
     ),
     false
+  );
+  assert.deepStrictEqual(
+    decision.previousState.symbols.BTCUSDT.confirmation,
+    {
+      status: 'WAITING',
+      direction: null,
+    }
+  );
+  assert.deepStrictEqual(
+    decision.previousState.symbols.BTCUSDT.alignment,
+    {
+      status: 'WAITING',
+      direction: null,
+      reason: '',
+    }
   );
 });
 

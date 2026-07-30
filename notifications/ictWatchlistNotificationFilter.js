@@ -16,7 +16,10 @@ const DEFAULT_STATE_PATH = path.resolve(
 const CHANGE_REASONS = Object.freeze({
   INITIAL_STATE: 'INITIAL_STATE',
   H4_BIAS_CHANGED: 'H4_BIAS_CHANGED',
-  NEW_5M_MSS: 'NEW_5M_MSS',
+  CONFIRMATION_STATUS_CHANGED:
+    'CONFIRMATION_STATUS_CHANGED',
+  ALIGNMENT_STATUS_CHANGED:
+    'ALIGNMENT_STATUS_CHANGED',
 });
 
 const DYNAMIC_STATE_FIELDS = Object.freeze([
@@ -277,6 +280,78 @@ function isNewMss(previousMss, currentMss) {
   );
 }
 
+function normalizeConfirmation(value) {
+  value = value && typeof value === 'object'
+    ? value
+    : {};
+  let status = value.status;
+  let direction = value.direction;
+
+  if (status === 'CONFIRMED') {
+    status = direction === 'BULLISH'
+      ? 'CONFIRMED_BULLISH'
+      : direction === 'BEARISH'
+        ? 'CONFIRMED_BEARISH'
+        : 'WAITING';
+  }
+  if (
+    status !== 'CONFIRMED_BULLISH' &&
+    status !== 'CONFIRMED_BEARISH'
+  ) {
+    status = 'WAITING';
+  }
+  if (status === 'CONFIRMED_BULLISH') {
+    direction = 'BULLISH';
+  } else if (status === 'CONFIRMED_BEARISH') {
+    direction = 'BEARISH';
+  } else {
+    direction = null;
+  }
+  return { status, direction };
+}
+
+function normalizeAlignment(value) {
+  value = value && typeof value === 'object'
+    ? value
+    : {};
+  const status = [
+    'ALIGNED',
+    'CONFLICT',
+    'WAITING',
+  ].includes(value.status)
+    ? value.status
+    : 'WAITING';
+  const direction = (
+    value.direction === 'BULLISH' ||
+    value.direction === 'BEARISH'
+  )
+    ? value.direction
+    : null;
+  return {
+    status,
+    direction,
+    reason: typeof value.reason === 'string'
+      ? value.reason
+      : '',
+  };
+}
+
+function confirmationFromCurrent(current) {
+  const observed = current &&
+    current.fiveMinuteObservation &&
+    current.fiveMinuteObservation.currentConfirmed
+    ? current.fiveMinuteObservation.currentConfirmed
+      .confirmation
+    : null;
+  return normalizeConfirmation({
+    status: current &&
+      current.fiveMinuteConfirmationStatus
+      ? current.fiveMinuteConfirmationStatus
+      : observed && observed.status,
+    direction: observed && observed.direction,
+  });
+}
+
 function extractSymbolState(input) {
   const report = input && input.report
     ? input.report
@@ -305,6 +380,8 @@ function extractSymbolState(input) {
     symbol,
     h4Bias:
       current.fourHourAnalysis.bias || 'UNAVAILABLE',
+    confirmation: confirmationFromCurrent(current),
+    alignment: normalizeAlignment(current.alignment),
     latestMss: normalizeMss(latest.mss),
   };
 }
@@ -321,11 +398,21 @@ function compareSymbolStates(previousState, currentState) {
   if (previousState.h4Bias !== currentState.h4Bias) {
     reasons.push(CHANGE_REASONS.H4_BIAS_CHANGED);
   }
-  if (isNewMss(
-    previousState.latestMss,
-    currentState.latestMss
-  )) {
-    reasons.push(CHANGE_REASONS.NEW_5M_MSS);
+  if (
+    previousState.confirmation.status !==
+    currentState.confirmation.status
+  ) {
+    reasons.push(
+      CHANGE_REASONS.CONFIRMATION_STATUS_CHANGED
+    );
+  }
+  if (
+    previousState.alignment.status !==
+    currentState.alignment.status
+  ) {
+    reasons.push(
+      CHANGE_REASONS.ALIGNMENT_STATUS_CHANGED
+    );
   }
 
   return {
@@ -350,12 +437,16 @@ function normalizePersistedState(value) {
     symbols[symbol] = {
       symbol: state.symbol || symbol,
       h4Bias: state.h4Bias || 'UNAVAILABLE',
+      confirmation: normalizeConfirmation(
+        state.confirmation
+      ),
+      alignment: normalizeAlignment(state.alignment),
       latestMss: normalizeMss(state.latestMss),
     };
   }
 
   return {
-    version: 3,
+    version: 4,
     symbols,
   };
 }
@@ -564,6 +655,8 @@ module.exports = {
   evaluate,
   extractSymbolState,
   isNewMss,
+  normalizeAlignment,
+  normalizeConfirmation,
   normalizeMss,
   normalizePersistedState,
   processNotifications,
