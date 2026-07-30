@@ -7,6 +7,9 @@ const FiveMinuteConfirmation = require(
   './ict5mConfirmationEngine'
 );
 const Alignment = require('./ictAlignmentEngine');
+const LiquidityRoadmap = require(
+  './ictLiquidityRoadmapEngine'
+);
 const AnalystReport = require('./ictHtfAnalystReport');
 const HumanSummary = require(
   '../formatters/ictAnalystHumanSummary'
@@ -185,6 +188,55 @@ function normalizeSnapshot(snapshot, confirmationState) {
   return normalized;
 }
 
+function latestStateAtOrBefore(states, timestamp) {
+  if (!Array.isArray(states)) return null;
+  const index = LtfExecution.latestSnapshotIndex(
+    states,
+    timestamp
+  );
+  return index >= 0 ? states[index] : null;
+}
+
+function internalLiquidityLevels(state, timeframe) {
+  const levels = state &&
+    state.liquidity &&
+    Array.isArray(state.liquidity.activeLevels)
+    ? state.liquidity.activeLevels
+    : [];
+  return levels
+    .filter((level) => level.source === 'INTERNAL')
+    .map((level) => ({
+      ...level,
+      type: timeframe === '15m'
+        ? level.type.replace(
+          /^LTF_SWING_/,
+          'M15_SWING_'
+        )
+        : level.type,
+      timeframe,
+    }));
+}
+
+function collectRoadmapLiquidity(h4State, m15State, ltfState) {
+  const h4Liquidity = h4State && h4State.liquidity
+    ? h4State.liquidity
+    : {};
+  const h4Levels = (
+    (h4Liquidity.buySideLiquidity || [])
+      .concat(h4Liquidity.sellSideLiquidity || [])
+  ).map((level) => ({
+    ...level,
+    timeframe: level.type === 'EQUAL_HIGH' ||
+      level.type === 'EQUAL_LOW'
+      ? '4H'
+      : undefined,
+  }));
+
+  return h4Levels
+    .concat(internalLiquidityLevels(m15State, '15m'))
+    .concat(internalLiquidityLevels(ltfState, '5m'));
+}
+
 function analyze(input) {
   input = input || {};
   const symbol = input.symbol || 'BTCUSDT';
@@ -201,7 +253,7 @@ function analyze(input) {
     h4BiasSnapshots: h4.states,
     // Compatibility boundary for the unchanged 5m engine.
     h1DeliverySnapshots: m15.states,
-    retainStates: false,
+    retainStates: true,
   });
   const confirmation = FiveMinuteConfirmation.analyze({
     events: ltf.events,
@@ -229,6 +281,39 @@ function analyze(input) {
       input.onSnapshot(snapshot);
     }
   }
+  const currentTime = input.ltf5mKlines[
+    input.ltf5mKlines.length - 1
+  ].closeTime;
+  const currentPrice = input.ltf5mKlines[
+    input.ltf5mKlines.length - 1
+  ].close;
+  const h4State = latestStateAtOrBefore(
+    h4.states,
+    currentTime
+  );
+  const m15State = latestStateAtOrBefore(
+    m15.states,
+    currentTime
+  );
+  const ltfState = latestStateAtOrBefore(
+    ltf.states,
+    currentTime
+  );
+  const current = normalizeSnapshot(
+    rawTimeline.current,
+    confirmation.states[
+      confirmation.states.length - 1
+    ]
+  );
+  current.liquidityRoadmap = LiquidityRoadmap.analyze({
+    currentPrice,
+    h4Bias: current.fourHourAnalysis.bias,
+    liquidity: collectRoadmapLiquidity(
+      h4State,
+      m15State,
+      ltfState
+    ),
+  });
 
   return {
     protocol: {
@@ -265,12 +350,7 @@ function analyze(input) {
         input.ltf5mKlines.length - 1
       ].closeTime,
     },
-    current: normalizeSnapshot(
-      rawTimeline.current,
-      confirmation.states[
-        confirmation.states.length - 1
-      ]
-    ),
+    current,
     snapshots: input.retainSnapshots === true
       ? snapshots
       : [],
@@ -279,6 +359,9 @@ function analyze(input) {
 
 module.exports = {
   analyze,
+  collectRoadmapLiquidity,
+  internalLiquidityLevels,
+  latestStateAtOrBefore,
   normalizeFiveMinuteObservation,
   normalizeMss,
   normalizeSnapshot,

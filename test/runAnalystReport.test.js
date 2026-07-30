@@ -131,7 +131,7 @@ test('Klines flow through Report and Formatter to Chinese text', async () => {
   assert.ok(result.message.includes('【ICT市场分析】'));
   assert.ok(result.message.includes('1. 4H HTF Bias'));
   assert.ok(result.message.includes('2. 1H Delivery'));
-  assert.ok(result.message.includes('3. 5m Confirmation'));
+  assert.ok(result.message.includes('3. 【5分钟确认】'));
   assert.strictEqual(typeof result.message, 'string');
 
   for (const forbidden of [

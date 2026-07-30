@@ -259,7 +259,7 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
     data.complete['15m'].length
   );
   assert.ok(result.results[0].formatted.includes(
-    '2. 15m Delivery'
+    '2. 15分钟状态'
   ));
 });
 

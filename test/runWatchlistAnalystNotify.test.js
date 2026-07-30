@@ -28,8 +28,8 @@ function symbolResult(symbol, options) {
       '',
       '1. 4H HTF Bias',
       '- Bias：' + (options.bias || 'BULLISH'),
-      '2. 15m Delivery',
-      '3. 5m Confirmation',
+      '2. 15分钟状态',
+      '3. 【5分钟确认】',
       '4. 当前人工判断',
     ].join('\n'),
     report: {

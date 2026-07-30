@@ -57,7 +57,7 @@ test('notification text keeps keyword and formatter output', () => {
     '',
     '1. 4H HTF Bias',
     '2. 1H Delivery',
-    '3. 5m Confirmation',
+    '3. 【5分钟确认】',
     '4. 当前人工判断',
   ].join('\n');
   const text = NotifyRunner.buildNotificationText({
@@ -74,7 +74,7 @@ test('notification text keeps keyword and formatter output', () => {
   assert.ok(text.includes('品种：BTCUSDT'));
   assert.ok(text.includes('1. 4H HTF Bias'));
   assert.ok(text.includes('2. 1H Delivery'));
-  assert.ok(text.includes('3. 5m Confirmation'));
+  assert.ok(text.includes('3. 【5分钟确认】'));
   assert.ok(text.includes('4. 当前人工判断'));
 });
 
@@ -164,7 +164,7 @@ test('closed Klines flow to Formatter and DingTalk webhook', async () => {
   assert.ok(result.message.includes('【ICT市场分析】'));
   assert.ok(result.message.includes('1. 4H HTF Bias'));
   assert.ok(result.message.includes('2. 1H Delivery'));
-  assert.ok(result.message.includes('3. 5m Confirmation'));
+  assert.ok(result.message.includes('3. 【5分钟确认】'));
   assert.ok(result.message.includes('4. 当前人工判断'));
   assert.ok(result.report.current.humanSummary);
   assert.ok(result.message.includes(

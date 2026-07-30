@@ -177,7 +177,8 @@ test('direction conflict is stated without changing observation', () => {
     'CONFLICT'
   );
   assert.ok(summary.includes(
-    '5m已出现局部结构事件，但扫取方向、位移方向与MSS' +
+    '5m已出现局部结构事件，但扫取方向、位移方向与' +
+    '市场结构转换方向' +
     '未形成一致叙事。'
   ));
   assert.deepStrictEqual(input.fiveMinute, before);

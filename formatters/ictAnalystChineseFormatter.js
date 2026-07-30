@@ -34,20 +34,20 @@ const RELATION_TEXT = Object.freeze({
 });
 
 const LIQUIDITY_TYPE_TEXT = Object.freeze({
-  PWH: '上周高点流动性',
-  PWL: '上周低点流动性',
-  PDH: '前日高点流动性',
-  PDL: '前日低点流动性',
-  H4_SWING_HIGH: '4H摆动高点流动性',
-  H4_SWING_LOW: '4H摆动低点流动性',
-  EQUAL_HIGH: '等高流动性',
-  EQUAL_LOW: '等低流动性',
-  H1_SWING_HIGH: '1H Swing High',
-  H1_SWING_LOW: '1H Swing Low',
-  M15_SWING_HIGH: '15m Swing High',
-  M15_SWING_LOW: '15m Swing Low',
-  LTF_SWING_HIGH: 'LTF Swing High',
-  LTF_SWING_LOW: 'LTF Swing Low',
+  PWH: '上周高点',
+  PWL: '上周低点',
+  PDH: '昨日高点',
+  PDL: '昨日低点',
+  H4_SWING_HIGH: '4小时摆动高点',
+  H4_SWING_LOW: '4小时摆动低点',
+  EQUAL_HIGH: '等高',
+  EQUAL_LOW: '等低',
+  H1_SWING_HIGH: '1小时摆动高点',
+  H1_SWING_LOW: '1小时摆动低点',
+  M15_SWING_HIGH: '15分钟摆动高点',
+  M15_SWING_LOW: '15分钟摆动低点',
+  LTF_SWING_HIGH: '5分钟摆动高点',
+  LTF_SWING_LOW: '5分钟摆动低点',
 });
 
 function deliveryAnalysisOf(current) {
@@ -129,6 +129,25 @@ function deliveryStageText(delivery) {
   return timeframe + '尚未形成清晰的交付阶段';
 }
 
+function fifteenMinuteStatusText(delivery) {
+  if (delivery.deliveryState === 'RETRACEMENT') {
+    return '回调中';
+  }
+  if (
+    delivery.deliveryState === 'ALIGNED_BULLISH' ||
+    delivery.deliveryDirection === 'BULLISH'
+  ) {
+    return '开始顺势上涨';
+  }
+  if (
+    delivery.deliveryState === 'ALIGNED_BEARISH' ||
+    delivery.deliveryDirection === 'BEARISH'
+  ) {
+    return '开始顺势下跌';
+  }
+  return '方向不明确';
+}
+
 function sweepTypeText(type) {
   return LIQUIDITY_TYPE_TEXT[type] || type || '内部流动性';
 }
@@ -141,6 +160,60 @@ function sweepSideText(side) {
 
 function eventTimeText(time) {
   return BeijingTime.formatBeijingTime(time);
+}
+
+function sweepFormationTime(sweep) {
+  for (const field of [
+    'pivotTime',
+    'formedTime',
+    'formationTime',
+    'createdAt',
+  ]) {
+    if (
+      sweep[field] !== undefined &&
+      sweep[field] !== null
+    ) {
+      return sweep[field];
+    }
+  }
+  return null;
+}
+
+function sweepTakenTime(sweep) {
+  for (const field of ['sweepTime', 'sweptAt', 'time']) {
+    if (
+      sweep[field] !== undefined &&
+      sweep[field] !== null
+    ) {
+      return sweep[field];
+    }
+  }
+  return null;
+}
+
+function sweepDetailLines(sweep, indent) {
+  const prefix = indent || '';
+  const type = sweep.targetType || sweep.type;
+  const lines = [
+    prefix + '类型：' + sweepTypeText(type),
+  ];
+  if (Number.isFinite(sweep.price)) {
+    lines.push(prefix + '价格：' + sweep.price);
+  }
+  const formationTime = sweepFormationTime(sweep);
+  if (formationTime !== null) {
+    lines.push(
+      prefix + '形成时间：' +
+      eventTimeText(formationTime)
+    );
+  }
+  const takenTime = sweepTakenTime(sweep);
+  if (takenTime !== null) {
+    lines.push(
+      prefix + '扫取时间：' + eventTimeText(takenTime)
+    );
+  }
+  return lines;
 }
 
 function latestSweep(sweeps) {
@@ -167,25 +240,15 @@ function latestSweep(sweeps) {
 
 function sweepText(sweeps) {
   if (!Array.isArray(sweeps) || sweeps.length === 0) {
-    return '当前5m收盘未确认新的流动性扫取';
+    return '□ 等待流动性扫取';
   }
 
   const newest = latestSweep(sweeps);
-  const newestDetails = (
-    sweepTypeText(newest.type) +
-    '，availableIndex：' +
-    (
-      Number.isInteger(newest.availableIndex)
-        ? newest.availableIndex
-        : '不可用'
-    ) +
-    '，时间：' + eventTimeText(newest.time)
-  );
   if (sweeps.length === 1) {
-    return (
-      '已确认扫取' + sweepSideText(newest.side) +
-      '流动性：' + newestDetails
-    );
+    return [
+      '✓ 已扫流动性',
+      ...sweepDetailLines(newest, '  '),
+    ].join('\n');
   }
 
   const groups = new Map();
@@ -200,34 +263,24 @@ function sweepText(sweeps) {
     }
     groups.get(key).count += 1;
   }
-  const sides = new Set(sweeps.map((sweep) => sweep.side));
-  const sideDescription = sides.size === 1
-    ? sweepSideText(sweeps[0].side)
-    : '买方与卖方';
   const groupLines = Array.from(groups.values()).map(
     (group) => (
-      '  - ' +
-      (
-        sides.size > 1
-          ? sweepSideText(group.side) + ' / '
-          : ''
-      ) +
-      sweepTypeText(group.type) +
+      '  - 类型：' + sweepTypeText(group.type) +
       ' ×' + group.count
     )
   );
 
   return [
-    '已确认扫取' + sideDescription +
-      '流动性，共' + sweeps.length + '个事件',
+    '✓ 已扫流动性，共' + sweeps.length + '项',
     ...groupLines,
-    '  - 最新事件：' + newestDetails,
+    '  最新扫取：',
+    ...sweepDetailLines(newest, '  '),
   ].join('\n');
 }
 
 function displacementText(displacement) {
   if (!displacement) {
-    return '当前5m收盘未确认新的位移';
+    return '□ 等待位移确认';
   }
   const direction = displacement.direction === 'BULLISH'
     ? '向上'
@@ -237,27 +290,51 @@ function displacementText(displacement) {
   const strength = Number.isFinite(displacement.strength)
     ? '，强度 ' + displacement.strength.toFixed(2)
     : '';
-  return '已确认' + direction + '位移' + strength;
+  return '✓ 已确认' + direction + '位移' + strength;
 }
 
 function mssText(mss) {
-  if (!mss) return '当前5m收盘未确认新的MSS';
+  if (!mss) return '□ 等待市场结构转换';
   return mss.direction === 'BULLISH'
-    ? '已确认向上MSS'
+    ? '✓ 已确认市场结构向上转换'
     : mss.direction === 'BEARISH'
-      ? '已确认向下MSS'
-      : 'MSS方向不明确';
+      ? '✓ 已确认市场结构向下转换'
+      : '□ 市场结构转换方向不明确';
 }
 
 function potentialText(observation) {
-  if (!observation) return 'None';
+  if (!observation) return '暂无';
   if (observation.state === 'POTENTIAL_LONG_OBSERVATION') {
-    return 'Potential Long';
+    return '潜在偏多观察';
   }
   if (observation.state === 'POTENTIAL_SHORT_OBSERVATION') {
-    return 'Potential Short';
+    return '潜在偏空观察';
   }
-  return 'None';
+  return '暂无';
+}
+
+function roadmapNumber(index) {
+  const symbols = [
+    '①', '②', '③', '④', '⑤',
+    '⑥', '⑦', '⑧', '⑨', '⑩',
+  ];
+  return symbols[index] || (index + 1) + '.';
+}
+
+function liquidityRoadmapLines(roadmap) {
+  if (!Array.isArray(roadmap) || roadmap.length === 0) {
+    return ['暂无明确流动性路线。'];
+  }
+  return roadmap.map((item, index) => {
+    const type = LIQUIDITY_TYPE_TEXT[item.type] ||
+      item.type ||
+      '其他流动性';
+    const distance = Number.isFinite(item.distancePercent)
+      ? item.distancePercent.toFixed(2)
+      : '--';
+    return roadmapNumber(index) + ' ' + type +
+      '（距离' + distance + '%）';
+  });
 }
 
 function manualView(h4, delivery, observation) {
@@ -269,7 +346,8 @@ function manualView(h4, delivery, observation) {
     return {
       view: '偏多',
       reason:
-        '4H方向偏多，5m已完成卖方流动性扫取、向上位移与向上MSS；' +
+        '4H方向偏多，5m已完成卖方流动性扫取、' +
+        '向上位移与向上市场结构转换；' +
         (RELATION_TEXT[delivery.relationToH4] ||
           timeframe + '关系不明确') +
         '。',
@@ -282,7 +360,8 @@ function manualView(h4, delivery, observation) {
     return {
       view: '偏空',
       reason:
-        '4H方向偏空，5m已完成买方流动性扫取、向下位移与向下MSS；' +
+        '4H方向偏空，5m已完成买方流动性扫取、' +
+        '向下位移与向下市场结构转换；' +
         (RELATION_TEXT[delivery.relationToH4] ||
           timeframe + '关系不明确') +
         '。',
@@ -321,6 +400,19 @@ function format(report) {
     '与4H关系不明确';
   const location = LOCATION_TEXT[h4.premiumDiscount] ||
     '位置不明确';
+  const deliveryLines = timeframe === '15m'
+    ? [
+      '2. 15分钟状态',
+      '- 状态：' + fifteenMinuteStatusText(delivery),
+      '- 与4H关系：' + relation,
+    ]
+    : [
+      '2. ' + timeframe + ' Delivery',
+      '- 当前方向：' +
+        directionText(delivery.deliveryDirection),
+      '- 与4H关系：' + relation,
+      '- 当前阶段解释：' + deliveryStageText(delivery),
+    ];
 
   return [
     '【ICT市场分析】',
@@ -334,20 +426,16 @@ function format(report) {
       primaryDrawText(h4.primaryDraw),
     '- Premium/Discount：' + location,
     '',
-    '2. ' + timeframe + ' Delivery',
-    '- 当前方向：' +
-      directionText(delivery.deliveryDirection),
-    '- 与4H关系：' + relation,
-    '- 当前阶段解释：' + deliveryStageText(delivery),
+    ...deliveryLines,
     '',
-    '3. 5m Confirmation',
-    '- Sweep：' +
-      sweepText(confirmed.liquiditySweeps),
-    '- Displacement：' +
-      displacementText(confirmed.displacement),
-    '- MSS：' + mssText(confirmed.mss),
-    '- Potential Long/Short/None：' +
-      potentialText(observation),
+    '3. 【5分钟确认】',
+    sweepText(confirmed.liquiditySweeps),
+    mssText(confirmed.mss),
+    displacementText(confirmed.displacement),
+    '- 当前观察：' + potentialText(observation),
+    '',
+    '【流动性路线】',
+    ...liquidityRoadmapLines(current.liquidityRoadmap),
     '',
     '4. 当前人工判断',
     '- 市场状态解读：' + humanSummary,
@@ -368,6 +456,7 @@ module.exports = {
   deliveryTimeframeText,
   directionText,
   displacementText,
+  fifteenMinuteStatusText,
   format,
   manualView,
   mssText,
@@ -375,6 +464,10 @@ module.exports = {
   primaryDrawText,
   eventTimeText,
   latestSweep,
+  liquidityRoadmapLines,
+  roadmapNumber,
+  sweepDetailLines,
+  sweepFormationTime,
   structureText,
   sweepSideText,
   sweepText,
