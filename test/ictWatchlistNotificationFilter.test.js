@@ -81,6 +81,7 @@ function result(symbol, options) {
                       'CONFIRMED_BULLISH'
                       ? 'BULLISH'
                       : 'BEARISH'),
+                  reason: options.confirmationReason || '',
                 }
                 : null,
           },
@@ -360,6 +361,78 @@ test('alignment WAITING to ALIGNED sends', () => {
       reason: '4小时与5分钟方向一致：偏多',
     }
   );
+});
+
+test('alignment reason change does not send', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', {
+      alignmentStatus: 'ALIGNED',
+      alignmentDirection: 'BULLISH',
+      alignmentReason: '初始解释',
+    })],
+    null
+  );
+  const changedReasonOnly = Filter.evaluate(
+    [result('BTCUSDT', {
+      alignmentStatus: 'ALIGNED',
+      alignmentDirection: 'BULLISH',
+      alignmentReason: '更新后的人工解释',
+    })],
+    committed(initial)
+  );
+
+  assert.strictEqual(
+    changedReasonOnly.shouldNotify,
+    false
+  );
+  assert.deepStrictEqual(changedReasonOnly.changes, []);
+});
+
+test('alignment direction change sends', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', {
+      alignmentStatus: 'CONFLICT',
+      alignmentDirection: 'BULLISH',
+    })],
+    null
+  );
+  const changed = Filter.evaluate(
+    [result('BTCUSDT', {
+      alignmentStatus: 'CONFLICT',
+      alignmentDirection: 'BEARISH',
+    })],
+    committed(initial)
+  );
+
+  assert.deepStrictEqual(
+    changed.changes[0].reasons,
+    ['ALIGNMENT_STATUS_CHANGED']
+  );
+});
+
+test('confirmation reason change does not send', () => {
+  const initial = Filter.evaluate(
+    [result('BTCUSDT', {
+      confirmationStatus: 'CONFIRMED_BULLISH',
+      confirmationDirection: 'BULLISH',
+      confirmationReason: '初始解释',
+    })],
+    null
+  );
+  const changedReasonOnly = Filter.evaluate(
+    [result('BTCUSDT', {
+      confirmationStatus: 'CONFIRMED_BULLISH',
+      confirmationDirection: 'BULLISH',
+      confirmationReason: '更新后的人工解释',
+    })],
+    committed(initial)
+  );
+
+  assert.strictEqual(
+    changedReasonOnly.shouldNotify,
+    false
+  );
+  assert.deepStrictEqual(changedReasonOnly.changes, []);
 });
 
 test('Sweep identity count index and time changes never send', () => {

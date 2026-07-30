@@ -400,7 +400,9 @@ function compareSymbolStates(previousState, currentState) {
   }
   if (
     previousState.confirmation.status !==
-    currentState.confirmation.status
+      currentState.confirmation.status ||
+    previousState.confirmation.direction !==
+      currentState.confirmation.direction
   ) {
     reasons.push(
       CHANGE_REASONS.CONFIRMATION_STATUS_CHANGED
@@ -408,7 +410,9 @@ function compareSymbolStates(previousState, currentState) {
   }
   if (
     previousState.alignment.status !==
-    currentState.alignment.status
+      currentState.alignment.status ||
+    previousState.alignment.direction !==
+      currentState.alignment.direction
   ) {
     reasons.push(
       CHANGE_REASONS.ALIGNMENT_STATUS_CHANGED
