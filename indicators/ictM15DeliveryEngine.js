@@ -1,6 +1,9 @@
 'use strict';
 
 const LtfExecution = require('./ictLtfExecutionEngine');
+const DeliveryStateMachine = require(
+  './ictM15DeliveryStateMachine'
+);
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
@@ -172,10 +175,14 @@ function analyze15mDelivery(input) {
     mss: [],
     displacements: [],
     deliveryConfirmations: [],
+    deliveryInvalidations: [],
   };
   let previousH4Bias = null;
   let pendingSweep = null;
+  let pendingMss = null;
   let confirmed = null;
+  let stageState = null;
+  let retracementExtreme = null;
 
   for (let index = 0; index < klines.length; index += 1) {
     const bar = klines[index];
@@ -192,30 +199,99 @@ function analyze15mDelivery(input) {
     const liquidity =
       liquidityTimeline.snapshots[index];
 
-    if (h4Bias !== previousH4Bias) {
+    const biasChanged = h4Bias !== previousH4Bias;
+    if (biasChanged) {
       pendingSweep = null;
+      pendingMss = null;
       confirmed = null;
+      retracementExtreme = null;
       previousH4Bias = h4Bias;
     }
 
+    const retracementActive = isRetracement(
+      structure.state,
+      h4Bias
+    );
     if (
+      retracementActive &&
+      !pendingMss &&
+      !confirmed
+    ) {
+      if (h4Bias === 'BEARISH') {
+        retracementExtreme =
+          retracementExtreme === null
+            ? bar.high
+            : Math.max(retracementExtreme, bar.high);
+      } else if (h4Bias === 'BULLISH') {
+        retracementExtreme =
+          retracementExtreme === null
+            ? bar.low
+            : Math.min(retracementExtreme, bar.low);
+      }
+    }
+
+    const invalidationMss = pendingMss ||
+      (confirmed ? confirmed.mss : null);
+    const deliveryInvalidated =
+      DeliveryStateMachine.deliveryInvalidated({
+        h4Bias,
+        retracementExtreme: invalidationMss
+          ? invalidationMss.retracementExtreme
+          : null,
+        structureShiftIndex: invalidationMss
+          ? invalidationMss.index
+          : null,
+        index,
+        high: bar.high,
+        low: bar.low,
+      });
+    if (deliveryInvalidated) {
+      events.deliveryInvalidations.push(
+        Object.freeze({
+          direction: h4Bias,
+          retracementExtreme:
+            invalidationMss.retracementExtreme,
+          index,
+          availableIndex: index,
+          time: bar.closeTime,
+        })
+      );
+      pendingSweep = null;
+      pendingMss = null;
+      confirmed = null;
+      retracementExtreme = null;
+    }
+
+    let confirmationReset = false;
+    if (
+      !deliveryInvalidated &&
       confirmed &&
-      isRetracement(structure.state, h4Bias) &&
+      retracementActive &&
       latestStructurePublicationIndex(structure) >
         confirmed.index
     ) {
       confirmed = null;
+      pendingSweep = null;
+      pendingMss = null;
+      retracementExtreme = null;
+      confirmationReset = true;
     }
 
     const requiredSide = expectedSweepSide(h4Bias);
     const requiredLabel = expectedStructureLabel(h4Bias);
     const qualifyingSweeps = requiredSide &&
-      isRetracement(structure.state, h4Bias)
+      retracementActive
       ? liquidity.currentSweeps.filter(
         (level) => level.side === requiredSide
       )
       : [];
-    if (qualifyingSweeps.length > 0) {
+    let liquidityTaken = false;
+    if (
+      !confirmed &&
+      !pendingMss &&
+      !deliveryInvalidated &&
+      qualifyingSweeps.length > 0
+    ) {
       const sweep = LtfExecution.selectSweep(
         qualifyingSweeps,
         h4Bias,
@@ -232,9 +308,11 @@ function analyze15mDelivery(input) {
           retracementState: structure.state,
           sweep,
           level,
+          retracementExtreme,
           index,
           time: bar.closeTime,
         });
+        liquidityTaken = true;
       }
     }
 
@@ -247,35 +325,62 @@ function analyze15mDelivery(input) {
     if (displacement) {
       events.displacements.push(displacement);
     }
-    const candidate = mssCandidate(
-      pendingSweep,
-      bar,
-      index
-    );
+    let currentMss = null;
+    if (
+      !confirmed &&
+      !pendingMss &&
+      !deliveryInvalidated
+    ) {
+      const candidate = mssCandidate(
+        pendingSweep,
+        bar,
+        index
+      );
+      if (candidate) {
+        currentMss = Object.freeze({
+          ...candidate,
+          retracementExtreme,
+        });
+        pendingMss = currentMss;
+        events.mss.push(currentMss);
+      }
+    }
     const direction = evaluateDeliveryConfirmation({
       h4Bias,
       retracementState: pendingSweep
         ? pendingSweep.retracementState
         : null,
       sweep: pendingSweep ? pendingSweep.sweep : null,
-      mss: candidate,
+      mss: pendingMss,
       displacement,
     });
-    let currentMss = null;
-    if (direction) {
-      currentMss = candidate;
-      events.mss.push(currentMss);
+    if (direction && !deliveryInvalidated) {
       confirmed = Object.freeze({
         direction,
         index,
         time: bar.closeTime,
         sweep: pendingSweep.sweep,
-        mss: currentMss,
+        mss: pendingMss,
         displacement,
       });
       events.deliveryConfirmations.push(confirmed);
       pendingSweep = null;
+      pendingMss = null;
     }
+    stageState = DeliveryStateMachine.transition(
+      stageState,
+      {
+        h4Bias,
+        retracement: retracementActive,
+        liquidityTaken,
+        structureShift: Boolean(currentMss),
+        deliveryConfirmed: Boolean(direction),
+        invalidated: deliveryInvalidated,
+        reset: biasChanged || confirmationReset,
+        index,
+        time: bar.closeTime,
+      }
+    );
 
     let m15DeliveryDirection = 'NEUTRAL';
     let m15Relation = 'UNCLEAR';
@@ -301,6 +406,9 @@ function analyze15mDelivery(input) {
       },
       m15DeliveryDirection,
       m15Relation,
+      m15DeliveryStage: stageState.stage,
+      waitingLiquiditySide:
+        stageState.waitingLiquiditySide,
       deliveryDirection: m15DeliveryDirection,
       deliveryState: deliveryState(
         m15DeliveryDirection,
@@ -309,6 +417,7 @@ function analyze15mDelivery(input) {
       relationToH4: m15Relation,
       confirmation: {
         pendingSweep,
+        pendingMss,
         mss: currentMss,
         displacement,
         latestConfirmed: confirmed,
@@ -331,6 +440,7 @@ function analyze15mDelivery(input) {
       usesAvailableIndex: true,
       capturesPreSweepStructureLevel: true,
       requiresSweepMssDisplacement: true,
+      hasDeliveryStateMachine: true,
       reads5m: false,
       readsTrades: false,
       generatesEntry: false,
@@ -347,6 +457,7 @@ module.exports = {
   analyze: analyze15mDelivery,
   analyze15mDelivery,
   deliveryState,
+  DeliveryStateMachine,
   evaluateDeliveryConfirmation,
   expectedStructureLabel,
   expectedSweepSide,

@@ -128,6 +128,8 @@ test('Watchlist report projection adds alignment only', () => {
       deliveryDirection: 'BULLISH',
       deliveryState: 'ALIGNED_BULLISH',
       relationToH4: 'ALIGNED',
+      m15DeliveryStage: 'DELIVERY_CONFIRMED',
+      waitingLiquiditySide: null,
     },
     fiveMinuteObservation: {
       currentConfirmed: {
@@ -166,6 +168,14 @@ test('Watchlist report projection adds alignment only', () => {
   assert.strictEqual(
     normalized.fifteenMinuteAnalysis.deliveryDirection,
     'BULLISH'
+  );
+  assert.strictEqual(
+    normalized.fifteenMinuteAnalysis.m15DeliveryStage,
+    'DELIVERY_CONFIRMED'
+  );
+  assert.strictEqual(
+    normalized.fifteenMinuteAnalysis.waitingLiquiditySide,
+    null
   );
 });
 

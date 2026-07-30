@@ -247,6 +247,10 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
     result.results[0].report.current
       .fifteenMinuteAnalysis
   );
+  assert.ok(
+    result.results[0].report.current
+      .fifteenMinuteAnalysis.m15DeliveryStage
+  );
   assert.strictEqual(
     Object.prototype.hasOwnProperty.call(
       result.results[0].report.current,
@@ -260,6 +264,40 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
   );
   assert.ok(result.results[0].formatted.includes(
     '2. 15分钟状态'
+  ));
+  assert.ok(
+    result.results[0].report.current.positionContext
+  );
+  assert.ok(Object.prototype.hasOwnProperty.call(
+    result.results[0].report.current.positionContext,
+    'positionZone'
+  ));
+  assert.ok(Object.prototype.hasOwnProperty.call(
+    result.results[0].report.current.positionContext,
+    'nearestLiquidity'
+  ));
+  assert.ok(result.results[0].formatted.includes(
+    '【当前位置】'
+  ));
+  for (const heading of [
+    '【市场环境】',
+    '【当前阶段】',
+    '【关键原因】',
+  ]) {
+    assert.ok(
+      result.results[0].report.current.humanSummary
+        .includes(heading)
+    );
+    assert.ok(
+      result.results[0].formatted.includes(heading)
+    );
+  }
+  assert.strictEqual(
+    typeof result.results[0].report.current.setupStage,
+    'string'
+  );
+  assert.ok(Array.isArray(
+    result.results[0].report.current.missingConditions
   ));
 });
 

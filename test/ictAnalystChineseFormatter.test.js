@@ -50,6 +50,14 @@ function currentReport(options) {
           options.deliveryState || 'ALIGNED_BULLISH',
         relationToH4:
           options.relation || 'ALIGNED',
+        ...(options.m15DeliveryStage === undefined
+          ? {}
+          : {
+            m15DeliveryStage:
+              options.m15DeliveryStage,
+            waitingLiquiditySide:
+              options.waitingLiquiditySide || null,
+          }),
       },
       fiveMinuteObservation: {
         currentConfirmed: {
@@ -76,6 +84,11 @@ function currentReport(options) {
         : {
           liquidityRoadmap: options.liquidityRoadmap,
         }),
+      ...(options.positionContext === undefined
+        ? {}
+        : {
+          positionContext: options.positionContext,
+        }),
     },
   };
 }
@@ -100,9 +113,16 @@ test('Chinese message contains every required fixed field', () => {
     '✓ 已确认市场结构向上转换',
     '✓ 已确认向上位移',
     '- 当前观察：潜在偏多观察',
+    '【当前位置】',
+    '区域：位置不明确',
+    '最近流动性：暂无明确流动性',
+    '距离：--',
+    '说明：暂无当前位置说明。',
     '4. 当前人工判断',
-    '- 偏多/偏空/等待：',
-    '- 关注原因：',
+    '【市场环境】',
+    '【当前阶段】',
+    '缺少：',
+    '【关键原因】',
   ]) {
     assert.ok(text.includes(field), field);
   }
@@ -129,7 +149,9 @@ test('Neutral report produces a waiting judgment', () => {
   assert.ok(text.includes('- Bias：中性'));
   assert.ok(text.includes('暂无明确主要流动性目标'));
   assert.ok(text.includes('- 当前观察：暂无'));
-  assert.ok(text.includes('- 偏多/偏空/等待：等待'));
+  assert.ok(text.includes(
+    '【当前阶段】\n等待4小时方向明确'
+  ));
   assert.ok(text.includes('□ 等待流动性扫取'));
   assert.ok(text.includes('□ 等待市场结构转换'));
   assert.ok(text.includes('□ 等待位移确认'));
@@ -171,8 +193,11 @@ test('formatter includes the human market-state summary', () => {
     '但5m尚未出现新的同向确认。';
   const text = Formatter.format(report);
 
-  assert.ok(text.includes('- 市场状态解读：'));
   assert.ok(text.includes(report.current.humanSummary));
+  assert.strictEqual(
+    text.includes('- 市场状态解读：'),
+    false
+  );
 });
 
 test('repeated Sweeps are grouped without mutating report data', () => {
@@ -281,6 +306,43 @@ test('15分钟状态使用指定中文映射', () => {
   }
 });
 
+test('15分钟状态机显示回调流动性侧和关注方向', () => {
+  const report = currentReport({
+    h4Bias: 'BEARISH',
+    h1Direction: 'NEUTRAL',
+    deliveryState: 'RETRACEMENT',
+    relation: 'RETRACEMENT',
+    m15DeliveryStage: 'WAITING_LIQUIDITY',
+    waitingLiquiditySide: 'BUY_SIDE',
+  });
+  report.current.fifteenMinuteAnalysis = {
+    ...report.current.oneHourAnalysis,
+    timeframe: '15m',
+  };
+  delete report.current.oneHourAnalysis;
+  const text = Formatter.format(report);
+
+  assert.ok(text.includes('当前15分钟状态：'));
+  assert.ok(text.includes('- 正在回调'));
+  assert.ok(text.includes('- 等待买方流动性'));
+  assert.ok(text.includes('- 等待空头确认'));
+});
+
+test('15分钟失效状态使用明确中文展示', () => {
+  const report = currentReport({
+    m15DeliveryStage: 'INVALIDATED',
+  });
+  report.current.fifteenMinuteAnalysis = {
+    ...report.current.oneHourAnalysis,
+    timeframe: '15m',
+  };
+  delete report.current.oneHourAnalysis;
+
+  assert.ok(Formatter.format(report).includes(
+    '当前15分钟状态：\n- 当前交付链已失效'
+  ));
+});
+
 test('5分钟确认不再输出英文事件名称', () => {
   const text = Formatter.format(currentReport());
 
@@ -300,6 +362,7 @@ test('流动性路线按 Engine 结果显示类型和距离', () => {
         type: 'PDL',
         timeframe: '1D',
         price: 99.58,
+        distanceValue: 0.42,
         distancePercent: 0.42,
         priority: 7,
       },
@@ -307,6 +370,7 @@ test('流动性路线按 Engine 结果显示类型和距离', () => {
         type: 'EQUAL_LOW',
         timeframe: '15m',
         price: 99.21,
+        distanceValue: 0.79,
         distancePercent: 0.79,
         priority: 5,
       },
@@ -314,6 +378,7 @@ test('流动性路线按 Engine 结果显示类型和距离', () => {
         type: 'PWL',
         timeframe: '1W',
         price: 98.75,
+        distanceValue: 1.25,
         distancePercent: 1.25,
         priority: 6,
       },
@@ -321,9 +386,15 @@ test('流动性路线按 Engine 结果显示类型和距离', () => {
   }));
 
   assert.ok(text.includes('【流动性路线】'));
-  assert.ok(text.includes('① 昨日低点（距离0.42%）'));
-  assert.ok(text.includes('② 等低（距离0.79%）'));
-  assert.ok(text.includes('③ 上周低点（距离1.25%）'));
+  assert.ok(text.includes(
+    '① 昨日低点\n价格：99.58\n距离：0.42（0.42%）'
+  ));
+  assert.ok(text.includes(
+    '② 等低\n价格：99.21\n距离：0.79（0.79%）'
+  ));
+  assert.ok(text.includes(
+    '③ 上周低点\n价格：98.75\n距离：1.25（1.25%）'
+  ));
 });
 
 test('没有路线目标时显示明确空状态', () => {
@@ -334,6 +405,98 @@ test('没有路线目标时显示明确空状态', () => {
   assert.ok(text.includes(
     '【流动性路线】\n暂无明确流动性路线。'
   ));
+});
+
+test('当前位置显示区域最近流动性距离和说明', () => {
+  const context = {
+    positionZone: 'PREMIUM',
+    nearestLiquidity: {
+      type: 'PDL',
+      timeframe: '1D',
+      price: 99.58,
+      side: 'SELL_SIDE',
+    },
+    distanceValue: 0.42,
+    distancePercent: 0.42,
+    context:
+      '价格位于溢价区，价格接近下方卖方流动性，' +
+      '不适合追单。',
+  };
+  const text = Formatter.format(currentReport({
+    positionContext: context,
+  }));
+
+  assert.ok(text.includes('【当前位置】'));
+  assert.ok(text.includes('区域：溢价区'));
+  assert.ok(text.includes('最近流动性：昨日低点'));
+  assert.ok(text.includes('价格：99.58'));
+  assert.ok(text.includes('距离：0.42（0.42%）'));
+  assert.ok(text.includes('说明：' + context.context));
+});
+
+test('价格距离按绝对值和百分比共同显示', () => {
+  const distancePercent = 1000 / 65000 * 100;
+  const text = Formatter.format(currentReport({
+    liquidityRoadmap: [{
+      type: 'PDH',
+      timeframe: '1D',
+      price: 66000,
+      distanceValue: 1000,
+      distancePercent,
+      priority: 7,
+    }],
+    positionContext: {
+      positionZone: 'PREMIUM',
+      nearestLiquidity: {
+        type: 'PDH',
+        timeframe: '1D',
+        price: 66000,
+        side: 'BUY_SIDE',
+      },
+      distanceValue: 1000,
+      distancePercent,
+      context: '价格位于溢价区。',
+    },
+  }));
+
+  assert.ok(text.includes(
+    '① 昨日高点\n价格：66000\n距离：1000（1.54%）'
+  ));
+  assert.ok(text.includes(
+    '最近流动性：昨日高点\n价格：66000\n' +
+    '距离：1000（1.54%）'
+  ));
+});
+
+test('最终总结不输出英文交易方向或自动交易建议', () => {
+  const text = Formatter.format(currentReport({
+    positionContext: {
+      positionZone: 'DISCOUNT',
+      nearestLiquidity: null,
+      distancePercent: null,
+      context: '价格位于折价区。',
+    },
+    liquidityRoadmap: [],
+  }));
+  const summary = text.slice(text.indexOf('【市场环境】'));
+
+  for (const forbidden of [
+    'LONG',
+    'SHORT',
+    'BUY',
+    'SELL',
+    '买入',
+    '卖出',
+    '开仓',
+    '下单',
+    '自动交易',
+  ]) {
+    assert.strictEqual(
+      summary.includes(forbidden),
+      false,
+      forbidden
+    );
+  }
 });
 
 console.log('\n' + testsPassed + ' tests passed.');

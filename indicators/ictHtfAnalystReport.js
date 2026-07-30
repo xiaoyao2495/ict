@@ -100,6 +100,13 @@ function projectH1(state) {
     deliveryState: state.deliveryState,
     relationToH4: state.relationToH4,
     h4Bias: state.h4Context.bias,
+    ...(state.m15DeliveryStage
+      ? {
+        m15DeliveryStage: state.m15DeliveryStage,
+        waitingLiquiditySide:
+          state.waitingLiquiditySide || null,
+      }
+      : {}),
   };
 }
 

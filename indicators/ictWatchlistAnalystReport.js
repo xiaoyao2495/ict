@@ -10,6 +10,9 @@ const Alignment = require('./ictAlignmentEngine');
 const LiquidityRoadmap = require(
   './ictLiquidityRoadmapEngine'
 );
+const PositionContext = require(
+  './ictPositionContextEngine'
+);
 const AnalystReport = require('./ictHtfAnalystReport');
 const HumanSummary = require(
   '../formatters/ictAnalystHumanSummary'
@@ -314,6 +317,32 @@ function analyze(input) {
       ltfState
     ),
   });
+  current.positionContext = PositionContext.analyze({
+    currentPrice,
+    structureRange:
+      current.fourHourAnalysis.dealingRange,
+    premiumDiscount:
+      current.fourHourAnalysis.premiumDiscount,
+    liquidityRoadmap: current.liquidityRoadmap,
+  });
+  const summaryInput = {
+    h4: current.fourHourAnalysis,
+    delivery: current.fifteenMinuteAnalysis,
+    fiveMinute: current.fiveMinuteObservation,
+    alignment: current.alignment,
+    liquidityRoadmap: current.liquidityRoadmap,
+    positionContext: current.positionContext,
+  };
+  const setupAnalysis =
+    HumanSummary.analyzeSetupStage(summaryInput);
+  current.setupStage = setupAnalysis.setupStage;
+  current.missingConditions =
+    setupAnalysis.missingConditions.slice();
+  current.humanSummary =
+    HumanSummary.summarizeTraderContext({
+      ...summaryInput,
+      setupAnalysis,
+    });
 
   return {
     protocol: {

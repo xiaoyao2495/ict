@@ -212,4 +212,227 @@ test('neutral 4H uses the non-directional narrative', () => {
   );
 });
 
+function traderContext(overrides) {
+  return {
+    h4: { bias: 'BEARISH' },
+    delivery: {
+      timeframe: '15m',
+      deliveryState: 'ALIGNED_BEARISH',
+      deliveryDirection: 'BEARISH',
+      relationToH4: 'ALIGNED',
+      m15DeliveryStage: 'DELIVERY_CONFIRMED',
+    },
+    fiveMinute: {
+      currentConfirmed: {
+        confirmation: null,
+      },
+    },
+    alignment: {
+      status: 'WAITING',
+      direction: null,
+    },
+    liquidityRoadmap: [{
+      type: 'PDL',
+      timeframe: '1D',
+      price: 99,
+      distancePercent: 1,
+      priority: 7,
+      side: 'SELL_SIDE',
+      directionAligned: true,
+    }],
+    positionContext: {
+      positionZone: 'PREMIUM',
+      nearestLiquidity: {
+        type: 'EQUAL_HIGH',
+        price: 100.42,
+        side: 'BUY_SIDE',
+      },
+      distancePercent: 0.42,
+    },
+    ...(overrides || {}),
+  };
+}
+
+test('trader summary combines every requested context layer', () => {
+  const summary = HumanSummary.summarizeTraderContext(
+    traderContext()
+  );
+
+  for (const text of [
+    '【市场环境】',
+    '4H方向：偏空',
+    '15m状态：开始顺势下跌',
+    '5m确认：等待完整确认',
+    '多周期关系：等待低周期确认',
+    '当前位置：溢价区',
+    '【当前阶段】',
+    '等待5分钟完整确认',
+    '缺少：',
+    '- 5分钟完整确认',
+    '【关键原因】',
+    '流动性路线首先指向昨日低点',
+    '价格已经接近目标流动性',
+  ]) {
+    assert.ok(summary.includes(text), text);
+  }
+});
+
+test('retracement waits for 15m Delivery confirmation', () => {
+  const summary = HumanSummary.summarizeTraderContext(
+    traderContext({
+      h4: { bias: 'BULLISH' },
+      delivery: {
+        timeframe: '15m',
+        deliveryState: 'RETRACEMENT',
+        deliveryDirection: 'NEUTRAL',
+        relationToH4: 'RETRACEMENT',
+      },
+    })
+  );
+
+  assert.ok(summary.includes('等待15分钟交付确认'));
+  assert.ok(summary.includes('- 15分钟多头交付确认'));
+  assert.ok(summary.includes('- 5分钟完整确认'));
+});
+
+test('aligned context describes confirmation without execution advice', () => {
+  const summary = HumanSummary.summarizeTraderContext(
+    traderContext({
+      h4: { bias: 'BULLISH' },
+      delivery: {
+        timeframe: '15m',
+        deliveryState: 'ALIGNED_BULLISH',
+        deliveryDirection: 'BULLISH',
+        relationToH4: 'ALIGNED',
+        m15DeliveryStage: 'DELIVERY_CONFIRMED',
+      },
+      fiveMinute: {
+        currentConfirmed: {
+          confirmation: {
+            status: 'CONFIRMED',
+            direction: 'BULLISH',
+          },
+        },
+      },
+      alignment: {
+        status: 'ALIGNED',
+        direction: 'BULLISH',
+      },
+    })
+  );
+
+  assert.ok(summary.includes('5m确认：已形成向上确认'));
+  assert.ok(summary.includes('多周期方向一致'));
+  assert.ok(summary.includes(
+    '多周期观察条件已经完整'
+  ));
+  assert.ok(summary.includes('缺少：\n- 无'));
+  for (const forbidden of [
+    'LONG',
+    'SHORT',
+    'BUY',
+    'SELL',
+    '买入',
+    '卖出',
+    '开仓',
+    '下单',
+    '自动交易',
+    '建议',
+    '应该',
+    '不适合',
+    '追单',
+  ]) {
+    assert.strictEqual(
+      summary.includes(forbidden),
+      false,
+      forbidden
+    );
+  }
+});
+
+test('trader summary does not mutate composite context', () => {
+  const input = traderContext();
+  const original = JSON.parse(JSON.stringify(input));
+
+  HumanSummary.summarizeTraderContext(input);
+
+  assert.deepStrictEqual(input, original);
+});
+
+test('setup stage waits for M15 when Delivery is incomplete', () => {
+  const result = HumanSummary.analyzeSetupStage(
+    traderContext({
+      delivery: {
+        timeframe: '15m',
+        deliveryState: 'RETRACEMENT',
+        deliveryDirection: 'NEUTRAL',
+        relationToH4: 'RETRACEMENT',
+        m15DeliveryStage: 'WAITING_LIQUIDITY',
+      },
+    })
+  );
+
+  assert.deepStrictEqual(result, {
+    setupStage: 'WAITING_M15_DELIVERY',
+    missingConditions: [
+      '15分钟空头交付确认',
+      '5分钟完整确认',
+    ],
+  });
+});
+
+test('setup stage waits for 5m after M15 confirms', () => {
+  const result = HumanSummary.analyzeSetupStage(
+    traderContext()
+  );
+
+  assert.deepStrictEqual(result, {
+    setupStage: 'WAITING_LTF_CONFIRMATION',
+    missingConditions: ['5分钟完整确认'],
+  });
+});
+
+test('setup stage is ready after complete aligned confirmation', () => {
+  const result = HumanSummary.analyzeSetupStage(
+    traderContext({
+      fiveMinute: {
+        currentConfirmed: {
+          confirmation: {
+            status: 'CONFIRMED',
+            direction: 'BEARISH',
+          },
+        },
+      },
+      alignment: {
+        status: 'ALIGNED',
+        direction: 'BEARISH',
+      },
+    })
+  );
+
+  assert.deepStrictEqual(result, {
+    setupStage: 'READY_OBSERVATION',
+    missingConditions: [],
+  });
+});
+
+test('invalid M15 Delivery marks setup invalidated', () => {
+  const result = HumanSummary.analyzeSetupStage(
+    traderContext({
+      delivery: {
+        timeframe: '15m',
+        deliveryState: 'NEUTRAL',
+        deliveryDirection: 'NEUTRAL',
+        relationToH4: 'UNCLEAR',
+        m15DeliveryStage: 'INVALIDATED',
+      },
+    })
+  );
+
+  assert.deepStrictEqual(result, {
+    setupStage: 'INVALIDATED',
+    missingConditions: ['有效的15分钟交付链'],
+  });
+});
+
 console.log('\n' + testsPassed + ' tests passed.');

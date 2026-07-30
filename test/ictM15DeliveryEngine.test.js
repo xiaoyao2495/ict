@@ -168,6 +168,52 @@ test('15m analysis is prefix invariant', () => {
   );
 });
 
+test('new stage coexists with legacy Delivery fields', () => {
+  const complete = bars(80);
+  const result = M15Delivery.analyze15mDelivery({
+    m15Klines: complete,
+    h4BiasSnapshots: h4Snapshots(
+      complete,
+      'BEARISH'
+    ),
+  });
+  const allowedStages = new Set([
+    'RETRACEMENT',
+    'WAITING_LIQUIDITY',
+    'LIQUIDITY_TAKEN',
+    'STRUCTURE_SHIFT',
+    'DELIVERY_CONFIRMED',
+    'INVALIDATED',
+  ]);
+
+  for (const state of result.states) {
+    assert.ok(allowedStages.has(
+      state.m15DeliveryStage
+    ));
+    assert.ok(Object.prototype.hasOwnProperty.call(
+      state,
+      'm15DeliveryDirection'
+    ));
+    assert.ok(Object.prototype.hasOwnProperty.call(
+      state,
+      'm15Relation'
+    ));
+    assert.ok(
+      state.waitingLiquiditySide === null ||
+      state.waitingLiquiditySide === 'BUY_SIDE' ||
+      state.waitingLiquiditySide === 'SELL_SIDE'
+    );
+    assert.strictEqual(
+      state.deliveryDirection,
+      state.m15DeliveryDirection
+    );
+    assert.strictEqual(
+      state.relationToH4,
+      state.m15Relation
+    );
+  }
+});
+
 (async () => {
   for (const item of tests) {
     try {

@@ -148,6 +148,64 @@ function fifteenMinuteStatusText(delivery) {
   return '方向不明确';
 }
 
+function liquiditySideDisplay(side) {
+  if (side === 'BUY_SIDE') return '买方';
+  if (side === 'SELL_SIDE') return '卖方';
+  return '';
+}
+
+function deliveryDirectionDisplay(h4) {
+  if (h4 && h4.bias === 'BEARISH') return '空头';
+  if (h4 && h4.bias === 'BULLISH') return '多头';
+  return '方向';
+}
+
+function m15StageLines(delivery, h4) {
+  const stage = delivery && delivery.m15DeliveryStage;
+  const waitingSide = liquiditySideDisplay(
+    delivery && delivery.waitingLiquiditySide
+  );
+  const direction = deliveryDirectionDisplay(h4);
+
+  if (
+    stage === 'RETRACEMENT' ||
+    (
+      stage === 'WAITING_LIQUIDITY' &&
+      waitingSide
+    )
+  ) {
+    return [
+      '- 正在回调',
+      waitingSide
+        ? '- 等待' + waitingSide + '流动性'
+        : '- 等待流动性',
+      '- 等待' + direction + '确认',
+    ];
+  }
+  if (stage === 'WAITING_LIQUIDITY') {
+    return ['- 等待15分钟回调形成'];
+  }
+  if (stage === 'LIQUIDITY_TAKEN') {
+    return [
+      '- 流动性已扫取',
+      '- 等待' + direction + '确认',
+    ];
+  }
+  if (stage === 'STRUCTURE_SHIFT') {
+    return [
+      '- 已完成' + direction + '结构转换',
+      '- 等待' + direction + '确认',
+    ];
+  }
+  if (stage === 'DELIVERY_CONFIRMED') {
+    return ['- ' + direction + '交付已确认'];
+  }
+  if (stage === 'INVALIDATED') {
+    return ['- 当前交付链已失效'];
+  }
+  return ['- ' + fifteenMinuteStatusText(delivery || {})];
+}
+
 function sweepTypeText(type) {
   return LIQUIDITY_TYPE_TEXT[type] || type || '内部流动性';
 }
@@ -321,20 +379,66 @@ function roadmapNumber(index) {
   return symbols[index] || (index + 1) + '.';
 }
 
+function metricNumberText(value) {
+  if (!Number.isFinite(value)) return '--';
+  return String(Number(value.toFixed(8)));
+}
+
 function liquidityRoadmapLines(roadmap) {
   if (!Array.isArray(roadmap) || roadmap.length === 0) {
     return ['暂无明确流动性路线。'];
   }
-  return roadmap.map((item, index) => {
+  return roadmap.flatMap((item, index) => {
     const type = LIQUIDITY_TYPE_TEXT[item.type] ||
       item.type ||
       '其他流动性';
-    const distance = Number.isFinite(item.distancePercent)
+    const price = metricNumberText(item.price);
+    const distanceValue = metricNumberText(
+      item.distanceValue
+    );
+    const distancePercent = Number.isFinite(
+      item.distancePercent
+    )
       ? item.distancePercent.toFixed(2)
       : '--';
-    return roadmapNumber(index) + ' ' + type +
-      '（距离' + distance + '%）';
+    return [
+      roadmapNumber(index) + ' ' + type,
+      '价格：' + price,
+      '距离：' + distanceValue +
+        '（' + distancePercent + '%）',
+    ];
   });
+}
+
+function positionContextLines(positionContext) {
+  const value = positionContext || {};
+  const zone = LOCATION_TEXT[value.positionZone] ||
+    '位置不明确';
+  const nearest = value.nearestLiquidity
+    ? sweepTypeText(value.nearestLiquidity.type)
+    : '暂无明确流动性';
+  const price = metricNumberText(
+    value.nearestLiquidity &&
+      value.nearestLiquidity.price
+  );
+  const distanceValue = metricNumberText(
+    value.distanceValue
+  );
+  const distancePercent = Number.isFinite(
+    value.distancePercent
+  )
+    ? value.distancePercent.toFixed(2)
+    : '--';
+  const context = value.context ||
+    '暂无当前位置说明。';
+  return [
+    '区域：' + zone,
+    '最近流动性：' + nearest,
+    '价格：' + price,
+    '距离：' + distanceValue +
+      '（' + distancePercent + '%）',
+    '说明：' + context,
+  ];
 }
 
 function manualView(h4, delivery, observation) {
@@ -393,9 +497,15 @@ function format(report) {
   const fiveMinute = current.fiveMinuteObservation;
   const confirmed = fiveMinute.currentConfirmed || {};
   const observation = fiveMinute.potentialObservation;
-  const judgment = manualView(h4, delivery, observation);
   const humanSummary = current.humanSummary ||
-    HumanSummary.summarize(h4, delivery, fiveMinute);
+    HumanSummary.summarizeTraderContext({
+      h4,
+      delivery,
+      fiveMinute,
+      alignment: current.alignment,
+      liquidityRoadmap: current.liquidityRoadmap,
+      positionContext: current.positionContext,
+    });
   const relation = RELATION_TEXT[delivery.relationToH4] ||
     '与4H关系不明确';
   const location = LOCATION_TEXT[h4.premiumDiscount] ||
@@ -404,6 +514,8 @@ function format(report) {
     ? [
       '2. 15分钟状态',
       '- 状态：' + fifteenMinuteStatusText(delivery),
+      '当前15分钟状态：',
+      ...m15StageLines(delivery, h4),
       '- 与4H关系：' + relation,
     ]
     : [
@@ -437,10 +549,11 @@ function format(report) {
     '【流动性路线】',
     ...liquidityRoadmapLines(current.liquidityRoadmap),
     '',
+    '【当前位置】',
+    ...positionContextLines(current.positionContext),
+    '',
     '4. 当前人工判断',
-    '- 市场状态解读：' + humanSummary,
-    '- 偏多/偏空/等待：' + judgment.view,
-    '- 关注原因：' + judgment.reason,
+    humanSummary,
   ].join('\n');
 }
 
@@ -461,10 +574,14 @@ module.exports = {
   manualView,
   mssText,
   potentialText,
+  positionContextLines,
   primaryDrawText,
   eventTimeText,
   latestSweep,
+  liquiditySideDisplay,
   liquidityRoadmapLines,
+  metricNumberText,
+  m15StageLines,
   roadmapNumber,
   sweepDetailLines,
   sweepFormationTime,
