@@ -594,7 +594,7 @@ test('bullish WATCH_ZONE becomes a LONG observation', () => {
     'HTF原因：4H Bias bullish',
     '关注流动性：PDL',
     '当前阶段：WATCH_ZONE：等待流动性扫取',
-    '下一步路径：Sell Side Liquidity Sweep → ' +
+    '下一步路径：等待 PDL 流动性扫取 → ' +
       'Bullish MSS → Bullish Displacement',
   ]) {
     assert.ok(summary.includes(text), text);
@@ -627,8 +627,19 @@ test('expected Sweep advances opportunity to CONFIRMING', () => {
     '关注流动性：H4 Swing Low'
   ));
   assert.ok(summary.includes(
-    '当前阶段：CONFIRMING：等待MSS/Displacement'
+    '当前阶段：CONFIRMING：' +
+    'Sweep已完成，等待MSS/Displacement'
   ));
+  assert.ok(summary.includes(
+    '下一步路径：Bullish MSS → ' +
+    'Bullish Displacement'
+  ));
+  assert.strictEqual(
+    summary.includes(
+      '下一步路径：Sell Side Liquidity Sweep'
+    ),
+    false
+  );
   assert.strictEqual(
     summary.includes(
       '当前阶段：WATCH_ZONE：等待流动性扫取'
@@ -654,9 +665,100 @@ test('bearish opportunity uses SHORT and buy-side path', () => {
   assert.ok(lines.includes('HTF原因：4H Bias bearish'));
   assert.ok(lines.includes('关注流动性：Equal High'));
   assert.ok(lines.includes(
-    'Buy Side Liquidity Sweep → Bearish MSS → ' +
+    '等待 Equal High 流动性扫取 → Bearish MSS → ' +
     'Bearish Displacement'
   ));
+});
+
+test('WAITING opportunity shows the complete event chain', () => {
+  const path = HumanSummary.opportunityPath(
+    traderContext({
+      h4: { bias: 'BULLISH' },
+      opportunity: {
+        status: 'WAITING',
+        direction: 'BULLISH',
+      },
+    })
+  );
+
+  assert.strictEqual(
+    path,
+    'Sell Side Liquidity Sweep → Bullish MSS → ' +
+      'Bullish Displacement'
+  );
+});
+
+test('WATCH_ZONE path names the current liquidity', () => {
+  const path = HumanSummary.opportunityPath(
+    traderContext({
+      h4: { bias: 'BULLISH' },
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'H4_SWING_LOW',
+      },
+    })
+  );
+
+  assert.strictEqual(
+    path,
+    '等待 H4 Swing Low 流动性扫取 → ' +
+      'Bullish MSS → Bullish Displacement'
+  );
+});
+
+test('CONFIRMING hides a completed Sweep', () => {
+  const path = HumanSummary.opportunityPath(
+    traderContext({
+      h4: { bias: 'BULLISH' },
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'PDL',
+      },
+      fiveMinute: {
+        currentConfirmed: {
+          liquiditySweeps: [{ side: 'SELL_SIDE' }],
+          mss: null,
+          displacement: null,
+          confirmation: null,
+        },
+      },
+    })
+  );
+
+  assert.strictEqual(
+    path,
+    'Bullish MSS → Bullish Displacement'
+  );
+});
+
+test('CONFIRMING hides completed Sweep and MSS', () => {
+  const input = traderContext({
+    h4: { bias: 'BULLISH' },
+    opportunity: {
+      status: 'WATCH_ZONE',
+      direction: 'BULLISH',
+      liquidityType: 'PDL',
+    },
+    fiveMinute: {
+      currentConfirmed: {
+        liquiditySweeps: [{ side: 'SELL_SIDE' }],
+        mss: { direction: 'BULLISH' },
+        displacement: null,
+        confirmation: null,
+      },
+    },
+  });
+
+  assert.strictEqual(
+    HumanSummary.opportunityPath(input),
+    'Bullish Displacement'
+  );
+  assert.strictEqual(
+    HumanSummary.opportunityStage(input).text,
+    'Sweep与MSS已完成，等待Displacement'
+  );
 });
 
 test('setup stage waits for 5m confirmation', () => {

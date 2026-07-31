@@ -432,6 +432,7 @@ function format(report) {
       liquidityRoadmap: current.liquidityRoadmap,
       positionContext: current.positionContext,
       structurePhase: current.structurePhase,
+      htfAlignment: current.htfAlignment,
     });
   const humanSummary = ensureStructurePhaseSection(
     rawHumanSummary,

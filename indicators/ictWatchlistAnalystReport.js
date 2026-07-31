@@ -7,6 +7,9 @@ const HtfBiasV3 = require('./ictHtfBiasEngineV3');
 const HtfStructurePhase = require(
   './ictHtfStructurePhaseEngine'
 );
+const HtfAlignment = require(
+  './ictHtfAlignmentAnalyzer'
+);
 const LtfExecution = require('./ictLtfExecutionEngine');
 const FiveMinuteConfirmation = require(
   './ict5mConfirmationEngine'
@@ -317,6 +320,10 @@ function analyze(input) {
     ...clone(structurePhaseAnalysis.current),
     state: structurePhaseAnalysis.current.structurePhase,
   };
+  current.htfAlignment = HtfAlignment.analyze({
+    biasDirection: current.fourHourAnalysis.bias,
+    structurePhase: current.structurePhase,
+  });
   const roadmapLiquidity = collectRoadmapLiquidity(
     h4State,
     ltfState
@@ -352,6 +359,7 @@ function analyze(input) {
     liquidityRoadmap: current.liquidityRoadmap,
     positionContext: current.positionContext,
     structurePhase: current.structurePhase,
+    htfAlignment: current.htfAlignment,
   };
   const setupAnalysis =
     HumanSummary.analyzeSetupStage(summaryInput);
@@ -382,6 +390,7 @@ function analyze(input) {
       usesAvailableIndex: true,
       prefixInvariant: true,
       includesAlignment: true,
+      includesHtfAlignment: true,
       readsTrades: false,
       readsBaseline: false,
       callsEntryEngine: false,

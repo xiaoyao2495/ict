@@ -176,6 +176,27 @@ function structurePhaseSectionLines(value) {
   ];
 }
 
+function htfAlignmentSectionLines(value) {
+  const alignment = value && typeof value === 'object'
+    ? value
+    : {
+      status: 'UNDETERMINED',
+      biasDirection: null,
+      structureDirection: null,
+      reason: 'HTF一致性尚未分析',
+    };
+  return [
+    '【HTF Alignment】',
+    '状态：' + (alignment.status || 'UNDETERMINED'),
+    'Bias方向：' +
+      (alignment.biasDirection || '--'),
+    '结构方向：' +
+      (alignment.structureDirection || '--'),
+    '说明：' +
+      (alignment.reason || 'HTF一致性尚未分析'),
+  ];
+}
+
 function ltfNarrativeState(fiveMinute) {
   const confirmed = fiveMinute &&
     fiveMinute.currentConfirmed
@@ -839,6 +860,61 @@ function hasExpectedOpportunitySweep(input) {
   );
 }
 
+function opportunityEventProgress(input) {
+  const direction = opportunityDirection(input);
+  const confirmed = input.fiveMinute &&
+    input.fiveMinute.currentConfirmed
+    ? input.fiveMinute.currentConfirmed
+    : {};
+  const expectedDirection = direction === 'LONG'
+    ? 'BULLISH'
+    : direction === 'SHORT'
+      ? 'BEARISH'
+      : null;
+  const sweepCompleted =
+    hasExpectedOpportunitySweep(input);
+  const mssCompleted = Boolean(
+    sweepCompleted &&
+    confirmed.mss &&
+    confirmed.mss.direction === expectedDirection
+  );
+  const displacementCompleted = Boolean(
+    mssCompleted &&
+    confirmed.displacement &&
+    confirmed.displacement.direction ===
+      expectedDirection
+  );
+
+  return {
+    sweepCompleted,
+    mssCompleted,
+    displacementCompleted,
+  };
+}
+
+function opportunitySteps(input) {
+  const direction = opportunityDirection(input);
+  if (direction === 'LONG') {
+    return {
+      sweep: 'Sell Side Liquidity Sweep',
+      mss: 'Bullish MSS',
+      displacement: 'Bullish Displacement',
+    };
+  }
+  if (direction === 'SHORT') {
+    return {
+      sweep: 'Buy Side Liquidity Sweep',
+      mss: 'Bearish MSS',
+      displacement: 'Bearish Displacement',
+    };
+  }
+  return {
+    sweep: 'Sweep',
+    mss: 'MSS',
+    displacement: 'Displacement',
+  };
+}
+
 function opportunityStage(input) {
   const opportunity = input.opportunity || {};
   const direction = opportunityDirection(input);
@@ -856,12 +932,23 @@ function opportunityStage(input) {
     };
   }
   if (
-    opportunity.status === 'WATCH_ZONE' &&
-    hasExpectedOpportunitySweep(input)
+    opportunity.status === 'CONFIRMING' ||
+    (
+      opportunity.status === 'WATCH_ZONE' &&
+      hasExpectedOpportunitySweep(input)
+    )
   ) {
+    const progress = opportunityEventProgress(input);
+    let text = 'Sweep已完成，等待MSS/Displacement';
+    if (progress.mssCompleted) {
+      text = 'Sweep与MSS已完成，等待Displacement';
+    }
+    if (progress.displacementCompleted) {
+      text = '事件已齐备，等待严格确认链成立';
+    }
     return {
       status: 'CONFIRMING',
-      text: '等待MSS/Displacement',
+      text,
     };
   }
   if (opportunity.status === 'WATCH_ZONE') {
@@ -877,16 +964,34 @@ function opportunityStage(input) {
 }
 
 function opportunityPath(input) {
-  const direction = opportunityDirection(input);
-  if (direction === 'LONG') {
-    return 'Sell Side Liquidity Sweep → ' +
-      'Bullish MSS → Bullish Displacement';
+  const stage = opportunityStage(input);
+  const steps = opportunitySteps(input);
+  if (stage.status === 'CONFIRMED') {
+    return 'Sweep → MSS → Displacement 已完成';
   }
-  if (direction === 'SHORT') {
-    return 'Buy Side Liquidity Sweep → ' +
-      'Bearish MSS → Bearish Displacement';
+  if (stage.status === 'WAITING') {
+    return [
+      steps.sweep,
+      steps.mss,
+      steps.displacement,
+    ].join(' → ');
   }
-  return '等待4H Bias明确 → Sweep → MSS → Displacement';
+  if (stage.status === 'WATCH_ZONE') {
+    return '等待 ' + opportunityLiquidityText(input) +
+      ' 流动性扫取 → ' + steps.mss +
+      ' → ' + steps.displacement;
+  }
+
+  const progress = opportunityEventProgress(input);
+  const remaining = [];
+  if (!progress.sweepCompleted) remaining.push(steps.sweep);
+  if (!progress.mssCompleted) remaining.push(steps.mss);
+  if (!progress.displacementCompleted) {
+    remaining.push(steps.displacement);
+  }
+  return remaining.length > 0
+    ? remaining.join(' → ')
+    : '等待严格确认链成立';
 }
 
 function opportunityObservationLines(input) {
@@ -923,6 +1028,8 @@ function summarizeTraderContext(input) {
       narrative.structurePhase
     ),
     '',
+    ...htfAlignmentSectionLines(input.htfAlignment),
+    '',
     '【当前市场环境】',
     ...narrative.marketEnvironment,
     ...opportunityLines,
@@ -957,15 +1064,18 @@ module.exports = {
   hasConfirmedLtf,
   hasDirectionalH4,
   h4DirectionText,
+  htfAlignmentSectionLines,
   keyReasons,
   liquidityTypeText,
   ltfNarrativeState,
   nextScenario,
   opportunityDirection,
+  opportunityEventProgress,
   opportunityLiquidityText,
   opportunityObservationLines,
   opportunityPath,
   opportunityStage,
+  opportunitySteps,
   percentText,
   positionZoneText,
   positionWaitingNarrative,

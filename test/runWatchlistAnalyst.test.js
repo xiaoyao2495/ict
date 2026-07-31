@@ -362,6 +362,25 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
   assert.ok(result.results[0].formatted.includes(
     '【4小时结构阶段】'
   ));
+  assert.ok(report.current.htfAlignment);
+  assert.ok([
+    'ALIGNED',
+    'CONFLICT',
+    'UNDETERMINED',
+  ].includes(report.current.htfAlignment.status));
+  assert.strictEqual(
+    report.current.htfAlignment.biasDirection,
+    report.current.fourHourAnalysis.bias === 'BULLISH' ||
+      report.current.fourHourAnalysis.bias === 'BEARISH'
+      ? report.current.fourHourAnalysis.bias
+      : null
+  );
+  assert.ok(report.current.humanSummary.includes(
+    '【HTF Alignment】'
+  ));
+  assert.ok(result.results[0].formatted.includes(
+    '【HTF Alignment】'
+  ));
 
   const directBias = HtfBiasV3.analyze({
     h4Klines: data.complete['4h'],
