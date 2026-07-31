@@ -19,10 +19,14 @@ const OPPORTUNITY_LIQUIDITY_TEXT = Object.freeze({
   PDL: 'PDL',
   PWL: 'PWL',
   H4_SWING_LOW: 'H4 Swing Low',
+  H1_SWING_LOW: 'H1 Swing Low',
+  LTF_SWING_LOW: '5m Swing Low',
   EQUAL_LOW: 'Equal Low',
   PDH: 'PDH',
   PWH: 'PWH',
   H4_SWING_HIGH: 'H4 Swing High',
+  H1_SWING_HIGH: 'H1 Swing High',
+  LTF_SWING_HIGH: '5m Swing High',
   EQUAL_HIGH: 'Equal High',
 });
 
@@ -840,6 +844,90 @@ function opportunityLiquidityText(input) {
   return '等待4H方向明确';
 }
 
+function metricText(value) {
+  return Number.isFinite(value)
+    ? String(Number(value.toFixed(8)))
+    : '--';
+}
+
+function titleCaseState(value) {
+  if (!value) return 'Undetermined';
+  return String(value)
+    .toLowerCase()
+    .split('_')
+    .map((part) => (
+      part.charAt(0).toUpperCase() + part.slice(1)
+    ))
+    .join(' ');
+}
+
+function dashboardBiasText(h4) {
+  if (h4 && h4.bias === 'BULLISH') return 'Bullish';
+  if (h4 && h4.bias === 'BEARISH') return 'Bearish';
+  if (h4 && h4.bias === 'NEUTRAL') return 'Neutral';
+  return 'Undetermined';
+}
+
+function dashboardAlignmentText(input) {
+  const value = input.htfAlignment || input.alignment || {};
+  if (value.status === 'ALIGNED') return 'Aligned';
+  if (value.status === 'CONFLICT') return 'Conflict';
+  if (value.status === 'WAITING') return 'Waiting';
+  return 'Undetermined';
+}
+
+function expectedOpportunitySweep(input) {
+  const direction = opportunityDirection(input);
+  const expectedSide = direction === 'LONG'
+    ? 'SELL_SIDE'
+    : direction === 'SHORT'
+      ? 'BUY_SIDE'
+      : null;
+  const confirmed = input.fiveMinute &&
+    input.fiveMinute.currentConfirmed
+    ? input.fiveMinute.currentConfirmed
+    : {};
+  const sweeps = Array.isArray(confirmed.liquiditySweeps)
+    ? confirmed.liquiditySweeps
+    : [];
+  const matching = sweeps.filter(
+    (sweep) => sweep.side === expectedSide
+  );
+  return matching.length > 0
+    ? matching[matching.length - 1]
+    : null;
+}
+
+function entryWatchData(input) {
+  const opportunity = input.opportunity || {};
+  const direction = opportunityDirection(input);
+  return {
+    direction,
+    liquidity: opportunityLiquidityText(input),
+    price: Number.isFinite(opportunity.price)
+      ? opportunity.price
+      : null,
+  };
+}
+
+function primaryDrawData(input) {
+  const draw = input.h4 && input.h4.primaryDraw;
+  if (!draw) {
+    return {
+      type: '暂无明确目标',
+      price: null,
+    };
+  }
+  return {
+    type: OPPORTUNITY_LIQUIDITY_TEXT[draw.type] ||
+      draw.type ||
+      '其他流动性',
+    price: Number.isFinite(draw.price)
+      ? draw.price
+      : null,
+  };
+}
+
 function hasExpectedOpportunitySweep(input) {
   const direction = opportunityDirection(input);
   const sweeps = input.fiveMinute &&
@@ -894,16 +982,17 @@ function opportunityEventProgress(input) {
 
 function opportunitySteps(input) {
   const direction = opportunityDirection(input);
+  const sweep = 'Sweep ' + opportunityLiquidityText(input);
   if (direction === 'LONG') {
     return {
-      sweep: 'Sell Side Liquidity Sweep',
+      sweep,
       mss: 'Bullish MSS',
       displacement: 'Bullish Displacement',
     };
   }
   if (direction === 'SHORT') {
     return {
-      sweep: 'Buy Side Liquidity Sweep',
+      sweep,
       mss: 'Bearish MSS',
       displacement: 'Bearish Displacement',
     };
@@ -996,54 +1085,115 @@ function opportunityPath(input) {
 
 function opportunityObservationLines(input) {
   const direction = opportunityDirection(input);
-  const h4Reason = direction === 'LONG'
-    ? '4H Bias bullish'
-    : direction === 'SHORT'
-      ? '4H Bias bearish'
-      : '4H Bias unclear';
   const stage = opportunityStage(input);
+  const ready = stage.status === 'CONFIRMED';
   return [
-    '【交易机会观察】',
+    '【交易机会】',
     '方向：' + direction,
-    'HTF原因：' + h4Reason,
-    '关注流动性：' + opportunityLiquidityText(input),
-    '当前阶段：' + stage.status + '：' + stage.text,
-    '下一步路径：' + opportunityPath(input),
+    '当前阶段：' + (ready ? 'READY' : stage.status),
+    '',
+    ...entryWatchLines(input),
+    '',
+    ...eventChainLines(input),
+  ];
+}
+
+function entryWatchLines(input) {
+  const watch = entryWatchData(input);
+  return [
+    '② 【Entry Watch】',
+    '等待：',
+    watch.liquidity,
+    ...(watch.price === null
+      ? []
+      : [metricText(watch.price)]),
+  ];
+}
+
+function eventChainLines(input) {
+  const progress = opportunityEventProgress(input);
+  const steps = opportunitySteps(input);
+  const watch = entryWatchData(input);
+  const sweep = expectedOpportunitySweep(input);
+  const sweepType = sweep && sweep.type
+    ? opportunityLiquidityText({
+      h4: input.h4,
+      opportunity: { liquidityType: sweep.type },
+    })
+    : watch.liquidity;
+  const sweepPrice = sweep && Number.isFinite(sweep.price)
+    ? sweep.price
+    : watch.price;
+  const ready = opportunityStage(input).status === 'CONFIRMED';
+
+  return [
+    '③ 【Event Chain】',
+    (progress.sweepCompleted ? '✓ ' : '□ ') +
+      'Sweep ' + sweepType,
+    ...(sweepPrice === null
+      ? []
+      : ['  价格：' + metricText(sweepPrice)]),
+    '',
+    (progress.mssCompleted ? '✓ ' : '□ ') + steps.mss,
+    '',
+    (progress.displacementCompleted ? '✓ ' : '□ ') +
+      steps.displacement,
+    ...(ready ? ['', '状态：READY'] : []),
+  ];
+}
+
+function primaryDrawLines(input) {
+  const draw = primaryDrawData(input);
+  return [
+    '④ 【Primary Draw】',
+    '目标：',
+    draw.type,
+    ...(draw.price === null
+      ? []
+      : [metricText(draw.price)]),
+  ];
+}
+
+function nextOpportunityEvent(input) {
+  const progress = opportunityEventProgress(input);
+  const steps = opportunitySteps(input);
+  if (opportunityStage(input).status === 'CONFIRMED') {
+    return 'READY';
+  }
+  if (!progress.sweepCompleted) return steps.sweep;
+  if (!progress.mssCompleted) return steps.mss;
+  if (!progress.displacementCompleted) {
+    return steps.displacement;
+  }
+  return '等待严格确认链成立';
+}
+
+function htfDashboardLines(input) {
+  const phase = structurePhaseDetails(
+    input.structurePhase ||
+    (input.h4 && input.h4.structurePhase)
+  );
+  return [
+    '① 【HTF】',
+    'Bias：' + dashboardBiasText(input.h4),
+    'Structure：' + titleCaseState(phase.state),
+    'Alignment：' + dashboardAlignmentText(input),
+    '位置：' + positionZoneText(input.positionContext),
   ];
 }
 
 function summarizeTraderContext(input) {
   input = input || {};
-  const narrative = input.narrative ||
-    analyzeNarrative(input);
-  const opportunityLines = input.opportunity
-    ? [
-      '',
-      ...opportunityObservationLines(input),
-    ]
-    : [];
-
   return [
-    ...structurePhaseSectionLines(
-      narrative.structurePhase
-    ),
+    ...htfDashboardLines(input),
     '',
-    ...htfAlignmentSectionLines(input.htfAlignment),
+    '================',
     '',
-    '【当前市场环境】',
-    ...narrative.marketEnvironment,
-    ...opportunityLines,
+    ...opportunityObservationLines(input),
     '',
-    '【已完成事件】',
-    ...narrative.completedEvents.map(
-      (event) => '- ' + event
-    ),
+    '================',
     '',
-    '【下一步等待路径】',
-    narrative.nextScenario,
-    '',
-    '【等待原因】',
-    narrative.waitingReason,
+    ...primaryDrawLines(input),
   ].join('\n');
 }
 
@@ -1058,17 +1208,25 @@ module.exports = {
   analyzeSetupStage,
   completedEventTexts,
   confirmationState,
+  dashboardAlignmentText,
+  dashboardBiasText,
+  entryWatchData,
+  entryWatchLines,
+  eventChainLines,
+  expectedOpportunitySweep,
   fiveMinuteConfirmationStatus,
   fiveMinuteStatusText,
   focusDirection,
   hasConfirmedLtf,
   hasDirectionalH4,
   h4DirectionText,
+  htfDashboardLines,
   htfAlignmentSectionLines,
   keyReasons,
   liquidityTypeText,
   ltfNarrativeState,
   nextScenario,
+  nextOpportunityEvent,
   opportunityDirection,
   opportunityEventProgress,
   opportunityLiquidityText,
@@ -1077,6 +1235,8 @@ module.exports = {
   opportunityStage,
   opportunitySteps,
   percentText,
+  primaryDrawData,
+  primaryDrawLines,
   positionZoneText,
   positionWaitingNarrative,
   setupStageText,
@@ -1088,5 +1248,6 @@ module.exports = {
   structureSourceLines,
   summarize,
   summarizeTraderContext,
+  titleCaseState,
   waitingReason,
 };

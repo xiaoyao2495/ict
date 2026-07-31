@@ -55,10 +55,11 @@ test('notification text keeps keyword and formatter output', () => {
   const formatted = [
     '【ICT市场分析】',
     '',
-    '1. 4H HTF Bias',
-    '2. 1H Delivery',
-    '3. 【5分钟确认】',
-    '4. 当前人工判断',
+    '【交易监控面板】',
+    '① 【HTF】',
+    '② 【Entry Watch】',
+    '③ 【Event Chain】',
+    '④ 【Primary Draw】',
   ].join('\n');
   const text = NotifyRunner.buildNotificationText({
     formatted,
@@ -72,10 +73,11 @@ test('notification text keeps keyword and formatter output', () => {
   assert.ok(text.includes('【ICT市场分析】'));
   assert.ok(text.includes('时间：2026-07-27 16:00:00'));
   assert.ok(text.includes('品种：BTCUSDT'));
-  assert.ok(text.includes('1. 4H HTF Bias'));
-  assert.ok(text.includes('2. 1H Delivery'));
-  assert.ok(text.includes('3. 【5分钟确认】'));
-  assert.ok(text.includes('4. 当前人工判断'));
+  assert.ok(text.includes('【交易监控面板】'));
+  assert.ok(text.includes('① 【HTF】'));
+  assert.ok(text.includes('② 【Entry Watch】'));
+  assert.ok(text.includes('③ 【Event Chain】'));
+  assert.ok(text.includes('④ 【Primary Draw】'));
 });
 
 test('closed Klines flow to Formatter and DingTalk webhook', async () => {
@@ -162,14 +164,13 @@ test('closed Klines flow to Formatter and DingTalk webhook', async () => {
   });
   assert.ok(result.message.includes('检测'));
   assert.ok(result.message.includes('【ICT市场分析】'));
-  assert.ok(result.message.includes('1. 4H HTF Bias'));
-  assert.ok(result.message.includes('2. 1H Delivery'));
-  assert.ok(result.message.includes('3. 【5分钟确认】'));
-  assert.ok(result.message.includes('4. 当前人工判断'));
+  assert.ok(result.message.includes('【交易监控面板】'));
+  assert.ok(result.message.includes('① 【HTF】'));
+  assert.ok(result.message.includes('② 【Entry Watch】'));
+  assert.ok(result.message.includes('③ 【Event Chain】'));
+  assert.ok(result.message.includes('④ 【Primary Draw】'));
   assert.ok(result.report.current.humanSummary);
-  assert.ok(result.message.includes(
-    result.report.current.humanSummary
-  ));
+  assert.ok(result.message.includes('【交易监控面板】'));
   assert.ok(result.message.includes(
     require('../formatters/beijingTime').formatBeijingTime(
       result.report.current.asOf
@@ -184,9 +185,7 @@ test('closed Klines flow to Formatter and DingTalk webhook', async () => {
   );
 
   for (const forbidden of [
-    'Entry',
     'Stop',
-    'Target',
     '仓位',
     '自动交易',
     '开仓',

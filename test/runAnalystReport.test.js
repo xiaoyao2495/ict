@@ -129,15 +129,15 @@ test('Klines flow through Report and Formatter to Chinese text', async () => {
   assert.strictEqual(output.length, 1);
   assert.strictEqual(output[0], result.message);
   assert.ok(result.message.includes('【ICT市场分析】'));
-  assert.ok(result.message.includes('1. 4H HTF Bias'));
-  assert.ok(result.message.includes('2. 1H Delivery'));
-  assert.ok(result.message.includes('3. 【5分钟确认】'));
+  assert.ok(result.message.includes('【交易监控面板】'));
+  assert.ok(result.message.includes('① 【HTF】'));
+  assert.ok(result.message.includes('② 【Entry Watch】'));
+  assert.ok(result.message.includes('③ 【Event Chain】'));
+  assert.ok(result.message.includes('④ 【Primary Draw】'));
   assert.strictEqual(typeof result.message, 'string');
 
   for (const forbidden of [
-    'Entry',
     'Stop',
-    'Target',
     '仓位',
     '自动交易',
     '开仓',

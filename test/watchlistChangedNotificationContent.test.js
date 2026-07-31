@@ -56,6 +56,22 @@ function symbolResult(symbol, options) {
       current: {
         fourHourAnalysis: {
           bias: options.bias || 'BULLISH',
+          primaryDraw: options.primaryDraw || {
+            type: 'PWH',
+            price: 66924,
+          },
+        },
+        structurePhase: options.structurePhase || {
+          state: 'BULLISH_CONTINUATION',
+        },
+        htfAlignment: options.htfAlignment || {
+          status: 'ALIGNED',
+        },
+        opportunity: options.opportunity || {
+          status: 'WAITING',
+          direction: options.bias || 'BULLISH',
+          liquidityType: null,
+          price: null,
         },
         fiveMinuteConfirmationStatus:
           options.confirmationStatus || 'WAITING',
@@ -66,6 +82,9 @@ function symbolResult(symbol, options) {
         },
         fiveMinuteObservation: {
           currentConfirmed: {
+            liquiditySweeps: options.sweeps || [],
+            mss: options.currentMss || null,
+            displacement: options.displacement || null,
             confirmation:
               options.confirmationStatus &&
               options.confirmationStatus !== 'WAITING'
@@ -344,6 +363,64 @@ test('动态MSS定位字段变化不发送', async () => {
 
   assert.strictEqual(result.sent, false);
   assert.strictEqual(messages.length, 1);
+});
+
+test('进入WATCH_ZONE通知只突出Entry Watch变化', async () => {
+  const changedRows = rows({
+    BTCUSDT: {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'EQUAL_LOW',
+        price: 62782,
+      },
+    },
+  });
+  const { result } = await primeAndRun(changedRows);
+  const section = result.message.slice(
+    result.message.indexOf('===== BTCUSDT =====')
+  );
+
+  assert.ok(section.includes('进入 WATCH_ZONE'));
+  assert.ok(section.includes(
+    '② 【Entry Watch】\n等待：\nEqual Low\n62782'
+  ));
+  assert.strictEqual(section.includes('Bias：'), false);
+  assert.strictEqual(section.includes('Structure：'), false);
+  assert.strictEqual(section.includes('Alignment：'), false);
+});
+
+test('确认变化通知突出事件链和下一等待事件', async () => {
+  const changedRows = rows({
+    BTCUSDT: {
+      confirmationStatus: 'CONFIRMED_BULLISH',
+      confirmationDirection: 'BULLISH',
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'EQUAL_LOW',
+        price: 62782,
+      },
+      sweeps: [{
+        side: 'SELL_SIDE',
+        type: 'EQUAL_LOW',
+        price: 62782,
+      }],
+      currentMss: { direction: 'BULLISH' },
+      displacement: { direction: 'BULLISH' },
+    },
+  });
+  const { result } = await primeAndRun(changedRows);
+  const section = result.message.slice(
+    result.message.indexOf('===== BTCUSDT =====')
+  );
+
+  assert.ok(section.includes('✓ Sweep Equal Low'));
+  assert.ok(section.includes('✓ Bullish MSS'));
+  assert.ok(section.includes('✓ Bullish Displacement'));
+  assert.ok(section.includes('状态：READY'));
+  assert.strictEqual(section.includes('Bias：'), false);
+  assert.strictEqual(section.includes('Structure：'), false);
 });
 
 test('缺失Symbol报告时不回退发送完整Watchlist', async () => {

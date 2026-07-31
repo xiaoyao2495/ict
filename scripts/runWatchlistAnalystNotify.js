@@ -6,6 +6,9 @@ const WatchlistFilter = require(
 );
 const DingTalk = require('./runAnalystReportNotify');
 const BeijingTime = require('../formatters/beijingTime');
+const ChineseFormatter = require(
+  '../formatters/ictAnalystChineseFormatter'
+);
 const OpportunityHistory = require(
   '../history/ictOpportunityHistory'
 );
@@ -75,8 +78,15 @@ function selectNotificationResults(
 function formatChangeNotification(
   results,
   currentTime,
-  notificationSymbols
+  notificationSymbols,
+  changes
 ) {
+  const changeBySymbol = new Map(
+    (changes || []).map((change) => [
+      change.symbol,
+      change,
+    ])
+  );
   const sections = [
     CHANGE_REPORT_HEADER,
     '',
@@ -87,15 +97,24 @@ function formatChangeNotification(
   ];
 
   for (const result of results) {
+    const change = changeBySymbol.get(result.symbol);
+    const content = result.status === 'SUCCESS' &&
+      result.report
+      ? ChineseFormatter.formatNotificationChange(
+        result.report,
+        change ? change.reasons : [],
+        change
+      )
+      : result.status === 'SUCCESS' &&
+          typeof result.formatted === 'string'
+        ? result.formatted
+        : result.displayMessage ||
+          '状态发生变化，但当前无可用分析报告';
     sections.push(
       '',
       '===== ' + result.symbol + ' =====',
       '',
-      result.status === 'SUCCESS' &&
-        typeof result.formatted === 'string'
-        ? result.formatted
-        : result.displayMessage ||
-          '状态发生变化，但当前无可用分析报告'
+      content
     );
   }
   return sections.join('\n');
@@ -169,7 +188,8 @@ async function run(options) {
         message = formatChangeNotification(
           changedResults,
           analysis.currentTime,
-          renderedNotificationSymbols
+          renderedNotificationSymbols,
+          changes
         );
         logRenderedNotificationSymbols(
           options,

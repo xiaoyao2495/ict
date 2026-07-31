@@ -281,7 +281,7 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
     false
   );
   assert.ok(result.results[0].formatted.includes(
-    '2. 【5分钟确认】'
+    '③ 【Event Chain】'
   ));
   assert.ok(
     result.results[0].report.current.positionContext
@@ -294,20 +294,21 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
     result.results[0].report.current.positionContext,
     'nearestLiquidity'
   ));
-  assert.ok(result.results[0].formatted.includes(
-    '【当前位置】'
-  ));
+  assert.strictEqual(
+    result.results[0].formatted.includes('【当前位置】'),
+    false
+  );
   assert.strictEqual(
     result.results[0].report.current.positionContext
       .context.includes('不适合追单'),
     false
   );
   for (const heading of [
-    '【当前市场环境】',
-    '【交易机会观察】',
-    '【已完成事件】',
-    '【下一步等待路径】',
-    '【等待原因】',
+    '① 【HTF】',
+    '【交易机会】',
+    '② 【Entry Watch】',
+    '③ 【Event Chain】',
+    '④ 【Primary Draw】',
   ]) {
     assert.ok(
       result.results[0].report.current.humanSummary
@@ -357,10 +358,10 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
     structurePhase.structurePhase
   );
   assert.ok(report.current.humanSummary.includes(
-    '【4小时结构阶段】'
+    'Structure：'
   ));
   assert.ok(result.results[0].formatted.includes(
-    '【4小时结构阶段】'
+    'Structure：'
   ));
   assert.ok(report.current.htfAlignment);
   assert.ok([
@@ -376,10 +377,10 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
       : null
   );
   assert.ok(report.current.humanSummary.includes(
-    '【HTF Alignment】'
+    'Alignment：'
   ));
   assert.ok(result.results[0].formatted.includes(
-    '【HTF Alignment】'
+    'Alignment：'
   ));
 
   const directBias = HtfBiasV3.analyze({

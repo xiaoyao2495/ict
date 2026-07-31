@@ -416,72 +416,123 @@ function ensureStructurePhaseSection(summary, structurePhase) {
   ].join('\n');
 }
 
+function dashboardInput(current) {
+  return {
+    h4: current.fourHourAnalysis || {},
+    fiveMinute: current.fiveMinuteObservation || {},
+    alignment: current.alignment,
+    opportunity: current.opportunity,
+    liquidityRoadmap: current.liquidityRoadmap,
+    positionContext: current.positionContext,
+    structurePhase: current.structurePhase,
+    htfAlignment: current.htfAlignment,
+  };
+}
+
+function formatNotificationChange(report, reasons, change) {
+  const current = currentOf(report);
+  const input = dashboardInput(current);
+  const changeReasons = Array.isArray(reasons)
+    ? reasons
+    : [];
+  if (changeReasons.includes('INITIAL_STATE')) {
+    return [
+      HumanSummary.summarizeTraderContext(input),
+      '',
+      '================',
+      '',
+      '⑤ 【Liquidity Roadmap】',
+      ...liquidityRoadmapLines(current.liquidityRoadmap),
+    ].join('\n');
+  }
+
+  const lines = [];
+  if (changeReasons.includes('H4_BIAS_CHANGED')) {
+    lines.push(
+      'HTF Bias 变化：',
+      HumanSummary.dashboardBiasText(input.h4),
+      '',
+      ...HumanSummary.entryWatchLines(input),
+      '',
+      ...HumanSummary.primaryDrawLines(input)
+    );
+  }
+  if (changeReasons.includes('ALIGNMENT_STATUS_CHANGED')) {
+    if (lines.length > 0) lines.push('');
+    lines.push(
+      'Alignment 变化：',
+      HumanSummary.titleCaseState(
+        current.alignment && current.alignment.status
+      )
+    );
+  }
+  if (changeReasons.includes('OPPORTUNITY_CHANGED')) {
+    if (lines.length > 0) lines.push('');
+    const currentStatus = current.opportunity &&
+      current.opportunity.status;
+    const previousStatus = change &&
+      change.previousState &&
+      change.previousState.opportunity
+      ? change.previousState.opportunity.status
+      : null;
+    const status = currentStatus === 'WATCH_ZONE' &&
+      previousStatus !== 'WATCH_ZONE'
+      ? '进入 WATCH_ZONE'
+      : currentStatus !== 'WATCH_ZONE' &&
+          previousStatus === 'WATCH_ZONE'
+        ? '离开 WATCH_ZONE'
+        : 'Entry Watch 变化';
+    lines.push(
+      status,
+      '',
+      ...HumanSummary.entryWatchLines(input)
+    );
+  }
+  if (
+    changeReasons.includes(
+      'CONFIRMATION_STATUS_CHANGED'
+    )
+  ) {
+    if (lines.length > 0) lines.push('');
+    lines.push(...HumanSummary.eventChainLines(input));
+  }
+
+  if (lines.length === 0) {
+    lines.push(...HumanSummary.eventChainLines(input));
+  }
+  const nextEvent = HumanSummary.nextOpportunityEvent(input);
+  const onlyEntryWatchChange =
+    changeReasons.includes('OPPORTUNITY_CHANGED') &&
+    !changeReasons.includes(
+      'CONFIRMATION_STATUS_CHANGED'
+    ) &&
+    !changeReasons.includes('H4_BIAS_CHANGED') &&
+    !changeReasons.includes('ALIGNMENT_STATUS_CHANGED');
+  if (nextEvent !== 'READY' && !onlyEntryWatchChange) {
+    lines.push('', '等待：', nextEvent);
+  }
+  return lines.join('\n');
+}
+
 function format(report) {
   const current = currentOf(report);
-  const h4 = current.fourHourAnalysis;
-  const delivery = deliveryAnalysisOf(current);
-  const fiveMinute = current.fiveMinuteObservation;
-  const confirmed = fiveMinute.currentConfirmed || {};
-  const observation = fiveMinute.potentialObservation;
-  const rawHumanSummary = current.humanSummary ||
-    HumanSummary.summarizeTraderContext({
-      h4,
-      fiveMinute,
-      alignment: current.alignment,
-      opportunity: current.opportunity,
-      liquidityRoadmap: current.liquidityRoadmap,
-      positionContext: current.positionContext,
-      structurePhase: current.structurePhase,
-      htfAlignment: current.htfAlignment,
-    });
-  const humanSummary = ensureStructurePhaseSection(
-    rawHumanSummary,
-    current.structurePhase
-  );
-  const location = LOCATION_TEXT[h4.premiumDiscount] ||
-    '位置不明确';
-  const deliveryLines = delivery
-    ? [
-      '2. 1H Delivery',
-      '- 当前方向：' +
-        directionText(delivery.deliveryDirection),
-      '- 与4H关系：' +
-        (RELATION_TEXT[delivery.relationToH4] ||
-          '与4H关系不明确'),
-      '- 当前阶段解释：' + deliveryStageText(delivery),
-    ]
-    : [];
-  const confirmationSection = delivery ? '3' : '2';
-  const judgmentSection = delivery ? '4' : '3';
+  const input = dashboardInput(current);
+  const humanSummary =
+    HumanSummary.summarizeTraderContext(input);
 
   return [
     '【ICT市场分析】',
     '',
     '时间：' + BeijingTime.formatBeijingTime(current.asOf),
     '',
-    '1. 4H HTF Bias',
-    '- 结构：' + structureText(h4),
-    '- Bias：' + directionText(h4.bias),
-    '- 主要流动性目标：' +
-      primaryDrawText(h4.primaryDraw),
-    '- Premium/Discount：' + location,
+    '【交易监控面板】',
     '',
-    ...deliveryLines,
-    '',
-    confirmationSection + '. 【5分钟确认】',
-    sweepText(confirmed.liquiditySweeps),
-    mssText(confirmed.mss),
-    displacementText(confirmed.displacement),
-    '- 当前观察：' + potentialText(observation),
-    '',
-    '【流动性路线】',
-    ...liquidityRoadmapLines(current.liquidityRoadmap),
-    '',
-    '【当前位置】',
-    ...positionContextLines(current.positionContext, h4),
-    '',
-    judgmentSection + '. 当前人工判断',
     humanSummary,
+    '',
+    '================',
+    '',
+    '⑤ 【Liquidity Roadmap】',
+    ...liquidityRoadmapLines(current.liquidityRoadmap),
   ].join('\n');
 }
 
@@ -492,6 +543,7 @@ module.exports = {
   RELATION_TEXT,
   STRUCTURE_TEXT,
   currentOf,
+  dashboardInput,
   deliveryAnalysisOf,
   deliveryStageText,
   deliveryTimeframeText,
@@ -499,6 +551,7 @@ module.exports = {
   displacementText,
   ensureStructurePhaseSection,
   format,
+  formatNotificationChange,
   manualView,
   mssText,
   potentialText,

@@ -214,7 +214,13 @@ test('neutral 4H uses the non-directional narrative', () => {
 
 function traderContext(overrides) {
   return {
-    h4: { bias: 'BEARISH' },
+    h4: {
+      bias: 'BEARISH',
+      primaryDraw: {
+        type: 'PWL',
+        price: 98,
+      },
+    },
     fiveMinute: {
       currentConfirmed: {
         confirmation: null,
@@ -252,24 +258,32 @@ test('trader summary combines every requested context layer', () => {
   );
 
   for (const text of [
-    '【当前市场环境】',
-    '4H方向：偏空',
-    '5m确认状态：等待严格事件链确认',
-    '多周期关系：等待低周期确认',
-    '当前位置：溢价区',
-    '位置叙事：4H偏空且价格位于溢价区，' +
-      '等待5分钟空头确认路径完成。',
-    '【已完成事件】',
-    '当前5分钟尚无已确认的局部结构事件。',
-    '【下一步等待路径】',
-    'Buy Side Liquidity Sweep',
-    '→ Bearish MSS',
-    '→ Bearish Displacement',
-    '【等待原因】',
-    '5分钟尚未形成符合4小时方向的' +
-      '流动性扫取→MSS→位移事件链。',
+    '① 【HTF】',
+    'Bias：Bearish',
+    'Structure：Undetermined',
+    'Alignment：Waiting',
+    '位置：溢价区',
+    '【交易机会】',
+    '方向：SHORT',
+    '当前阶段：WAITING',
+    '② 【Entry Watch】',
+    'PDH / PWH / H4 Swing High / Equal High',
+    '③ 【Event Chain】',
+    '□ Sweep PDH / PWH / H4 Swing High / Equal High',
+    '□ Bearish MSS',
+    '□ Bearish Displacement',
+    '④ 【Primary Draw】',
+    'PWL',
+    '98',
   ]) {
     assert.ok(summary.includes(text), text);
+  }
+  for (const removed of [
+    '【下一步等待路径】',
+    '【等待原因】',
+    '【已完成事件】',
+  ]) {
+    assert.strictEqual(summary.includes(removed), false);
   }
 });
 
@@ -308,20 +322,11 @@ test('aligned context describes confirmation without execution advice', () => {
     })
   );
 
-  assert.ok(summary.includes(
-    '5m确认状态：已形成向上完整确认'
-  ));
-  assert.ok(summary.includes('多周期方向一致'));
-  assert.ok(summary.includes(
-    '5分钟严格多头确认链已经完成。'
-  ));
-  assert.ok(summary.includes(
-    '当前5分钟确认链已完成，等待新的市场状态变化。'
-  ));
+  assert.ok(summary.includes('Bias：Bullish'));
+  assert.ok(summary.includes('Alignment：Aligned'));
+  assert.ok(summary.includes('方向：LONG'));
   assert.strictEqual(summary.includes('缺少：'), false);
   for (const forbidden of [
-    'LONG',
-    'SHORT',
     'BUY',
     'SELL',
     '买入',
@@ -440,14 +445,11 @@ test('independent 5m events are not described as complete confirmation', () => {
   });
   const summary = HumanSummary.summarizeTraderContext(input);
 
-  assert.ok(summary.includes(
-    '上述为局部事件，尚未构成同一条严格确认链。'
-  ));
-  assert.ok(summary.includes(
-    'Sell Side Liquidity Sweep\n' +
-    '→ Bullish MSS\n' +
-    '→ Bullish Displacement'
-  ));
+  assert.ok(summary.includes('✓ Sweep'));
+  assert.ok(summary.includes('✓ Bullish MSS'));
+  assert.ok(summary.includes('✓ Bullish Displacement'));
+  assert.strictEqual(summary.includes('状态：READY'), false);
+  assert.ok(summary.includes('当前阶段：WAITING'));
   assert.strictEqual(
     summary.includes('5分钟严格多头确认链已经完成。'),
     false
@@ -497,7 +499,7 @@ test('Structure Phase descriptions are symmetric', () => {
   }
 });
 
-test('Human Summary includes Structure Phase sources and wait', () => {
+test('Human Summary shows Structure Phase in dashboard form', () => {
   const summary = HumanSummary.summarizeTraderContext(
     traderContext({
       structurePhase: {
@@ -523,16 +525,8 @@ test('Human Summary includes Structure Phase sources and wait', () => {
   );
 
   for (const text of [
-    '【4小时结构阶段】',
-    '状态：BULLISH_CONFIRMED',
-    '方向：BULLISH',
-    '上下文：POST_MSS',
-    '当前阶段说明：多头趋势已确认',
-    '来源MSS：BULLISH_MSS' +
-      '（CLOSE_BREAK，结构位：110）',
-    '来源BOS：BULLISH_BOS' +
-      '（DISPLACEMENT_BREAK，结构位：115）',
-    '下一等待事件：等待后续Bullish BOS或Bearish MSS',
+    '① 【HTF】',
+    'Structure：Bullish Confirmed',
   ]) {
     assert.ok(summary.includes(text), text);
   }
@@ -589,13 +583,13 @@ test('bullish WATCH_ZONE becomes a LONG observation', () => {
   );
 
   for (const text of [
-    '【交易机会观察】',
+    '【交易机会】',
     '方向：LONG',
-    'HTF原因：4H Bias bullish',
-    '关注流动性：PDL',
-    '当前阶段：WATCH_ZONE：等待流动性扫取',
-    '下一步路径：等待 PDL 流动性扫取 → ' +
-      'Bullish MSS → Bullish Displacement',
+    '当前阶段：WATCH_ZONE',
+    '② 【Entry Watch】\n等待：\nPDL\n99.6',
+    '□ Sweep PDL',
+    '□ Bullish MSS',
+    '□ Bullish Displacement',
   ]) {
     assert.ok(summary.includes(text), text);
   }
@@ -623,21 +617,12 @@ test('expected Sweep advances opportunity to CONFIRMING', () => {
     })
   );
 
-  assert.ok(summary.includes(
-    '关注流动性：H4 Swing Low'
-  ));
-  assert.ok(summary.includes(
-    '当前阶段：CONFIRMING：' +
-    'Sweep已完成，等待MSS/Displacement'
-  ));
-  assert.ok(summary.includes(
-    '下一步路径：Bullish MSS → ' +
-    'Bullish Displacement'
-  ));
+  assert.ok(summary.includes('当前阶段：CONFIRMING'));
+  assert.ok(summary.includes('✓ Sweep H4 Swing Low'));
+  assert.ok(summary.includes('□ Bullish MSS'));
+  assert.ok(summary.includes('□ Bullish Displacement'));
   assert.strictEqual(
-    summary.includes(
-      '下一步路径：Sell Side Liquidity Sweep'
-    ),
+    summary.includes('Sell Side Liquidity Sweep'),
     false
   );
   assert.strictEqual(
@@ -646,6 +631,79 @@ test('expected Sweep advances opportunity to CONFIRMING', () => {
     ),
     false
   );
+});
+
+test('MSS完成后事件链只等待Displacement', () => {
+  const lines = HumanSummary.eventChainLines(
+    traderContext({
+      h4: { bias: 'BULLISH' },
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'EQUAL_LOW',
+        price: 99.2,
+      },
+      fiveMinute: {
+        currentConfirmed: {
+          liquiditySweeps: [{
+            side: 'SELL_SIDE',
+            type: 'EQUAL_LOW',
+            price: 99.2,
+          }],
+          mss: { direction: 'BULLISH' },
+          displacement: null,
+          confirmation: null,
+        },
+      },
+    })
+  ).join('\n');
+
+  assert.ok(lines.includes('✓ Sweep Equal Low'));
+  assert.ok(lines.includes('✓ Bullish MSS'));
+  assert.ok(lines.includes('□ Bullish Displacement'));
+  assert.strictEqual(lines.includes('状态：READY'), false);
+});
+
+test('Entry Watch与Primary Draw保持独立', () => {
+  const summary = HumanSummary.summarizeTraderContext(
+    traderContext({
+      h4: {
+        bias: 'BULLISH',
+        primaryDraw: { type: 'PWH', price: 66924 },
+      },
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'EQUAL_LOW',
+        price: 62782,
+      },
+    })
+  );
+  const entry = summary.slice(
+    summary.indexOf('② 【Entry Watch】'),
+    summary.indexOf('③ 【Event Chain】')
+  );
+  const target = summary.slice(
+    summary.indexOf('④ 【Primary Draw】')
+  );
+
+  assert.ok(entry.includes('Equal Low'));
+  assert.ok(entry.includes('62782'));
+  assert.strictEqual(entry.includes('PWH'), false);
+  assert.ok(target.includes('PWH'));
+  assert.ok(target.includes('66924'));
+  assert.strictEqual(target.includes('Equal Low'), false);
+});
+
+test('缺少Structure Phase和Alignment时兼容旧报告', () => {
+  const summary = HumanSummary.summarizeTraderContext({
+    h4: { bias: 'BULLISH' },
+    fiveMinute: { currentConfirmed: {} },
+  });
+
+  assert.ok(summary.includes('Bias：Bullish'));
+  assert.ok(summary.includes('Structure：Undetermined'));
+  assert.ok(summary.includes('Alignment：Undetermined'));
 });
 
 test('bearish opportunity uses SHORT and buy-side path', () => {
@@ -662,12 +720,12 @@ test('bearish opportunity uses SHORT and buy-side path', () => {
   ).join('\n');
 
   assert.ok(lines.includes('方向：SHORT'));
-  assert.ok(lines.includes('HTF原因：4H Bias bearish'));
-  assert.ok(lines.includes('关注流动性：Equal High'));
   assert.ok(lines.includes(
-    '等待 Equal High 流动性扫取 → Bearish MSS → ' +
-    'Bearish Displacement'
+    '② 【Entry Watch】\n等待：\nEqual High\n100.3'
   ));
+  assert.ok(lines.includes('□ Sweep Equal High'));
+  assert.ok(lines.includes('□ Bearish MSS'));
+  assert.ok(lines.includes('□ Bearish Displacement'));
 });
 
 test('WAITING opportunity shows the complete event chain', () => {
@@ -683,7 +741,8 @@ test('WAITING opportunity shows the complete event chain', () => {
 
   assert.strictEqual(
     path,
-    'Sell Side Liquidity Sweep → Bullish MSS → ' +
+    'Sweep PDL / PWL / H4 Swing Low / Equal Low → ' +
+      'Bullish MSS → ' +
       'Bullish Displacement'
   );
 });

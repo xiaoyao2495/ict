@@ -115,41 +115,38 @@ test('Chinese message contains every required fixed field', () => {
   for (const field of [
     '【ICT市场分析】',
     '时间：2026-07-28 08:00:00',
-    '1. 4H HTF Bias',
-    '- 结构：',
-    '- Bias：',
-    '- 主要流动性目标：',
-    '- Premium/Discount：',
-    '【4小时结构阶段】',
-    '状态：UNDETERMINED',
-    '下一等待事件：等待方向性4小时结构确认',
-    '2. 1H Delivery',
-    '- 当前方向：',
-    '- 与4H关系：',
-    '- 当前阶段解释：',
-    '3. 【5分钟确认】',
-    '✓ 已扫流动性',
-    '类型：5分钟摆动低点',
-    '✓ 已确认市场结构向上转换',
-    '✓ 已确认向上位移',
-    '- 当前观察：潜在偏多观察',
-    '【当前位置】',
-    '区域：位置不明确',
-    '最近流动性：暂无明确流动性',
-    '距离：--',
-    '说明：价格位于4H区间位置不明确，' +
-      '等待5分钟多头确认路径完成。',
-    '4. 当前人工判断',
-    '【当前市场环境】',
-    '【已完成事件】',
-    '【下一步等待路径】',
-    '【等待原因】',
+    '【交易监控面板】',
+    '① 【HTF】',
+    'Bias：Bullish',
+    'Structure：Undetermined',
+    'Alignment：Undetermined',
+    '位置：位置不明确',
+    '【交易机会】',
+    '方向：LONG',
+    '当前阶段：READY',
+    '② 【Entry Watch】',
+    '③ 【Event Chain】',
+    '✓ Sweep 5m Swing Low',
+    '✓ Bullish MSS',
+    '✓ Bullish Displacement',
+    '状态：READY',
+    '④ 【Primary Draw】',
+    'PWH',
+    '54321.12',
+    '⑤ 【Liquidity Roadmap】',
   ]) {
     assert.ok(text.includes(field), field);
   }
+  for (const removed of [
+    '【当前位置】',
+    '【下一步等待路径】',
+    '【等待原因】',
+  ]) {
+    assert.strictEqual(text.includes(removed), false);
+  }
 });
 
-test('4小时结构阶段显示状态来源和下一事件', () => {
+test('4小时结构阶段以监控面板状态显示', () => {
   const text = Formatter.format(currentReport({
     structurePhase: {
       state: 'BULLISH_PULLBACK',
@@ -173,20 +170,14 @@ test('4小时结构阶段显示状态来源和下一事件', () => {
   }));
 
   for (const expected of [
-    '【4小时结构阶段】',
-    '状态：BULLISH_PULLBACK',
-    '方向：BULLISH',
-    '上下文：POST_MSS',
-    '当前阶段说明：多头转换回调阶段，等待Bullish BOS',
-    '来源MSS：BULLISH_MSS' +
-      '（CLOSE_BREAK，结构位：51000）',
-    '下一等待事件：等待Bullish BOS',
+    '① 【HTF】',
+    'Structure：Bullish Pullback',
   ]) {
     assert.ok(text.includes(expected), expected);
   }
   assert.strictEqual(
-    text.match(/【4小时结构阶段】/g).length,
-    1
+    text.includes('来源MSS：'),
+    false
   );
 });
 
@@ -209,29 +200,22 @@ test('Neutral report produces a waiting judgment', () => {
     },
   }));
 
-  assert.ok(text.includes('- Bias：中性'));
-  assert.ok(text.includes('暂无明确主要流动性目标'));
-  assert.ok(text.includes('- 当前观察：暂无'));
-  assert.ok(text.includes(
-    '【下一步等待路径】\n等待：4小时方向明确'
-  ));
-  assert.ok(text.includes(
-    '【等待原因】\n4小时方向尚未明确，' +
-    '暂不建立方向性5分钟等待路径。'
-  ));
-  assert.ok(text.includes('□ 等待流动性扫取'));
-  assert.ok(text.includes('□ 等待市场结构转换'));
-  assert.ok(text.includes('□ 等待位移确认'));
+  assert.ok(text.includes('Bias：Neutral'));
+  assert.ok(text.includes('方向：NONE'));
+  assert.ok(text.includes('当前阶段：WAITING'));
+  assert.ok(text.includes('等待4H方向明确'));
+  assert.ok(text.includes('□ Sweep'));
+  assert.ok(text.includes('□ MSS'));
+  assert.ok(text.includes('□ Displacement'));
+  assert.ok(text.includes('暂无明确目标'));
 });
 
 test('formatter shows Sweep price but no execution fields', () => {
   const text = Formatter.format(currentReport());
-  assert.strictEqual(text.includes('54321.12'), false);
+  assert.strictEqual(text.includes('54321.12'), true);
   assert.strictEqual(text.includes('价格：51234.56'), true);
   for (const forbidden of [
-    'Entry',
     'Stop',
-    'Target',
     '仓位',
     '自动交易',
     '开仓',
@@ -253,21 +237,25 @@ test('formatter also accepts the current snapshot directly', () => {
   );
 });
 
-test('formatter includes the human market-state summary', () => {
+test('formatter rebuilds dashboard from structured data', () => {
   const report = currentReport();
   report.current.humanSummary =
     '4H结构保持多头，1H正在顺应4H方向交付，' +
     '但5m尚未出现新的同向确认。';
   const text = Formatter.format(report);
 
-  assert.ok(text.includes(report.current.humanSummary));
+  assert.strictEqual(
+    text.includes(report.current.humanSummary),
+    false
+  );
+  assert.ok(text.includes('【交易监控面板】'));
   assert.strictEqual(
     text.includes('- 市场状态解读：'),
     false
   );
 });
 
-test('repeated Sweeps are grouped without mutating report data', () => {
+test('event chain uses the latest directional Sweep without mutation', () => {
   const baseTime = Date.UTC(2026, 6, 27, 8);
   const sweeps = [
     ...Array.from({ length: 5 }, (_, index) => ({
@@ -293,21 +281,12 @@ test('repeated Sweeps are grouped without mutating report data', () => {
   const original = JSON.parse(JSON.stringify(report));
   const text = Formatter.format(report);
 
-  assert.ok(text.includes(
-    '✓ 已扫流动性，共7项'
-  ));
-  assert.ok(text.includes('类型：5分钟摆动低点 ×5'));
-  assert.ok(text.includes('类型：等低 ×1'));
-  assert.ok(text.includes('类型：1小时摆动低点 ×1'));
-  assert.ok(text.includes(
-    '最新扫取：\n  类型：1小时摆动低点\n' +
-    '  扫取时间：2026-07-27 16:00:00'
-  ));
+  assert.ok(text.includes('✓ Sweep H1 Swing Low'));
   assert.strictEqual(text.includes('availableIndex'), false);
   assert.deepStrictEqual(report, original);
 });
 
-test('a single Sweep shows source price formation and taken time', () => {
+test('a single Sweep shows source type and price', () => {
   const report = currentReport({
     sweeps: [{
       type: 'LTF_SWING_LOW',
@@ -320,15 +299,10 @@ test('a single Sweep shows source price formation and taken time', () => {
   });
   const text = Formatter.format(report);
 
-  assert.ok(text.includes('✓ 已扫流动性'));
-  assert.ok(text.includes('类型：5分钟摆动低点'));
+  assert.ok(text.includes('✓ Sweep 5m Swing Low'));
   assert.ok(text.includes('价格：50123.45'));
-  assert.ok(text.includes(
-    '形成时间：2026-07-27 16:00:00'
-  ));
-  assert.ok(text.includes(
-    '扫取时间：2026-07-27 17:00:00'
-  ));
+  assert.strictEqual(text.includes('形成时间：'), false);
+  assert.strictEqual(text.includes('扫取时间：'), false);
   assert.strictEqual(text.includes('availableIndex'), false);
 });
 
@@ -344,8 +318,8 @@ test('Watchlist display supports 4H plus 5m without Delivery', () => {
 
   assert.strictEqual(text.includes('15分钟'), false);
   assert.strictEqual(text.includes('Delivery'), false);
-  assert.ok(text.includes('2. 【5分钟确认】'));
-  assert.ok(text.includes('3. 当前人工判断'));
+  assert.ok(text.includes('① 【HTF】'));
+  assert.ok(text.includes('③ 【Event Chain】'));
 });
 
 test('formatter includes the opportunity observation chapter', () => {
@@ -362,30 +336,22 @@ test('formatter includes the opportunity observation chapter', () => {
     displacement: null,
   }));
 
-  assert.ok(text.includes('【交易机会观察】'));
+  assert.ok(text.includes('【交易机会】'));
   assert.ok(text.includes('方向：LONG'));
-  assert.ok(text.includes('关注流动性：PWL'));
+  assert.ok(text.includes('当前阶段：WATCH_ZONE'));
   assert.ok(text.includes(
-    '当前阶段：WATCH_ZONE：等待流动性扫取'
+    '② 【Entry Watch】\n等待：\nPWL\n99.6'
   ));
 });
 
-test('5分钟确认不再输出英文事件名称', () => {
+test('事件链明确显示 Sweep MSS 与 Displacement', () => {
   const text = Formatter.format(currentReport());
-  const confirmationText = text.slice(
-    text.indexOf('【5分钟确认】'),
-    text.indexOf('【流动性路线】')
-  );
-
-  for (const forbidden of [
-    'Sweep',
-    'MSS',
-    'Displacement',
+  for (const expected of [
+    '✓ Sweep',
+    '✓ Bullish MSS',
+    '✓ Bullish Displacement',
   ]) {
-    assert.strictEqual(
-      confirmationText.includes(forbidden),
-      false
-    );
+    assert.ok(text.includes(expected));
   }
 });
 
@@ -419,7 +385,7 @@ test('流动性路线按 Engine 结果显示类型和距离', () => {
     ],
   }));
 
-  assert.ok(text.includes('【流动性路线】'));
+  assert.ok(text.includes('⑤ 【Liquidity Roadmap】'));
   assert.ok(text.includes(
     '① 昨日低点\n价格：99.58\n距离：0.42（0.42%）'
   ));
@@ -437,11 +403,11 @@ test('没有路线目标时显示明确空状态', () => {
   }));
 
   assert.ok(text.includes(
-    '【流动性路线】\n暂无明确流动性路线。'
+    '⑤ 【Liquidity Roadmap】\n暂无明确流动性路线。'
   ));
 });
 
-test('当前位置显示区域最近流动性距离和说明', () => {
+test('当前位置只在 HTF 面板保留一次', () => {
   const context = {
     positionZone: 'PREMIUM',
     nearestLiquidity: {
@@ -460,15 +426,12 @@ test('当前位置显示区域最近流动性距离和说明', () => {
     positionContext: context,
   }));
 
-  assert.ok(text.includes('【当前位置】'));
-  assert.ok(text.includes('区域：溢价区'));
-  assert.ok(text.includes('最近流动性：昨日低点'));
-  assert.ok(text.includes('价格：99.58'));
-  assert.ok(text.includes('距离：0.42（0.42%）'));
-  assert.ok(text.includes(
-    '说明：4H偏多但价格位于溢价区，' +
-    '等待价格完成流动性处理并重新形成5分钟多头确认。'
-  ));
+  assert.strictEqual(text.includes('【当前位置】'), false);
+  assert.ok(text.includes('位置：溢价区'));
+  assert.strictEqual(
+    text.match(/位置：溢价区/g).length,
+    1
+  );
   assert.strictEqual(text.includes('不适合追单'), false);
 });
 
@@ -500,13 +463,10 @@ test('价格距离按绝对值和百分比共同显示', () => {
   assert.ok(text.includes(
     '① 昨日高点\n价格：66000\n距离：1000（1.54%）'
   ));
-  assert.ok(text.includes(
-    '最近流动性：昨日高点\n价格：66000\n' +
-    '距离：1000（1.54%）'
-  ));
+  assert.strictEqual(text.includes('最近流动性：'), false);
 });
 
-test('最终总结不输出英文交易方向或自动交易建议', () => {
+test('最终面板不输出自动交易建议', () => {
   const text = Formatter.format(currentReport({
     positionContext: {
       positionZone: 'DISCOUNT',
@@ -516,11 +476,9 @@ test('最终总结不输出英文交易方向或自动交易建议', () => {
     },
     liquidityRoadmap: [],
   }));
-  const summary = text.slice(text.indexOf('【市场环境】'));
+  const summary = text.slice(text.indexOf('【交易监控面板】'));
 
   for (const forbidden of [
-    'LONG',
-    'SHORT',
     'BUY',
     'SELL',
     '买入',
