@@ -403,6 +403,19 @@ function manualView(h4, delivery, observation) {
   };
 }
 
+function ensureStructurePhaseSection(summary, structurePhase) {
+  if (summary.includes('【4小时结构阶段】')) {
+    return summary;
+  }
+  return [
+    ...HumanSummary.structurePhaseSectionLines(
+      structurePhase
+    ),
+    '',
+    summary,
+  ].join('\n');
+}
+
 function format(report) {
   const current = currentOf(report);
   const h4 = current.fourHourAnalysis;
@@ -410,7 +423,7 @@ function format(report) {
   const fiveMinute = current.fiveMinuteObservation;
   const confirmed = fiveMinute.currentConfirmed || {};
   const observation = fiveMinute.potentialObservation;
-  const humanSummary = current.humanSummary ||
+  const rawHumanSummary = current.humanSummary ||
     HumanSummary.summarizeTraderContext({
       h4,
       fiveMinute,
@@ -418,7 +431,12 @@ function format(report) {
       opportunity: current.opportunity,
       liquidityRoadmap: current.liquidityRoadmap,
       positionContext: current.positionContext,
+      structurePhase: current.structurePhase,
     });
+  const humanSummary = ensureStructurePhaseSection(
+    rawHumanSummary,
+    current.structurePhase
+  );
   const location = LOCATION_TEXT[h4.premiumDiscount] ||
     '位置不明确';
   const deliveryLines = delivery
@@ -478,6 +496,7 @@ module.exports = {
   deliveryTimeframeText,
   directionText,
   displacementText,
+  ensureStructurePhaseSection,
   format,
   manualView,
   mssText,

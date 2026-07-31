@@ -26,6 +26,156 @@ const OPPORTUNITY_LIQUIDITY_TEXT = Object.freeze({
   EQUAL_HIGH: 'Equal High',
 });
 
+const STRUCTURE_PHASE_DESCRIPTIONS = Object.freeze({
+  UNDETERMINED: '4小时结构阶段尚未明确',
+  BULLISH_CONTINUATION: '多头结构延续中',
+  BEARISH_CONTINUATION: '空头结构延续中',
+  BULLISH_MSS: '空头结构已被破坏，等待多头确认',
+  BEARISH_MSS: '多头结构已被破坏，等待空头确认',
+  BULLISH_PULLBACK:
+    '多头转换回调阶段，等待Bullish BOS',
+  BEARISH_PULLBACK:
+    '空头转换回调阶段，等待Bearish BOS',
+  BULLISH_CONFIRMED: '多头趋势已确认',
+  BEARISH_CONFIRMED: '空头趋势已确认',
+});
+
+const STRUCTURE_PHASE_NEXT_EVENTS = Object.freeze({
+  UNDETERMINED: '等待方向性4小时结构确认',
+  BULLISH_CONTINUATION:
+    '等待新的Bullish BOS或Bearish MSS',
+  BEARISH_CONTINUATION:
+    '等待新的Bearish BOS或Bullish MSS',
+  BULLISH_MSS: '等待MSS后的Swing Low回调确认',
+  BEARISH_MSS: '等待MSS后的Swing High回调确认',
+  BULLISH_PULLBACK: '等待Bullish BOS',
+  BEARISH_PULLBACK: '等待Bearish BOS',
+  BULLISH_CONFIRMED:
+    '等待后续Bullish BOS或Bearish MSS',
+  BEARISH_CONFIRMED:
+    '等待后续Bearish BOS或Bullish MSS',
+});
+
+function phaseDirection(state) {
+  if (String(state).indexOf('BULLISH_') === 0) {
+    return 'BULLISH';
+  }
+  if (String(state).indexOf('BEARISH_') === 0) {
+    return 'BEARISH';
+  }
+  return null;
+}
+
+function structurePhaseDetails(value) {
+  let raw = value;
+  if (raw && raw.current) raw = raw.current;
+  if (typeof raw === 'string') {
+    raw = { state: raw };
+  }
+  raw = raw && typeof raw === 'object' ? raw : {};
+  const state = raw.state ||
+    raw.structurePhase ||
+    'UNDETERMINED';
+  return {
+    state,
+    direction: raw.direction || phaseDirection(state),
+    context: raw.context || null,
+    sourceEvent: raw.sourceEvent || null,
+    mssEvent: raw.mssEvent || null,
+    confirmationBos: raw.confirmationBos || null,
+  };
+}
+
+function structurePhaseDescription(state) {
+  return STRUCTURE_PHASE_DESCRIPTIONS[state] ||
+    '4小时结构阶段尚未明确';
+}
+
+function structurePhaseNextEvent(state) {
+  return STRUCTURE_PHASE_NEXT_EVENTS[state] ||
+    '等待新的4小时结构事件';
+}
+
+function structureEventText(event) {
+  if (!event) return null;
+  const details = [];
+  if (event.breakType) details.push(event.breakType);
+  if (Number.isFinite(event.level)) {
+    details.push('结构位：' + event.level);
+  }
+  return String(event.type || 'UNKNOWN_STRUCTURE_EVENT') +
+    (details.length > 0
+      ? '（' + details.join('，') + '）'
+      : '');
+}
+
+function sameStructureEvent(left, right) {
+  if (!left || !right) return false;
+  return (
+    left === right ||
+    (
+      left.type === right.type &&
+      left.breakIndex === right.breakIndex &&
+      left.availableIndex === right.availableIndex
+    )
+  );
+}
+
+function structureSourceLines(details) {
+  const lines = [];
+  if (details.mssEvent) {
+    lines.push(
+      '来源MSS：' +
+      structureEventText(details.mssEvent)
+    );
+  }
+  if (details.confirmationBos) {
+    lines.push(
+      '来源BOS：' +
+      structureEventText(details.confirmationBos)
+    );
+  }
+  if (
+    details.sourceEvent &&
+    !sameStructureEvent(
+      details.sourceEvent,
+      details.mssEvent
+    ) &&
+    !sameStructureEvent(
+      details.sourceEvent,
+      details.confirmationBos
+    )
+  ) {
+    const type = String(details.sourceEvent.type || '');
+    const label = type.endsWith('_MSS')
+      ? '来源MSS：'
+      : type.endsWith('_BOS')
+        ? '来源BOS：'
+        : '来源结构事件：';
+    lines.push(
+      label + structureEventText(details.sourceEvent)
+    );
+  }
+  return lines.length > 0
+    ? lines
+    : ['来源MSS/BOS：暂无'];
+}
+
+function structurePhaseSectionLines(value) {
+  const details = structurePhaseDetails(value);
+  return [
+    '【4小时结构阶段】',
+    '状态：' + details.state,
+    '方向：' + (details.direction || '--'),
+    '上下文：' + (details.context || '--'),
+    '当前阶段说明：' +
+      structurePhaseDescription(details.state),
+    ...structureSourceLines(details),
+    '下一等待事件：' +
+      structurePhaseNextEvent(details.state),
+  ];
+}
+
 function ltfNarrativeState(fiveMinute) {
   const confirmed = fiveMinute &&
     fiveMinute.currentConfirmed
@@ -606,6 +756,10 @@ function analyzeNarrative(input) {
   const completedEvents = completedEventTexts(fiveMinute);
   return {
     fiveMinuteConfirmationStatus: status,
+    structurePhase: structurePhaseDetails(
+      input.structurePhase ||
+      (input.h4 && input.h4.structurePhase)
+    ),
     marketEnvironment: [
       '4H方向：' + h4DirectionText(input.h4),
       '当前位置：' +
@@ -765,6 +919,10 @@ function summarizeTraderContext(input) {
     : [];
 
   return [
+    ...structurePhaseSectionLines(
+      narrative.structurePhase
+    ),
+    '',
     '【当前市场环境】',
     ...narrative.marketEnvironment,
     ...opportunityLines,
@@ -786,6 +944,8 @@ module.exports = {
   LIQUIDITY_TYPE_TEXT,
   OPPORTUNITY_LIQUIDITY_TEXT,
   SETUP_STAGES,
+  STRUCTURE_PHASE_DESCRIPTIONS,
+  STRUCTURE_PHASE_NEXT_EVENTS,
   alignmentText,
   analyzeNarrative,
   analyzeSetupStage,
@@ -810,6 +970,12 @@ module.exports = {
   positionZoneText,
   positionWaitingNarrative,
   setupStageText,
+  structureEventText,
+  structurePhaseDescription,
+  structurePhaseDetails,
+  structurePhaseNextEvent,
+  structurePhaseSectionLines,
+  structureSourceLines,
   summarize,
   summarizeTraderContext,
   waitingReason,

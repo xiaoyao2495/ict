@@ -71,12 +71,31 @@ function fixture() {
   };
 }
 
+function watchlistReports(structurePhase) {
+  return {
+    results: [{
+      symbol: 'BTCUSDT',
+      status: 'SUCCESS',
+      report: {
+        symbol: 'BTCUSDT',
+        current: {
+          ...(structurePhase === undefined
+            ? {}
+            : { structurePhase }),
+        },
+      },
+    }],
+  };
+}
+
 test('renders the complete manual review structure', () => {
   const text = ManualReview.renderManualReview({
     symbol: 'BTCUSDT',
     date: '2026-07-31',
     h4Bias: '',
     structure: '',
+    structurePhase:
+      ManualReview.buildStructurePhaseData(null),
     primaryLiquidity: '',
     opportunityStatus: '',
     watchZoneTime: '',
@@ -94,6 +113,7 @@ test('renders the complete manual review structure', () => {
   for (const heading of [
     '# ICT Manual Review',
     '## 4H HTF Bias',
+    '## 【4小时结构阶段】',
     '## Opportunity',
     '## 5M Confirmation',
     '## Outcome',
@@ -104,6 +124,97 @@ test('renders the complete manual review structure', () => {
   assert(text.includes('为什么交易/不交易:'));
   assert(text.includes('截图:'));
   assert(text.includes('备注:'));
+  assert(text.includes('state: UNDETERMINED'));
+  assert(text.includes(
+    '下一等待事件: 等待方向性4小时结构确认'
+  ));
+});
+
+test('fills Structure Phase from Watchlist Analyst reports', async () => {
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'ict-manual-phase-')
+  );
+  const input = fixture();
+
+  try {
+    const result =
+      await ManualReview.generateManualReview({
+        ...input,
+        reports: watchlistReports({
+          state: 'BULLISH_CONFIRMED',
+          direction: 'BULLISH',
+          context: 'POST_MSS',
+          mssEvent: {
+            type: 'BULLISH_MSS',
+            breakType: 'CLOSE_BREAK',
+            level: 100,
+          },
+          confirmationBos: {
+            type: 'BULLISH_BOS',
+            breakType: 'CLOSE_BREAK',
+            level: 110,
+          },
+        }),
+        symbols: ['BTCUSDT'],
+        date: '2026-07-31',
+        outputDirectory: directory,
+      });
+    const saved = await fs.readFile(
+      result.files[0].path,
+      'utf8'
+    );
+
+    assert(saved.includes('state: BULLISH_CONFIRMED'));
+    assert(saved.includes('direction: BULLISH'));
+    assert(saved.includes('context: POST_MSS'));
+    assert(saved.includes(
+      'MSS来源: BULLISH_MSS'
+    ));
+    assert(saved.includes(
+      'confirmation BOS: BULLISH_BOS'
+    ));
+    assert(saved.includes(
+      '下一等待事件: 等待后续Bullish BOS或Bearish MSS'
+    ));
+  } finally {
+    await fs.rm(directory, {
+      recursive: true,
+      force: true,
+    });
+  }
+});
+
+test('missing Structure Phase renders UNDETERMINED', async () => {
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'ict-manual-no-phase-')
+  );
+  const input = fixture();
+
+  try {
+    const result =
+      await ManualReview.generateManualReview({
+        ...input,
+        reports: watchlistReports(),
+        symbols: ['BTCUSDT'],
+        date: '2026-07-31',
+        outputDirectory: directory,
+      });
+    const saved = await fs.readFile(
+      result.files[0].path,
+      'utf8'
+    );
+
+    assert(saved.includes('state: UNDETERMINED'));
+    assert(saved.includes('direction: --'));
+    assert(saved.includes('context: --'));
+    assert(saved.includes('MSS来源: 暂无'));
+    assert(saved.includes('confirmation BOS: 暂无'));
+  } finally {
+    await fs.rm(directory, {
+      recursive: true,
+      force: true,
+    });
+  }
 });
 
 test('generates UTC+8 dated symbol file with available data', async () => {

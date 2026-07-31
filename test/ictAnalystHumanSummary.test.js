@@ -473,6 +473,88 @@ test('next scenario follows bullish and bearish HTF direction', () => {
   );
 });
 
+test('Structure Phase descriptions are symmetric', () => {
+  const expected = {
+    BULLISH_MSS:
+      '空头结构已被破坏，等待多头确认',
+    BULLISH_PULLBACK:
+      '多头转换回调阶段，等待Bullish BOS',
+    BULLISH_CONFIRMED: '多头趋势已确认',
+    BEARISH_MSS:
+      '多头结构已被破坏，等待空头确认',
+    BEARISH_PULLBACK:
+      '空头转换回调阶段，等待Bearish BOS',
+    BEARISH_CONFIRMED: '空头趋势已确认',
+  };
+
+  for (const [state, description] of Object.entries(
+    expected
+  )) {
+    assert.strictEqual(
+      HumanSummary.structurePhaseDescription(state),
+      description
+    );
+  }
+});
+
+test('Human Summary includes Structure Phase sources and wait', () => {
+  const summary = HumanSummary.summarizeTraderContext(
+    traderContext({
+      structurePhase: {
+        state: 'BULLISH_CONFIRMED',
+        direction: 'BULLISH',
+        context: 'POST_MSS',
+        mssEvent: {
+          type: 'BULLISH_MSS',
+          breakType: 'CLOSE_BREAK',
+          level: 110,
+          breakIndex: 4,
+          availableIndex: 6,
+        },
+        confirmationBos: {
+          type: 'BULLISH_BOS',
+          breakType: 'DISPLACEMENT_BREAK',
+          level: 115,
+          breakIndex: 10,
+          availableIndex: 12,
+        },
+      },
+    })
+  );
+
+  for (const text of [
+    '【4小时结构阶段】',
+    '状态：BULLISH_CONFIRMED',
+    '方向：BULLISH',
+    '上下文：POST_MSS',
+    '当前阶段说明：多头趋势已确认',
+    '来源MSS：BULLISH_MSS' +
+      '（CLOSE_BREAK，结构位：110）',
+    '来源BOS：BULLISH_BOS' +
+      '（DISPLACEMENT_BREAK，结构位：115）',
+    '下一等待事件：等待后续Bullish BOS或Bearish MSS',
+  ]) {
+    assert.ok(summary.includes(text), text);
+  }
+});
+
+test('Structure Phase accepts the Engine current shape', () => {
+  const details = HumanSummary.structurePhaseDetails({
+    structurePhase: 'BEARISH_PULLBACK',
+    direction: 'BEARISH',
+    context: 'POST_MSS',
+    sourceEvent: {
+      type: 'BEARISH_MSS',
+      breakType: 'CLOSE_BREAK',
+      level: 90,
+    },
+  });
+
+  assert.strictEqual(details.state, 'BEARISH_PULLBACK');
+  assert.strictEqual(details.direction, 'BEARISH');
+  assert.strictEqual(details.context, 'POST_MSS');
+});
+
 test('position narrative uses H4 bias and premium discount', () => {
   const bullish = HumanSummary.positionWaitingNarrative(
     { bias: 'BULLISH' },

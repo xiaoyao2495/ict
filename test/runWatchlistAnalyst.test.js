@@ -2,7 +2,17 @@
 
 const assert = require('assert');
 const HtfContext = require('../indicators/htfContextAnalyzer');
+const HtfBiasV3 = require('../indicators/ictHtfBiasEngineV3');
+const HtfStructurePhase = require(
+  '../indicators/ictHtfStructurePhaseEngine'
+);
+const WatchlistReport = require(
+  '../indicators/ictWatchlistAnalystReport'
+);
 const WatchlistLoader = require('../config/watchlistLoader');
+const NotificationFilter = require(
+  '../notifications/ictWatchlistNotificationFilter'
+);
 const WatchlistAnalyst = require(
   '../scripts/runWatchlistAnalyst'
 );
@@ -78,6 +88,18 @@ function fixture() {
 test('default watchlist is readable by the shared loader', () => {
   const watchlist = WatchlistLoader.loadWatchlist();
   assert.ok(watchlist.symbols.includes('BTCUSDT'));
+});
+
+test('watchlist structure phase is UNDETERMINED without events', () => {
+  const data = fixture();
+  const phase = WatchlistReport.analyzeStructurePhase(
+    data.complete['4h'].slice(0, 4)
+  );
+
+  assert.strictEqual(
+    phase.current.structurePhase,
+    HtfStructurePhase.PHASES.UNDETERMINED
+  );
 });
 
 test('getKline uses generic symbol interval and closed bars only', async () => {
@@ -323,6 +345,44 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
   ].includes(
     result.results[0].report.current.opportunity.status
   ));
+
+  const report = result.results[0].report;
+  const structurePhase = report.current.structurePhase;
+  assert.ok(structurePhase);
+  assert.ok(Object.values(
+    HtfStructurePhase.PHASES
+  ).includes(structurePhase.state));
+  assert.strictEqual(
+    structurePhase.state,
+    structurePhase.structurePhase
+  );
+  assert.ok(report.current.humanSummary.includes(
+    '【4小时结构阶段】'
+  ));
+  assert.ok(result.results[0].formatted.includes(
+    '【4小时结构阶段】'
+  ));
+
+  const directBias = HtfBiasV3.analyze({
+    h4Klines: data.complete['4h'],
+  });
+  assert.strictEqual(
+    report.current.fourHourAnalysis.bias,
+    directBias.states[
+      directBias.states.length - 1
+    ].narrative.bias
+  );
+
+  const withoutStructurePhase = JSON.parse(
+    JSON.stringify(report)
+  );
+  delete withoutStructurePhase.current.structurePhase;
+  assert.deepStrictEqual(
+    NotificationFilter.extractSymbolState(report),
+    NotificationFilter.extractSymbolState(
+      withoutStructurePhase
+    )
+  );
 });
 
 (async () => {

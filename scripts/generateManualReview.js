@@ -15,6 +15,9 @@ const OpportunityHistory = require(
 const OutcomeTracker = require(
   '../history/ictOpportunityOutcomeTracker'
 );
+const HumanSummary = require(
+  '../formatters/ictAnalystHumanSummary'
+);
 
 const DEFAULT_OUTPUT_DIRECTORY = path.resolve(
   __dirname,
@@ -95,17 +98,100 @@ function failedLabel(outcome) {
   return '';
 }
 
+function reportSymbol(value) {
+  const report = value && value.report
+    ? value.report
+    : value;
+  return value && value.symbol ||
+    report && report.symbol ||
+    null;
+}
+
+function selectReport(reports, symbol) {
+  if (!reports) return null;
+  if (Array.isArray(reports)) {
+    return reports.find(
+      (item) => reportSymbol(item) === symbol
+    ) || null;
+  }
+  if (Array.isArray(reports.results)) {
+    return selectReport(reports.results, symbol);
+  }
+  if (reportSymbol(reports) === symbol) {
+    return reports;
+  }
+  if (
+    reports[symbol] &&
+    typeof reports[symbol] === 'object'
+  ) {
+    return reports[symbol];
+  }
+  return null;
+}
+
+function reportCurrent(value) {
+  const report = value && value.report
+    ? value.report
+    : value;
+  return report && report.current
+    ? report.current
+    : null;
+}
+
+function eventSource(event) {
+  return event
+    ? HumanSummary.structureEventText(event)
+    : '暂无';
+}
+
+function buildStructurePhaseData(reportValue) {
+  const current = reportCurrent(reportValue);
+  const details = HumanSummary.structurePhaseDetails(
+    current ? current.structurePhase : null
+  );
+  const source = details.sourceEvent;
+  const mss = details.mssEvent ||
+    (
+      source &&
+      String(source.type || '').endsWith('_MSS')
+        ? source
+        : null
+    );
+  const confirmationBos = details.confirmationBos ||
+    (
+      source &&
+      String(source.type || '').endsWith('_BOS')
+        ? source
+        : null
+    );
+
+  return {
+    state: details.state,
+    direction: details.direction || '--',
+    context: details.context || '--',
+    mssSource: eventSource(mss),
+    confirmationBos: eventSource(confirmationBos),
+    nextEvent: HumanSummary.structurePhaseNextEvent(
+      details.state
+    ),
+  };
+}
+
 function buildReviewData(options) {
   const record = options.record || null;
   const current = record ? record.current : null;
   const watchZone = latestWatchZone(record);
   const outcome = options.outcome || null;
+  const structurePhase = buildStructurePhaseData(
+    options.report
+  );
 
   return {
     symbol: options.symbol,
     date: options.date,
     h4Bias: current ? current.h4Bias : '',
     structure: '',
+    structurePhase,
     primaryLiquidity:
       current && current.liquidityType
         ? current.liquidityType
@@ -135,6 +221,9 @@ function buildReviewData(options) {
 }
 
 function renderManualReview(data) {
+  const structurePhase = data.structurePhase ||
+    buildStructurePhaseData(null);
+
   return [
     '# ICT Manual Review',
     '',
@@ -149,6 +238,21 @@ function renderManualReview(data) {
     '结构: ' + data.structure,
     '',
     '主要流动性: ' + data.primaryLiquidity,
+    '',
+    '## 【4小时结构阶段】',
+    '',
+    'state: ' + structurePhase.state,
+    '',
+    'direction: ' + structurePhase.direction,
+    '',
+    'context: ' + structurePhase.context,
+    '',
+    'MSS来源: ' + structurePhase.mssSource,
+    '',
+    'confirmation BOS: ' +
+      structurePhase.confirmationBos,
+    '',
+    '下一等待事件: ' + structurePhase.nextEvent,
     '',
     '## Opportunity',
     '',
@@ -267,6 +371,7 @@ async function generateManualReview(options) {
       date,
       record: history.symbols[symbol] || null,
       outcome,
+      report: selectReport(options.reports, symbol),
     });
     const text = renderManualReview(data);
     const filePath = path.join(
@@ -329,11 +434,16 @@ module.exports = {
   buildReviewData,
   configuredSymbols,
   displayTime,
+  buildStructurePhaseData,
+  eventSource,
   failedLabel,
   generateManualReview,
   latestWatchZone,
   normalizeDate,
   readJsonOrDefault,
+  reportCurrent,
+  reportSymbol,
   renderManualReview,
+  selectReport,
   selectOutcome,
 };

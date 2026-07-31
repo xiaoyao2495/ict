@@ -101,6 +101,11 @@ function currentReport(options) {
         : {
           opportunity: options.opportunity,
         }),
+      ...(options.structurePhase === undefined
+        ? {}
+        : {
+          structurePhase: options.structurePhase,
+        }),
     },
   };
 }
@@ -115,6 +120,9 @@ test('Chinese message contains every required fixed field', () => {
     '- Bias：',
     '- 主要流动性目标：',
     '- Premium/Discount：',
+    '【4小时结构阶段】',
+    '状态：UNDETERMINED',
+    '下一等待事件：等待方向性4小时结构确认',
     '2. 1H Delivery',
     '- 当前方向：',
     '- 与4H关系：',
@@ -139,6 +147,47 @@ test('Chinese message contains every required fixed field', () => {
   ]) {
     assert.ok(text.includes(field), field);
   }
+});
+
+test('4小时结构阶段显示状态来源和下一事件', () => {
+  const text = Formatter.format(currentReport({
+    structurePhase: {
+      state: 'BULLISH_PULLBACK',
+      direction: 'BULLISH',
+      context: 'POST_MSS',
+      sourceEvent: {
+        type: 'BULLISH_MSS',
+        breakType: 'CLOSE_BREAK',
+        level: 51000,
+        breakIndex: 8,
+        availableIndex: 10,
+      },
+      mssEvent: {
+        type: 'BULLISH_MSS',
+        breakType: 'CLOSE_BREAK',
+        level: 51000,
+        breakIndex: 8,
+        availableIndex: 10,
+      },
+    },
+  }));
+
+  for (const expected of [
+    '【4小时结构阶段】',
+    '状态：BULLISH_PULLBACK',
+    '方向：BULLISH',
+    '上下文：POST_MSS',
+    '当前阶段说明：多头转换回调阶段，等待Bullish BOS',
+    '来源MSS：BULLISH_MSS' +
+      '（CLOSE_BREAK，结构位：51000）',
+    '下一等待事件：等待Bullish BOS',
+  ]) {
+    assert.ok(text.includes(expected), expected);
+  }
+  assert.strictEqual(
+    text.match(/【4小时结构阶段】/g).length,
+    1
+  );
 });
 
 test('Neutral report produces a waiting judgment', () => {
@@ -323,13 +372,20 @@ test('formatter includes the opportunity observation chapter', () => {
 
 test('5分钟确认不再输出英文事件名称', () => {
   const text = Formatter.format(currentReport());
+  const confirmationText = text.slice(
+    text.indexOf('【5分钟确认】'),
+    text.indexOf('【流动性路线】')
+  );
 
   for (const forbidden of [
     'Sweep',
     'MSS',
     'Displacement',
   ]) {
-    assert.strictEqual(text.includes(forbidden), false);
+    assert.strictEqual(
+      confirmationText.includes(forbidden),
+      false
+    );
   }
 });
 

@@ -1,6 +1,12 @@
 'use strict';
 
+const Pivot = require('./pivot');
+const Swing = require('./swing');
+const StructureEngineV2 = require('./structureEngineV2');
 const HtfBiasV3 = require('./ictHtfBiasEngineV3');
+const HtfStructurePhase = require(
+  './ictHtfStructurePhaseEngine'
+);
 const LtfExecution = require('./ictLtfExecutionEngine');
 const FiveMinuteConfirmation = require(
   './ict5mConfirmationEngine'
@@ -225,12 +231,36 @@ function collectRoadmapLiquidity(h4State, ltfState) {
   );
 }
 
+function analyzeStructurePhase(h4Klines) {
+  const confirmedSwings = Swing.filterSwings(
+    Pivot.findPivots(h4Klines, 2, 2)
+  );
+  const structure = StructureEngineV2.analyze(
+    h4Klines,
+    confirmedSwings,
+    {
+      averageLength: 20,
+      displacementMultiplier: 1.5,
+      minBodyRatio: 0.65,
+    }
+  );
+
+  return HtfStructurePhase.analyze({
+    structureEvents: structure.events,
+    confirmedSwings,
+    endIndex: h4Klines.length - 1,
+  });
+}
+
 function analyze(input) {
   input = input || {};
   const symbol = input.symbol || 'BTCUSDT';
   const h4 = HtfBiasV3.analyze({
     h4Klines: input.h4Klines,
   });
+  const structurePhaseAnalysis = analyzeStructurePhase(
+    input.h4Klines
+  );
   const ltf = LtfExecution.analyze({
     ltfKlines: input.ltf5mKlines,
     intervalMilliseconds: LtfExecution.FIVE_MINUTES,
@@ -283,6 +313,10 @@ function analyze(input) {
       confirmation.states.length - 1
     ]
   );
+  current.structurePhase = {
+    ...clone(structurePhaseAnalysis.current),
+    state: structurePhaseAnalysis.current.structurePhase,
+  };
   const roadmapLiquidity = collectRoadmapLiquidity(
     h4State,
     ltfState
@@ -317,6 +351,7 @@ function analyze(input) {
     opportunity: current.opportunity,
     liquidityRoadmap: current.liquidityRoadmap,
     positionContext: current.positionContext,
+    structurePhase: current.structurePhase,
   };
   const setupAnalysis =
     HumanSummary.analyzeSetupStage(summaryInput);
@@ -377,6 +412,7 @@ function analyze(input) {
 
 module.exports = {
   analyze,
+  analyzeStructurePhase,
   collectRoadmapLiquidity,
   internalLiquidityLevels,
   latestStateAtOrBefore,
