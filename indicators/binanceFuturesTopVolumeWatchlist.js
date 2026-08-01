@@ -66,7 +66,7 @@ function tradableSymbols(exchangeInfo) {
   });
 }
 
-function rankedSymbols(exchangeInfo, tickers, limit) {
+function rankedTickers(exchangeInfo, tickers, limit) {
   var tradable = {};
   var volumes = {};
   tradableSymbols(exchangeInfo).forEach(function (symbol) {
@@ -90,24 +90,43 @@ function rankedSymbols(exchangeInfo, tickers, limit) {
     if (!isFinite(volume) || volume < 0) return;
     if (
       volumes[ticker.symbol] === undefined ||
-      volume > volumes[ticker.symbol]
+      volume > volumes[ticker.symbol].numeric
     ) {
-      volumes[ticker.symbol] = volume;
+      volumes[ticker.symbol] = {
+        numeric: volume,
+        raw: String(ticker.quoteVolume),
+      };
     }
   });
   return Object.keys(volumes).sort(function (left, right) {
-    return volumes[right] - volumes[left] ||
+    return volumes[right].numeric - volumes[left].numeric ||
       left.localeCompare(right);
-  }).slice(0, validLimit(limit));
+  }).slice(0, validLimit(limit)).map(function (symbol) {
+    return {
+      symbol: symbol,
+      quoteVolume: volumes[symbol].raw,
+    };
+  });
+}
+
+function rankedSymbols(exchangeInfo, tickers, limit) {
+  return rankedTickers(exchangeInfo, tickers, limit).map(
+    function (item) {
+      return item.symbol;
+    }
+  );
 }
 
 function buildWatchlist(exchangeInfo, tickers, options) {
   options = options || {};
-  var symbols = rankedSymbols(
+  var ranking = rankedTickers(
     exchangeInfo,
     tickers,
     options.limit
   );
+  var symbols = ranking.map(function (item) {
+    return item.symbol;
+  });
   var updatedAt = new Date(
     normalizeTime(options.currentTime)
   ).toISOString();
@@ -120,6 +139,7 @@ function buildWatchlist(exchangeInfo, tickers, options) {
     symbols: symbols,
     updatedAt: updatedAt,
     source: SOURCE,
+    ranking: ranking,
   };
 }
 
@@ -165,6 +185,7 @@ function fetchRemote(options) {
 }
 
 function normalizeCached(value) {
+  var ranking;
   if (
     !value ||
     value.source !== SOURCE ||
@@ -177,11 +198,32 @@ function normalizeCached(value) {
   ) {
     return null;
   }
-  return {
+  ranking = Array.isArray(value.ranking)
+    ? value.ranking.filter(function (item) {
+      return Boolean(
+        item &&
+        typeof item.symbol === 'string' &&
+        value.symbols.indexOf(item.symbol) !== -1 &&
+        (typeof item.quoteVolume === 'string' ||
+          typeof item.quoteVolume === 'number') &&
+        isFinite(Number(item.quoteVolume))
+      );
+    }).map(function (item) {
+      return {
+        symbol: item.symbol,
+        quoteVolume: String(item.quoteVolume),
+      };
+    })
+    : null;
+  var normalized = {
     symbols: value.symbols.slice(),
     updatedAt: value.updatedAt,
     source: SOURCE,
   };
+  if (ranking && ranking.length === value.symbols.length) {
+    normalized.ranking = ranking;
+  }
+  return normalized;
 }
 
 function createFileCache(filePath) {
@@ -314,6 +356,7 @@ module.exports = {
   fetchRemote: fetchRemote,
   load: load,
   normalizeCached: normalizeCached,
+  rankedTickers: rankedTickers,
   rankedSymbols: rankedSymbols,
   tradableSymbols: tradableSymbols,
 };

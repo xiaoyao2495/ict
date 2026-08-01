@@ -215,13 +215,24 @@ function formatProductionLog(result) {
     lines.push(
       'Universe updated',
       '',
-      'Top Binance USDT Perpetual:'
+      'Binance Futures Top Volume Watchlist'
     );
-    result.watchlistUniverse.symbols.forEach(
-      (symbol, index) => lines.push(
-        String(index + 1) + ' ' + symbol
-      )
-    );
+    const ranking = Array.isArray(
+      result.watchlistUniverse.ranking
+    )
+      ? result.watchlistUniverse.ranking
+      : [];
+    result.watchlistUniverse.symbols.forEach((symbol, index) => {
+      const ranked = ranking.find(
+        (item) => item && item.symbol === symbol
+      );
+      lines.push(
+        String(index + 1) + ' ' + symbol +
+        (ranked
+          ? '  ' + ranked.quoteVolume + ' USDT'
+          : '')
+      );
+    });
     lines.push('');
   }
 

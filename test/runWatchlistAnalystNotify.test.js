@@ -387,6 +387,10 @@ test('production logger outputs only operational state summary', async () => {
       symbols: ['BTCUSDT', 'ETHUSDT'],
       updatedAt: '2026-08-01T00:00:00.000Z',
       source: 'BINANCE_FUTURES_TOP_VOLUME',
+      ranking: [
+        { symbol: 'BTCUSDT', quoteVolume: '9000' },
+        { symbol: 'ETHUSDT', quoteVolume: '8000' },
+      ],
     },
     watchlistUniverseUpdated: true,
     watchlistRunner: runner,
@@ -435,7 +439,10 @@ test('production logger outputs only operational state summary', async () => {
   assert.ok(logs[0].includes('ICT Watchlist'));
   assert.ok(logs[0].includes('Universe updated'));
   assert.ok(logs[0].includes(
-    '1 BTCUSDT\n2 ETHUSDT'
+    'Binance Futures Top Volume Watchlist'
+  ));
+  assert.ok(logs[0].includes(
+    '1 BTCUSDT  9000 USDT\n2 ETHUSDT  8000 USDT'
   ));
   assert.ok(logs[0].includes(
     'WAITING_OPPORTUNITY → WATCH_ZONE'

@@ -58,6 +58,55 @@ test('non trading and non USDT contracts are excluded', () => {
   assert.deepStrictEqual(symbols, ['BTCUSDT']);
 });
 
+test('TradFi contracts participate without baseAsset classification', () => {
+  const exchangeInfo = {
+    symbols: [
+      { ...contract('BTCUSDT'), baseAsset: 'BTC' },
+      { ...contract('MUUSDT'), baseAsset: 'MU' },
+      { ...contract('SNDKUSDT'), baseAsset: 'SNDK' },
+      { ...contract('NVDAUSDT'), baseAsset: 'NVDA' },
+    ],
+  };
+  assert.deepStrictEqual(
+    Watchlist.rankedSymbols(exchangeInfo, [
+      ticker('BTCUSDT', 1000),
+      ticker('MUUSDT', 4000),
+      ticker('SNDKUSDT', 3000),
+      ticker('NVDAUSDT', 2000),
+    ], 20),
+    ['MUUSDT', 'SNDKUSDT', 'NVDAUSDT', 'BTCUSDT']
+  );
+});
+
+test('Crypto and TradFi use one quoteVolume ranking pool', () => {
+  const exchangeInfo = {
+    symbols: [
+      contract('BTCUSDT'),
+      contract('ETHUSDT'),
+      contract('MUUSDT'),
+      contract('SNDKUSDT'),
+    ],
+  };
+  const result = Watchlist.buildWatchlist(exchangeInfo, [
+    ticker('BTCUSDT', 5000),
+    ticker('MUUSDT', 7000),
+    ticker('ETHUSDT', 6000),
+    ticker('SNDKUSDT', 8000),
+  ], { currentTime: NOW });
+  assert.deepStrictEqual(result.symbols, [
+    'SNDKUSDT',
+    'MUUSDT',
+    'ETHUSDT',
+    'BTCUSDT',
+  ]);
+  assert.deepStrictEqual(result.ranking, [
+    { symbol: 'SNDKUSDT', quoteVolume: '8000' },
+    { symbol: 'MUUSDT', quoteVolume: '7000' },
+    { symbol: 'ETHUSDT', quoteVolume: '6000' },
+    { symbol: 'BTCUSDT', quoteVolume: '5000' },
+  ]);
+});
+
 test('quote volume sorts descending with deterministic ties', () => {
   const exchangeInfo = {
     symbols: [
@@ -66,8 +115,11 @@ test('quote volume sorts descending with deterministic ties', () => {
       contract('SOLUSDT'),
     ],
   };
+  const btcTicker = ticker('BTCUSDT', 1000);
+  btcTicker.volume = '999999999999';
+  btcTicker.lastPrice = '999999';
   const symbols = Watchlist.rankedSymbols(exchangeInfo, [
-    ticker('BTCUSDT', 1000),
+    btcTicker,
     ticker('SOLUSDT', 2000),
     ticker('ETHUSDT', 2000),
   ], 20);
@@ -94,6 +146,11 @@ test('default output keeps only the Top 20 symbols', () => {
   assert.strictEqual(result.symbols.length, 20);
   assert.strictEqual(result.symbols[0], 'COIN25USDT');
   assert.strictEqual(result.symbols[19], 'COIN06USDT');
+  assert.strictEqual(result.ranking.length, 20);
+  assert.deepStrictEqual(result.ranking[0], {
+    symbol: 'COIN25USDT',
+    quoteVolume: '2500',
+  });
   assert.strictEqual(
     result.source,
     'BINANCE_FUTURES_TOP_VOLUME'
@@ -162,6 +219,29 @@ test('fresh six hour cache avoids repeated Binance requests', async () => {
   assert.deepStrictEqual(result, cached);
   assert.notStrictEqual(result.symbols, cached.symbols);
   assert.strictEqual(requests, 0);
+});
+
+test('fresh cache preserves optional ranking data', async () => {
+  const cached = {
+    symbols: ['SNDKUSDT', 'MUUSDT'],
+    updatedAt: new Date(NOW - 60 * 60 * 1000).toISOString(),
+    source: Watchlist.SOURCE,
+    ranking: [
+      { symbol: 'SNDKUSDT', quoteVolume: '8000' },
+      { symbol: 'MUUSDT', quoteVolume: '7000' },
+    ],
+  };
+  const result = await Watchlist.load({
+    currentTime: NOW,
+    cache: Watchlist.createMemoryCache(cached),
+    httpClient: {
+      async get() {
+        throw new Error('must not request while cache is fresh');
+      },
+    },
+  });
+  assert.deepStrictEqual(result, cached);
+  assert.notStrictEqual(result.ranking, cached.ranking);
 });
 
 (async () => {

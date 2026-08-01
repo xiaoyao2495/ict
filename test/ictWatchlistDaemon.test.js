@@ -144,6 +144,10 @@ test('daemon injects the dynamic Top Volume Watchlist', async () => {
           symbols: ['BTCUSDT', 'ETHUSDT'],
           updatedAt: '2026-08-01T00:00:00.000Z',
           source: 'BINANCE_FUTURES_TOP_VOLUME',
+          ranking: [
+            { symbol: 'BTCUSDT', quoteVolume: '9000' },
+            { symbol: 'ETHUSDT', quoteVolume: '8000' },
+          ],
         };
       },
     },
@@ -167,6 +171,10 @@ test('daemon injects the dynamic Top Volume Watchlist', async () => {
   );
   assert.strictEqual(received[0].watchlistUniverseUpdated, true);
   assert.strictEqual(received[1].watchlistUniverseUpdated, false);
+  assert.deepStrictEqual(received[0].watchlistUniverse.ranking, [
+    { symbol: 'BTCUSDT', quoteVolume: '9000' },
+    { symbol: 'ETHUSDT', quoteVolume: '8000' },
+  ]);
   const availability = await received[0]
     .symbolAvailabilityChecker.checkSymbols([
       'BTCUSDT',
