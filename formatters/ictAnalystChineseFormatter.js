@@ -429,6 +429,38 @@ function dashboardInput(current) {
   };
 }
 
+function biasValueText(value) {
+  return HumanSummary.dashboardBiasText({ bias: value });
+}
+
+function opportunityChangeText(input, change) {
+  const currentStatus = input.opportunity &&
+    input.opportunity.status;
+  const previousStatus = change &&
+    change.previousState &&
+    change.previousState.opportunity
+    ? change.previousState.opportunity.status
+    : null;
+  const stage = HumanSummary.opportunityStage(input).status;
+
+  if (stage === 'CONFIRMING') {
+    return '进入 CONFIRMING';
+  }
+  if (
+    currentStatus === 'WATCH_ZONE' &&
+    previousStatus !== 'WATCH_ZONE'
+  ) {
+    return '进入 WATCH_ZONE';
+  }
+  if (
+    currentStatus !== 'WATCH_ZONE' &&
+    previousStatus === 'WATCH_ZONE'
+  ) {
+    return '离开 WATCH_ZONE';
+  }
+  return 'Entry Watch 变化';
+}
+
 function formatNotificationChange(report, reasons, change) {
   const current = currentOf(report);
   const input = dashboardInput(current);
@@ -447,17 +479,32 @@ function formatNotificationChange(report, reasons, change) {
   }
 
   const lines = [];
-  if (changeReasons.includes('H4_BIAS_CHANGED')) {
+  const biasChanged = changeReasons.includes(
+    'H4_BIAS_CHANGED'
+  );
+  const alignmentChanged = changeReasons.includes(
+    'ALIGNMENT_STATUS_CHANGED'
+  );
+  const opportunityChanged = changeReasons.includes(
+    'OPPORTUNITY_CHANGED'
+  );
+  const confirmationChanged = changeReasons.includes(
+    'CONFIRMATION_STATUS_CHANGED'
+  );
+
+  if (biasChanged) {
+    const previousBias = change && change.previousState
+      ? change.previousState.h4Bias
+      : null;
+    const currentBias = change && change.currentState
+      ? change.currentState.h4Bias
+      : input.h4 && input.h4.bias;
     lines.push(
-      'HTF Bias 变化：',
-      HumanSummary.dashboardBiasText(input.h4),
-      '',
-      ...HumanSummary.entryWatchLines(input),
-      '',
-      ...HumanSummary.primaryDrawLines(input)
+      'HTF Bias：' + biasValueText(previousBias) +
+      ' → ' + biasValueText(currentBias)
     );
   }
-  if (changeReasons.includes('ALIGNMENT_STATUS_CHANGED')) {
+  if (alignmentChanged) {
     if (lines.length > 0) lines.push('');
     lines.push(
       'Alignment 变化：',
@@ -466,50 +513,48 @@ function formatNotificationChange(report, reasons, change) {
       )
     );
   }
-  if (changeReasons.includes('OPPORTUNITY_CHANGED')) {
+  if (opportunityChanged) {
     if (lines.length > 0) lines.push('');
-    const currentStatus = current.opportunity &&
-      current.opportunity.status;
-    const previousStatus = change &&
-      change.previousState &&
-      change.previousState.opportunity
-      ? change.previousState.opportunity.status
-      : null;
-    const status = currentStatus === 'WATCH_ZONE' &&
-      previousStatus !== 'WATCH_ZONE'
-      ? '进入 WATCH_ZONE'
-      : currentStatus !== 'WATCH_ZONE' &&
-          previousStatus === 'WATCH_ZONE'
-        ? '离开 WATCH_ZONE'
-        : 'Entry Watch 变化';
-    lines.push(
-      status,
-      '',
-      ...HumanSummary.entryWatchLines(input)
-    );
+    lines.push(opportunityChangeText(input, change));
   }
-  if (
-    changeReasons.includes(
-      'CONFIRMATION_STATUS_CHANGED'
-    )
-  ) {
+
+  const showEntryWatch = biasChanged || opportunityChanged;
+  const showEventChain = biasChanged ||
+    confirmationChanged ||
+    (
+      opportunityChanged &&
+      HumanSummary.opportunityStage(input).status ===
+        'CONFIRMING'
+    );
+  const showPrimaryDraw = biasChanged;
+
+  if (showEntryWatch) {
     if (lines.length > 0) lines.push('');
-    lines.push(...HumanSummary.eventChainLines(input));
+    lines.push(...HumanSummary.entryWatchLines(
+      input,
+      { numbered: false }
+    ));
+  }
+  if (showEventChain) {
+    if (lines.length > 0) lines.push('');
+    lines.push(...HumanSummary.eventChainLines(
+      input,
+      { numbered: false }
+    ));
+  }
+  if (showPrimaryDraw) {
+    if (lines.length > 0) lines.push('');
+    lines.push(...HumanSummary.primaryDrawLines(
+      input,
+      { numbered: false }
+    ));
   }
 
   if (lines.length === 0) {
-    lines.push(...HumanSummary.eventChainLines(input));
-  }
-  const nextEvent = HumanSummary.nextOpportunityEvent(input);
-  const onlyEntryWatchChange =
-    changeReasons.includes('OPPORTUNITY_CHANGED') &&
-    !changeReasons.includes(
-      'CONFIRMATION_STATUS_CHANGED'
-    ) &&
-    !changeReasons.includes('H4_BIAS_CHANGED') &&
-    !changeReasons.includes('ALIGNMENT_STATUS_CHANGED');
-  if (nextEvent !== 'READY' && !onlyEntryWatchChange) {
-    lines.push('', '等待：', nextEvent);
+    lines.push(...HumanSummary.eventChainLines(
+      input,
+      { numbered: false }
+    ));
   }
   return lines.join('\n');
 }
@@ -543,6 +588,7 @@ module.exports = {
   RELATION_TEXT,
   STRUCTURE_TEXT,
   currentOf,
+  biasValueText,
   dashboardInput,
   deliveryAnalysisOf,
   deliveryStageText,
@@ -554,6 +600,7 @@ module.exports = {
   formatNotificationChange,
   manualView,
   mssText,
+  opportunityChangeText,
   potentialText,
   positionContextLines,
   primaryDrawText,

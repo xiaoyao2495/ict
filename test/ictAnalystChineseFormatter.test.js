@@ -96,10 +96,15 @@ function currentReport(options) {
         : {
           positionContext: options.positionContext,
         }),
-      ...(options.opportunity === undefined
+      ...(options.opportunity === null
         ? {}
         : {
-          opportunity: options.opportunity,
+          opportunity: options.opportunity || {
+            status: 'WATCH_ZONE',
+            direction: 'BULLISH',
+            liquidityType: 'LTF_SWING_LOW',
+            price: 51234.56,
+          },
         }),
       ...(options.structurePhase === undefined
         ? {}
@@ -203,10 +208,10 @@ test('Neutral report produces a waiting judgment', () => {
   assert.ok(text.includes('Bias：Neutral'));
   assert.ok(text.includes('方向：NONE'));
   assert.ok(text.includes('当前阶段：WAITING'));
-  assert.ok(text.includes('等待4H方向明确'));
-  assert.ok(text.includes('□ Sweep'));
-  assert.ok(text.includes('□ MSS'));
-  assert.ok(text.includes('□ Displacement'));
+  assert.ok(text.includes('暂停，等待4H方向明确'));
+  assert.ok(text.includes('③ 【Event Chain】\n暂停'));
+  assert.strictEqual(text.includes('等待 Sweep'), false);
+  assert.strictEqual(text.includes('□ Sweep'), false);
   assert.ok(text.includes('暂无明确目标'));
 });
 
@@ -342,6 +347,40 @@ test('formatter includes the opportunity observation chapter', () => {
   assert.ok(text.includes(
     '② 【Entry Watch】\n等待：\nPWL\n99.6'
   ));
+});
+
+test('精简通知可显示进入CONFIRMING', () => {
+  const report = currentReport({
+    opportunity: {
+      status: 'WATCH_ZONE',
+      direction: 'BULLISH',
+      liquidityType: 'EQUAL_LOW',
+      price: 99.6,
+    },
+    confirmation: null,
+    sweeps: [{
+      type: 'EQUAL_LOW',
+      side: 'SELL_SIDE',
+      price: 99.6,
+    }],
+    mss: null,
+    displacement: null,
+  });
+  const text = Formatter.formatNotificationChange(
+    report,
+    ['OPPORTUNITY_CHANGED'],
+    {
+      previousState: {
+        opportunity: { status: 'WAITING' },
+      },
+    }
+  );
+
+  assert.ok(text.includes('进入 CONFIRMING'));
+  assert.ok(text.includes('【Entry Watch】'));
+  assert.ok(text.includes('【Event Chain】'));
+  assert.strictEqual(text.includes('②'), false);
+  assert.strictEqual(text.includes('③'), false);
 });
 
 test('事件链明确显示 Sweep MSS 与 Displacement', () => {

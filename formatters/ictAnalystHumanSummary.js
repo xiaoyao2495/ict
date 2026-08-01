@@ -813,14 +813,27 @@ function analyzeNarrative(input) {
 function opportunityDirection(input) {
   const opportunity = input.opportunity || {};
   const h4Bias = input.h4 && input.h4.bias;
-  const direction = (
-    h4Bias === 'BULLISH' || h4Bias === 'BEARISH'
-  )
-    ? h4Bias
-    : opportunity.direction;
-  if (direction === 'BULLISH') return 'LONG';
-  if (direction === 'BEARISH') return 'SHORT';
+  const h4Directional =
+    h4Bias === 'BULLISH' || h4Bias === 'BEARISH';
+  const opportunityDirectional =
+    opportunity.direction === 'BULLISH' ||
+    opportunity.direction === 'BEARISH';
+  if (!h4Directional || !opportunityDirectional) {
+    return 'NONE';
+  }
+  if (h4Bias === 'BULLISH') return 'LONG';
+  if (h4Bias === 'BEARISH') return 'SHORT';
   return 'NONE';
+}
+
+function opportunityCandidateText(direction) {
+  if (direction === 'LONG') {
+    return 'PDL / PWL / H4 Swing Low / Equal Low';
+  }
+  if (direction === 'SHORT') {
+    return 'PDH / PWH / H4 Swing High / Equal High';
+  }
+  return '';
 }
 
 function opportunityLiquidityText(input) {
@@ -835,12 +848,8 @@ function opportunityLiquidityText(input) {
     ];
   }
   const direction = opportunityDirection(input);
-  if (direction === 'LONG') {
-    return 'PDL / PWL / H4 Swing Low / Equal Low';
-  }
-  if (direction === 'SHORT') {
-    return 'PDH / PWH / H4 Swing High / Equal High';
-  }
+  const candidates = opportunityCandidateText(direction);
+  if (candidates) return candidates;
   return '等待4H方向明确';
 }
 
@@ -901,10 +910,20 @@ function expectedOpportunitySweep(input) {
 function entryWatchData(input) {
   const opportunity = input.opportunity || {};
   const direction = opportunityDirection(input);
+  const type = OPPORTUNITY_LIQUIDITY_TEXT[
+    opportunity.liquidityType
+  ];
+  const hasSpecificLiquidity = Boolean(
+    type && Number.isFinite(opportunity.price)
+  );
   return {
     direction,
-    liquidity: opportunityLiquidityText(input),
-    price: Number.isFinite(opportunity.price)
+    paused: direction === 'NONE',
+    hasSpecificLiquidity,
+    liquidity: hasSpecificLiquidity ? type : null,
+    candidates: opportunityCandidateText(direction),
+    location: direction === 'LONG' ? '下方' : '上方',
+    price: hasSpecificLiquidity
       ? opportunity.price
       : null,
   };
@@ -982,7 +1001,10 @@ function opportunityEventProgress(input) {
 
 function opportunitySteps(input) {
   const direction = opportunityDirection(input);
-  const sweep = 'Sweep ' + opportunityLiquidityText(input);
+  const watch = entryWatchData(input);
+  const sweep = watch.hasSpecificLiquidity
+    ? 'Sweep ' + watch.liquidity
+    : 'Sweep（目标尚未锁定）';
   if (direction === 'LONG') {
     return {
       sweep,
@@ -1009,6 +1031,12 @@ function opportunityStage(input) {
   const direction = opportunityDirection(input);
   const confirmationStatus =
     fiveMinuteConfirmationStatus(input.fiveMinute);
+  if (direction === 'NONE') {
+    return {
+      status: 'WAITING',
+      text: '暂停，等待4H方向明确',
+    };
+  }
   if (
     (direction === 'LONG' &&
       confirmationStatus === 'CONFIRMED_BULLISH') ||
@@ -1066,8 +1094,12 @@ function opportunityPath(input) {
     ].join(' → ');
   }
   if (stage.status === 'WATCH_ZONE') {
-    return '等待 ' + opportunityLiquidityText(input) +
-      ' 流动性扫取 → ' + steps.mss +
+    const watch = entryWatchData(input);
+    return (
+      watch.hasSpecificLiquidity
+        ? '等待 ' + watch.liquidity + ' 流动性扫取'
+        : '等待锁定具体' + watch.location + '流动性'
+    ) + ' → ' + steps.mss +
       ' → ' + steps.displacement;
   }
 
@@ -1098,36 +1130,69 @@ function opportunityObservationLines(input) {
   ];
 }
 
-function entryWatchLines(input) {
+function dashboardHeading(number, title, options) {
+  return options && options.numbered === false
+    ? '【' + title + '】'
+    : number + ' 【' + title + '】';
+}
+
+function entryWatchLines(input, options) {
   const watch = entryWatchData(input);
+  const heading = dashboardHeading(
+    '②',
+    'Entry Watch',
+    options
+  );
+  if (watch.paused) {
+    return [
+      heading,
+      '暂停，等待4H方向明确',
+    ];
+  }
+  if (!watch.hasSpecificLiquidity) {
+    return [
+      heading,
+      '尚未锁定具体' + watch.location + '流动性',
+      '候选类型：',
+      watch.candidates,
+    ];
+  }
   return [
-    '② 【Entry Watch】',
+    heading,
     '等待：',
     watch.liquidity,
-    ...(watch.price === null
-      ? []
-      : [metricText(watch.price)]),
+    metricText(watch.price),
   ];
 }
 
-function eventChainLines(input) {
+function eventChainLines(input, options) {
   const progress = opportunityEventProgress(input);
   const steps = opportunitySteps(input);
   const watch = entryWatchData(input);
+  const heading = dashboardHeading(
+    '③',
+    'Event Chain',
+    options
+  );
+  if (watch.paused) {
+    return [heading, '暂停'];
+  }
   const sweep = expectedOpportunitySweep(input);
   const sweepType = sweep && sweep.type
     ? opportunityLiquidityText({
       h4: input.h4,
       opportunity: { liquidityType: sweep.type },
     })
-    : watch.liquidity;
+    : watch.hasSpecificLiquidity
+      ? watch.liquidity
+      : '目标尚未锁定';
   const sweepPrice = sweep && Number.isFinite(sweep.price)
     ? sweep.price
     : watch.price;
   const ready = opportunityStage(input).status === 'CONFIRMED';
 
   return [
-    '③ 【Event Chain】',
+    heading,
     (progress.sweepCompleted ? '✓ ' : '□ ') +
       'Sweep ' + sweepType,
     ...(sweepPrice === null
@@ -1142,10 +1207,10 @@ function eventChainLines(input) {
   ];
 }
 
-function primaryDrawLines(input) {
+function primaryDrawLines(input, options) {
   const draw = primaryDrawData(input);
   return [
-    '④ 【Primary Draw】',
+    dashboardHeading('④', 'Primary Draw', options),
     '目标：',
     draw.type,
     ...(draw.price === null
@@ -1210,6 +1275,7 @@ module.exports = {
   confirmationState,
   dashboardAlignmentText,
   dashboardBiasText,
+  dashboardHeading,
   entryWatchData,
   entryWatchLines,
   eventChainLines,
@@ -1228,6 +1294,7 @@ module.exports = {
   nextScenario,
   nextOpportunityEvent,
   opportunityDirection,
+  opportunityCandidateText,
   opportunityEventProgress,
   opportunityLiquidityText,
   opportunityObservationLines,

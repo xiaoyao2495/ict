@@ -230,6 +230,12 @@ function traderContext(overrides) {
       status: 'WAITING',
       direction: null,
     },
+    opportunity: {
+      status: 'WAITING',
+      direction: 'BEARISH',
+      liquidityType: null,
+      price: null,
+    },
     liquidityRoadmap: [{
       type: 'PDL',
       timeframe: '1D',
@@ -267,9 +273,11 @@ test('trader summary combines every requested context layer', () => {
     '方向：SHORT',
     '当前阶段：WAITING',
     '② 【Entry Watch】',
+    '尚未锁定具体上方流动性',
+    '候选类型：',
     'PDH / PWH / H4 Swing High / Equal High',
     '③ 【Event Chain】',
-    '□ Sweep PDH / PWH / H4 Swing High / Equal High',
+    '□ Sweep 目标尚未锁定',
     '□ Bearish MSS',
     '□ Bearish Displacement',
     '④ 【Primary Draw】',
@@ -741,8 +749,7 @@ test('WAITING opportunity shows the complete event chain', () => {
 
   assert.strictEqual(
     path,
-    'Sweep PDL / PWL / H4 Swing Low / Equal Low → ' +
-      'Bullish MSS → ' +
+    'Sweep（目标尚未锁定） → Bullish MSS → ' +
       'Bullish Displacement'
   );
 });
@@ -761,7 +768,7 @@ test('WATCH_ZONE path names the current liquidity', () => {
 
   assert.strictEqual(
     path,
-    '等待 H4 Swing Low 流动性扫取 → ' +
+    '等待锁定具体下方流动性 → ' +
       'Bullish MSS → Bullish Displacement'
   );
 });

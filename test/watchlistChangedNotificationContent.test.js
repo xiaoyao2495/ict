@@ -56,10 +56,16 @@ function symbolResult(symbol, options) {
       current: {
         fourHourAnalysis: {
           bias: options.bias || 'BULLISH',
-          primaryDraw: options.primaryDraw || {
-            type: 'PWH',
-            price: 66924,
-          },
+          primaryDraw:
+            Object.prototype.hasOwnProperty.call(
+              options,
+              'primaryDraw'
+            )
+              ? options.primaryDraw
+              : {
+                type: 'PWH',
+                price: 66924,
+              },
         },
         structurePhase: options.structurePhase || {
           state: 'BULLISH_CONTINUATION',
@@ -156,7 +162,15 @@ function httpRecorder(messages) {
 }
 
 async function primeAndRun(nextRows, symbols) {
-  const runner = mutableRunner(rows(), symbols);
+  return primeRowsAndRun(rows(), nextRows, symbols);
+}
+
+async function primeRowsAndRun(
+  initialRows,
+  nextRows,
+  symbols
+) {
+  const runner = mutableRunner(initialRows, symbols);
   const store = Filter.createMemoryStore();
   const messages = [];
   const options = {
@@ -383,7 +397,7 @@ test('进入WATCH_ZONE通知只突出Entry Watch变化', async () => {
 
   assert.ok(section.includes('进入 WATCH_ZONE'));
   assert.ok(section.includes(
-    '② 【Entry Watch】\n等待：\nEqual Low\n62782'
+    '【Entry Watch】\n等待：\nEqual Low\n62782'
   ));
   assert.strictEqual(section.includes('Bias：'), false);
   assert.strictEqual(section.includes('Structure：'), false);
@@ -421,6 +435,150 @@ test('确认变化通知突出事件链和下一等待事件', async () => {
   assert.ok(section.includes('状态：READY'));
   assert.strictEqual(section.includes('Bias：'), false);
   assert.strictEqual(section.includes('Structure：'), false);
+});
+
+test('Bias变化和离开WATCH_ZONE时章节只渲染一次', async () => {
+  const initialRows = rows({
+    BTCUSDT: {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'EQUAL_LOW',
+        price: 62782,
+      },
+    },
+  });
+  const nextRows = rows({
+    BTCUSDT: {
+      bias: 'NEUTRAL',
+      primaryDraw: null,
+      opportunity: {
+        status: 'WAITING',
+        direction: null,
+        liquidityType: null,
+        price: null,
+      },
+    },
+  });
+  const { result } = await primeRowsAndRun(
+    initialRows,
+    nextRows
+  );
+  const section = result.message.slice(
+    result.message.indexOf('===== BTCUSDT =====')
+  );
+
+  assert.ok(section.includes(
+    'HTF Bias：Bullish → Neutral'
+  ));
+  assert.ok(section.includes('离开 WATCH_ZONE'));
+  for (const heading of [
+    '【Entry Watch】',
+    '【Event Chain】',
+    '【Primary Draw】',
+  ]) {
+    assert.strictEqual(
+      (section.match(new RegExp(heading, 'g')) || []).length,
+      1,
+      heading
+    );
+  }
+  assert.ok(section.includes(
+    '【Entry Watch】\n暂停，等待4H方向明确'
+  ));
+  assert.ok(section.includes('【Event Chain】\n暂停'));
+  assert.ok(section.includes(
+    '【Primary Draw】\n目标：\n暂无明确目标'
+  ));
+  assert.strictEqual(section.includes('等待 Sweep'), false);
+  assert.strictEqual(section.includes('□ Sweep'), false);
+});
+
+test('无具体流动性时显示候选集合而非确定目标', async () => {
+  const changedRows = rows({
+    BTCUSDT: {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: null,
+        price: null,
+      },
+    },
+  });
+  const { result } = await primeAndRun(changedRows);
+  const section = result.message.slice(
+    result.message.indexOf('===== BTCUSDT =====')
+  );
+
+  assert.ok(section.includes(
+    '尚未锁定具体下方流动性'
+  ));
+  assert.ok(section.includes('候选类型：'));
+  assert.ok(section.includes(
+    'PDL / PWL / H4 Swing Low / Equal Low'
+  ));
+  assert.strictEqual(section.includes(
+    '等待：\nPDL / PWL / H4 Swing Low / Equal Low'
+  ), false);
+});
+
+test('精简通知章节不包含数字编号', async () => {
+  const changedRows = rows({
+    BTCUSDT: { bias: 'BEARISH' },
+  });
+  const { result } = await primeAndRun(changedRows);
+  const section = result.message.slice(
+    result.message.indexOf('===== BTCUSDT =====')
+  );
+
+  for (const number of ['②', '③', '④']) {
+    assert.strictEqual(section.includes(number), false);
+  }
+});
+
+test('多个Symbol分别汇总并去重章节', async () => {
+  const changedRows = rows({
+    BTCUSDT: {
+      bias: 'BEARISH',
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BEARISH',
+        liquidityType: 'EQUAL_HIGH',
+        price: 67000,
+      },
+    },
+    XAUUSDT: {
+      bias: 'BEARISH',
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BEARISH',
+        liquidityType: 'PDH',
+        price: 4100,
+      },
+    },
+  });
+  const { result } = await primeAndRun(changedRows);
+  const btcStart = result.message.indexOf(
+    '===== BTCUSDT ====='
+  );
+  const xauStart = result.message.indexOf(
+    '===== XAUUSDT ====='
+  );
+  const sections = [
+    result.message.slice(btcStart, xauStart),
+    result.message.slice(xauStart),
+  ];
+
+  for (const section of sections) {
+    assert.strictEqual(
+      (section.match(/【Entry Watch】/g) || []).length,
+      1
+    );
+    assert.strictEqual(
+      (section.match(/【Primary Draw】/g) || []).length,
+      1
+    );
+  }
 });
 
 test('缺失Symbol报告时不回退发送完整Watchlist', async () => {
