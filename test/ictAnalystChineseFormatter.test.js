@@ -111,6 +111,11 @@ function currentReport(options) {
         : {
           structurePhase: options.structurePhase,
         }),
+      ...(options.decisionGate === undefined
+        ? {}
+        : {
+          decisionGate: options.decisionGate,
+        }),
     },
   };
 }
@@ -347,6 +352,99 @@ test('formatter includes the opportunity observation chapter', () => {
   assert.ok(text.includes(
     '② 【Entry Watch】\n等待：\nPWL\n99.6'
   ));
+});
+
+test('formatter forwards Decision Gate without duplicate sections', () => {
+  const text = Formatter.format(currentReport({
+    opportunity: {
+      status: 'WAITING',
+      direction: 'BEARISH',
+    },
+    sweeps: [],
+    mss: null,
+    displacement: null,
+    confirmation: null,
+    decisionGate: {
+      state: 'WATCH_ZONE',
+      direction: 'BULLISH',
+      activeOpportunity: {
+        direction: 'BULLISH',
+        liquidityType: 'EQUAL_LOW',
+        price: 50100,
+      },
+      progress: {
+        sweepCompleted: false,
+        mssCompleted: false,
+        displacementCompleted: false,
+      },
+      blockers: ['WAITING_LTF_CONFIRMATION'],
+      reasonCode: 'OPPORTUNITY_ACTIVE',
+    },
+  }));
+
+  assert.strictEqual(
+    (text.match(/【Decision Gate】/g) || []).length,
+    1
+  );
+  assert.ok(text.includes('当前阶段：WATCH_ZONE'));
+  assert.ok(text.includes('Equal Low\n50100'));
+});
+
+test('Decision Gate notification contains transition details', () => {
+  const report = currentReport({
+    decisionGate: {
+      state: 'WATCH_ZONE',
+      direction: 'BULLISH',
+      activeOpportunity: {
+        id: 'BULLISH|EQUAL_LOW|62782',
+        direction: 'BULLISH',
+        liquidityType: 'EQUAL_LOW',
+        price: 62782,
+      },
+      progress: {},
+      blockers: ['WAITING_LTF_CONFIRMATION'],
+      reasonCode: 'OPPORTUNITY_ACTIVE',
+      transition: {
+        changed: true,
+        from: 'WAITING_OPPORTUNITY',
+        to: 'WATCH_ZONE',
+      },
+    },
+  });
+  report.symbol = 'BTCUSDT';
+  const text = Formatter.formatNotificationChange(
+    report,
+    ['DECISION_GATE_TRANSITION'],
+    {
+      symbol: 'BTCUSDT',
+      decisionGateTransition: {
+        changed: true,
+        from: 'WAITING_OPPORTUNITY',
+        to: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        reasonCode: 'OPPORTUNITY_ACTIVE',
+        activeOpportunity: {
+          id: 'BULLISH|EQUAL_LOW|62782',
+          direction: 'BULLISH',
+          liquidityType: 'EQUAL_LOW',
+          price: 62782,
+        },
+      },
+    }
+  );
+
+  for (const expected of [
+    'Symbol：\nBTCUSDT',
+    '状态变化：\nWAITING_OPPORTUNITY → WATCH_ZONE',
+    '方向：\nBULLISH',
+    'reasonCode：\nOPPORTUNITY_ACTIVE',
+    'activeOpportunity：',
+    'BULLISH|EQUAL_LOW|62782',
+    '类型：EQUAL_LOW',
+    '价格：62782',
+  ]) {
+    assert.ok(text.includes(expected), expected);
+  }
 });
 
 test('精简通知可显示进入CONFIRMING', () => {

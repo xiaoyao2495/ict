@@ -426,6 +426,7 @@ function dashboardInput(current) {
     positionContext: current.positionContext,
     structurePhase: current.structurePhase,
     htfAlignment: current.htfAlignment,
+    decisionGate: current.decisionGate,
   };
 }
 
@@ -461,9 +462,44 @@ function opportunityChangeText(input, change) {
   return 'Entry Watch 变化';
 }
 
+function formatDecisionGateTransition(change) {
+  const transition = change &&
+    change.decisionGateTransition;
+  if (!transition || transition.changed !== true) return null;
+  const opportunity = transition.activeOpportunity;
+  return [
+    'Symbol：',
+    change.symbol || '--',
+    '',
+    '状态变化：',
+    (transition.from || 'NONE') +
+      ' → ' + (transition.to || 'UNKNOWN'),
+    '',
+    '方向：',
+    transition.direction || 'NONE',
+    '',
+    'reasonCode：',
+    transition.reasonCode || 'NONE',
+    '',
+    'activeOpportunity：',
+    ...(opportunity
+      ? [
+        opportunity.id,
+        '类型：' + opportunity.liquidityType,
+        '价格：' + metricNumberText(opportunity.price),
+      ]
+      : ['无']),
+  ].join('\n');
+}
+
 function formatNotificationChange(report, reasons, change) {
   const current = currentOf(report);
   const input = dashboardInput(current);
+  const decisionGateTransition =
+    formatDecisionGateTransition(change);
+  if (decisionGateTransition) {
+    return decisionGateTransition;
+  }
   const changeReasons = Array.isArray(reasons)
     ? reasons
     : [];
@@ -597,6 +633,7 @@ module.exports = {
   displacementText,
   ensureStructurePhaseSection,
   format,
+  formatDecisionGateTransition,
   formatNotificationChange,
   manualView,
   mssText,

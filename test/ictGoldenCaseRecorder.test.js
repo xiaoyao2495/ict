@@ -57,6 +57,36 @@ function completeReport() {
         liquidityType: 'PDL',
         price: 117500,
       },
+      decisionGate: {
+        state: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        activeOpportunity: {
+          id: 'BULLISH|PDL|117500',
+          direction: 'BULLISH',
+          liquidityType: 'PDL',
+          price: 117500,
+        },
+        progress: {
+          sweepCompleted: false,
+          mssCompleted: false,
+          displacementCompleted: false,
+          strictConfirmationCompleted: false,
+        },
+        sourceState: {
+          h4Bias: 'BULLISH',
+          htfAlignment: 'ALIGNED',
+          opportunityStatus: 'WATCH_ZONE',
+        },
+        blockers: ['WAITING_LTF_CONFIRMATION'],
+        reasonCode: 'OPPORTUNITY_ACTIVE',
+        transition: {
+          changed: true,
+          from: 'WAITING_OPPORTUNITY',
+          to: 'WATCH_ZONE',
+          occurredAt: TIMESTAMP,
+        },
+        informationalOnly: true,
+      },
       fiveMinuteObservation: {
         currentConfirmed: {
           confirmation: {
@@ -123,6 +153,24 @@ test('recordCase saves a complete regression case', function () {
       status: 'CONFIRMED',
       direction: 'BULLISH',
     });
+    assert.deepStrictEqual(
+      data.decisionGate,
+      Recorder.decisionGateFrom(completeReport().current)
+    );
+    assert.strictEqual(
+      Object.prototype.hasOwnProperty.call(
+        data.decisionGate,
+        'informationalOnly'
+      ),
+      false
+    );
+    assert.strictEqual(
+      Object.prototype.hasOwnProperty.call(
+        data.snapshot,
+        'decisionGate'
+      ),
+      false
+    );
     assert.deepStrictEqual(data.outcome, {});
   }).finally(function () {
     return removeDirectory(directory);
@@ -172,6 +220,7 @@ test('recordCase safely fills missing report fields', function () {
       status: null,
       direction: null,
     });
+    assert.strictEqual(data.decisionGate, null);
   }).finally(function () {
     return removeDirectory(directory);
   });
@@ -194,6 +243,33 @@ test('recordCase does not mutate the source report', function () {
   }).finally(function () {
     return removeDirectory(directory);
   });
+});
+
+test('Decision Gate is a deep copied creation-time snapshot', function () {
+  var report = completeReport();
+  var caseData = Recorder.buildCase({
+    symbol: 'BTCUSDT',
+    report: report,
+    timestamp: TIMESTAMP,
+  });
+  var before = JSON.stringify(caseData.decisionGate);
+
+  report.current.decisionGate.state = 'INVALIDATED';
+  report.current.decisionGate.activeOpportunity.price = 1;
+  report.current.decisionGate.progress.sweepCompleted = true;
+  report.current.decisionGate.blockers.push('FUTURE_BLOCKER');
+  report.current.decisionGate.transition.to = 'INVALIDATED';
+
+  assert.strictEqual(JSON.stringify(caseData.decisionGate), before);
+  assert.strictEqual(caseData.decisionGate.state, 'WATCH_ZONE');
+  assert.strictEqual(
+    caseData.decisionGate.activeOpportunity.price,
+    117500
+  );
+  assert.strictEqual(
+    caseData.decisionGate.progress.sweepCompleted,
+    false
+  );
 });
 
 test('same-day symbol cases never overwrite an old file', function () {

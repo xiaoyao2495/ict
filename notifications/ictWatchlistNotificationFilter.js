@@ -21,7 +21,14 @@ const CHANGE_REASONS = Object.freeze({
   ALIGNMENT_STATUS_CHANGED:
     'ALIGNMENT_STATUS_CHANGED',
   OPPORTUNITY_CHANGED: 'OPPORTUNITY_CHANGED',
+  DECISION_GATE_TRANSITION: 'DECISION_GATE_TRANSITION',
 });
+
+const PRIORITY_GATE_STATES = new Set([
+  'READY_OBSERVATION',
+  'HTF_CONFLICT',
+  'INVALIDATED',
+]);
 
 const DYNAMIC_STATE_FIELDS = Object.freeze([
   'reportTime',
@@ -361,6 +368,97 @@ function normalizeOpportunity(value) {
   };
 }
 
+function normalizeGateOpportunity(value) {
+  if (!value || typeof value !== 'object') return null;
+  const direction = (
+    value.direction === 'BULLISH' ||
+    value.direction === 'BEARISH'
+  )
+    ? value.direction
+    : null;
+  const liquidityType =
+    typeof value.liquidityType === 'string'
+      ? value.liquidityType
+      : null;
+  const price = Number.isFinite(value.price)
+    ? value.price
+    : null;
+  if (!direction || !liquidityType || price === null) {
+    return null;
+  }
+  return {
+    id: [direction, liquidityType, price].join('|'),
+    direction,
+    liquidityType,
+    price,
+  };
+}
+
+function normalizeGateProgress(value) {
+  value = value && typeof value === 'object'
+    ? value
+    : {};
+  return {
+    sweepCompleted: value.sweepCompleted === true,
+    mssCompleted: value.mssCompleted === true,
+    displacementCompleted:
+      value.displacementCompleted === true,
+    strictConfirmationCompleted:
+      value.strictConfirmationCompleted === true,
+  };
+}
+
+function normalizeGateTransition(value, state) {
+  value = value && typeof value === 'object'
+    ? value
+    : {};
+  return {
+    changed: value.changed === true,
+    from: typeof value.from === 'string'
+      ? value.from
+      : null,
+    to: typeof value.to === 'string'
+      ? value.to
+      : state,
+  };
+}
+
+function normalizeDecisionGate(value) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    typeof value.state !== 'string'
+  ) {
+    return null;
+  }
+  const direction = (
+    value.direction === 'BULLISH' ||
+    value.direction === 'BEARISH'
+  )
+    ? value.direction
+    : null;
+  return {
+    state: value.state,
+    direction,
+    activeOpportunity: normalizeGateOpportunity(
+      value.activeOpportunity
+    ),
+    progress: normalizeGateProgress(value.progress),
+    blockers: Array.isArray(value.blockers)
+      ? value.blockers.filter(
+        (blocker) => typeof blocker === 'string'
+      )
+      : [],
+    reasonCode: typeof value.reasonCode === 'string'
+      ? value.reasonCode
+      : '',
+    transition: normalizeGateTransition(
+      value.transition,
+      value.state
+    ),
+  };
+}
+
 function confirmationFromCurrent(current) {
   const observed = current &&
     current.fiveMinuteObservation &&
@@ -401,6 +499,9 @@ function extractSymbolState(input) {
 
   const latest = current.fiveMinuteObservation
     .latestConfirmed || {};
+  const decisionGate = normalizeDecisionGate(
+    current.decisionGate
+  );
   return {
     symbol,
     h4Bias:
@@ -411,6 +512,61 @@ function extractSymbolState(input) {
       current.opportunity
     ),
     latestMss: normalizeMss(latest.mss),
+    ...(decisionGate ? { decisionGate } : {}),
+  };
+}
+
+function gateStableState(value) {
+  if (!value) return null;
+  return {
+    state: value.state,
+    activeOpportunity: value.activeOpportunity,
+    progress: value.progress,
+  };
+}
+
+function compareDecisionGates(previousGate, currentGate) {
+  const reported = currentGate.transition || {};
+  const stableChanged = !previousGate ||
+    !isDeepStrictEqual(
+      gateStableState(previousGate),
+      gateStableState(currentGate)
+    );
+  const reportedTransitionIsConsistent = Boolean(
+    previousGate &&
+    reported.changed === true &&
+    reported.from === previousGate.state &&
+    reported.to === currentGate.state
+  );
+  const priorityTransition = Boolean(
+    previousGate &&
+    previousGate.state !== currentGate.state &&
+    PRIORITY_GATE_STATES.has(currentGate.state)
+  );
+  const changed = stableChanged ||
+    reportedTransitionIsConsistent ||
+    priorityTransition;
+
+  return {
+    shouldNotify: changed,
+    reasons: changed
+      ? [CHANGE_REASONS.DECISION_GATE_TRANSITION]
+      : [],
+    decisionGateTransition: {
+      changed,
+      from: previousGate
+        ? previousGate.state
+        : reported.from,
+      to: currentGate.state,
+      direction: currentGate.direction,
+      reasonCode: currentGate.reasonCode,
+      activeOpportunity: clone(
+        currentGate.activeOpportunity
+      ),
+      priority: PRIORITY_GATE_STATES.has(
+        currentGate.state
+      ),
+    },
   };
 }
 
@@ -419,7 +575,20 @@ function compareSymbolStates(previousState, currentState) {
     return {
       shouldNotify: true,
       reasons: [CHANGE_REASONS.INITIAL_STATE],
+      decisionGateTransition: currentState.decisionGate
+        ? compareDecisionGates(
+          null,
+          currentState.decisionGate
+        ).decisionGateTransition
+        : null,
     };
+  }
+
+  if (currentState.decisionGate) {
+    return compareDecisionGates(
+      previousState.decisionGate || null,
+      currentState.decisionGate
+    );
   }
 
   const reasons = [];
@@ -487,11 +656,18 @@ function normalizePersistedState(value) {
         state.opportunity
       ),
       latestMss: normalizeMss(state.latestMss),
+      ...(normalizeDecisionGate(state.decisionGate)
+        ? {
+          decisionGate: normalizeDecisionGate(
+            state.decisionGate
+          ),
+        }
+        : {}),
     };
   }
 
   return {
-    version: 5,
+    version: 6,
     symbols,
   };
 }
@@ -541,6 +717,8 @@ function evaluate(results, persistedState, debugComparison) {
       reasons: comparison.reasons,
       previousState,
       currentState,
+      decisionGateTransition:
+        comparison.decisionGateTransition || null,
       result,
     });
     nextState.symbols[currentState.symbol] = currentState;
@@ -702,9 +880,14 @@ module.exports = {
   isNewMss,
   normalizeAlignment,
   normalizeConfirmation,
+  normalizeDecisionGate,
+  normalizeGateOpportunity,
+  normalizeGateProgress,
+  normalizeGateTransition,
   normalizeMss,
   normalizeOpportunity,
   normalizePersistedState,
+  compareDecisionGates,
   processNotifications,
   stableMssIdentity,
   structureLevelIdentity,

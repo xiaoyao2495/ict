@@ -79,6 +79,9 @@ function symbolResult(symbol, options) {
           liquidityType: null,
           price: null,
         },
+        ...(options.decisionGate
+          ? { decisionGate: options.decisionGate }
+          : {}),
         fiveMinuteConfirmationStatus:
           options.confirmationStatus || 'WAITING',
         alignment: {
@@ -263,6 +266,65 @@ test('没有变化时不发送', async () => {
   assert.strictEqual(result.message, null);
   assert.deepStrictEqual(result.notificationSymbols, []);
   assert.strictEqual(messages.length, 1);
+});
+
+test('Decision Gate状态变化写入精简通知正文', async () => {
+  const initialRows = rows({
+    BTCUSDT: {
+      decisionGate: {
+        state: 'WAITING_OPPORTUNITY',
+        direction: 'BULLISH',
+        activeOpportunity: null,
+        progress: {},
+        blockers: ['WATCH_ZONE_NOT_ACTIVE'],
+        reasonCode: 'WAITING_FOR_OPPORTUNITY',
+        transition: {
+          changed: true,
+          from: null,
+          to: 'WAITING_OPPORTUNITY',
+        },
+      },
+    },
+  });
+  const nextRows = rows({
+    BTCUSDT: {
+      decisionGate: {
+        state: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        activeOpportunity: {
+          direction: 'BULLISH',
+          liquidityType: 'EQUAL_LOW',
+          price: 62782,
+        },
+        progress: {},
+        blockers: ['WAITING_LTF_CONFIRMATION'],
+        reasonCode: 'OPPORTUNITY_ACTIVE',
+        transition: {
+          changed: true,
+          from: 'WAITING_OPPORTUNITY',
+          to: 'WATCH_ZONE',
+        },
+      },
+    },
+  });
+  const { result } = await primeRowsAndRun(
+    initialRows,
+    nextRows
+  );
+
+  assert.deepStrictEqual(result.notificationSymbols, [
+    'BTCUSDT',
+  ]);
+  for (const expected of [
+    'Symbol：\nBTCUSDT',
+    '状态变化：\nWAITING_OPPORTUNITY → WATCH_ZONE',
+    '方向：\nBULLISH',
+    'reasonCode：\nOPPORTUNITY_ACTIVE',
+    'activeOpportunity：',
+    'BULLISH|EQUAL_LOW|62782',
+  ]) {
+    assert.ok(result.message.includes(expected), expected);
+  }
 });
 
 test('首次运行发送完整有效Watchlist', async () => {

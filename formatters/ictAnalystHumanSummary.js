@@ -810,8 +810,32 @@ function analyzeNarrative(input) {
   };
 }
 
+function decisionGateOf(input) {
+  const gate = input && (
+    input.decisionGate ||
+    (input.current && input.current.decisionGate)
+  );
+  return gate && typeof gate.state === 'string'
+    ? gate
+    : null;
+}
+
+function opportunityOf(input) {
+  const gate = decisionGateOf(input);
+  return gate
+    ? gate.activeOpportunity || {}
+    : input.opportunity || {};
+}
+
 function opportunityDirection(input) {
-  const opportunity = input.opportunity || {};
+  const gate = decisionGateOf(input);
+  const opportunity = opportunityOf(input);
+  if (gate) {
+    const direction = gate.direction || opportunity.direction;
+    if (direction === 'BULLISH') return 'LONG';
+    if (direction === 'BEARISH') return 'SHORT';
+    return 'NONE';
+  }
   const h4Bias = input.h4 && input.h4.bias;
   const h4Directional =
     h4Bias === 'BULLISH' || h4Bias === 'BEARISH';
@@ -837,7 +861,7 @@ function opportunityCandidateText(direction) {
 }
 
 function opportunityLiquidityText(input) {
-  const opportunity = input.opportunity || {};
+  const opportunity = opportunityOf(input);
   if (
     OPPORTUNITY_LIQUIDITY_TEXT[
       opportunity.liquidityType
@@ -886,6 +910,7 @@ function dashboardAlignmentText(input) {
 }
 
 function expectedOpportunitySweep(input) {
+  if (decisionGateOf(input)) return null;
   const direction = opportunityDirection(input);
   const expectedSide = direction === 'LONG'
     ? 'SELL_SIDE'
@@ -908,7 +933,7 @@ function expectedOpportunitySweep(input) {
 }
 
 function entryWatchData(input) {
-  const opportunity = input.opportunity || {};
+  const opportunity = opportunityOf(input);
   const direction = opportunityDirection(input);
   const type = OPPORTUNITY_LIQUIDITY_TEXT[
     opportunity.liquidityType
@@ -968,6 +993,16 @@ function hasExpectedOpportunitySweep(input) {
 }
 
 function opportunityEventProgress(input) {
+  const gate = decisionGateOf(input);
+  if (gate) {
+    const progress = gate.progress || {};
+    return {
+      sweepCompleted: progress.sweepCompleted === true,
+      mssCompleted: progress.mssCompleted === true,
+      displacementCompleted:
+        progress.displacementCompleted === true,
+    };
+  }
   const direction = opportunityDirection(input);
   const confirmed = input.fiveMinute &&
     input.fiveMinute.currentConfirmed
@@ -1027,6 +1062,13 @@ function opportunitySteps(input) {
 }
 
 function opportunityStage(input) {
+  const gate = decisionGateOf(input);
+  if (gate) {
+    return {
+      status: gate.state,
+      text: gate.reasonCode || gate.state,
+    };
+  }
   const opportunity = input.opportunity || {};
   const direction = opportunityDirection(input);
   const confirmationStatus =
@@ -1083,7 +1125,10 @@ function opportunityStage(input) {
 function opportunityPath(input) {
   const stage = opportunityStage(input);
   const steps = opportunitySteps(input);
-  if (stage.status === 'CONFIRMED') {
+  if (
+    stage.status === 'CONFIRMED' ||
+    stage.status === 'READY_OBSERVATION'
+  ) {
     return 'Sweep → MSS → Displacement 已完成';
   }
   if (stage.status === 'WAITING') {
@@ -1118,11 +1163,15 @@ function opportunityPath(input) {
 function opportunityObservationLines(input) {
   const direction = opportunityDirection(input);
   const stage = opportunityStage(input);
-  const ready = stage.status === 'CONFIRMED';
+  const gate = decisionGateOf(input);
+  const ready = stage.status === 'CONFIRMED' ||
+    stage.status === 'READY_OBSERVATION';
   return [
     '【交易机会】',
     '方向：' + direction,
-    '当前阶段：' + (ready ? 'READY' : stage.status),
+    '当前阶段：' + (
+      gate ? stage.status : ready ? 'READY' : stage.status
+    ),
     '',
     ...entryWatchLines(input),
     '',
@@ -1189,7 +1238,9 @@ function eventChainLines(input, options) {
   const sweepPrice = sweep && Number.isFinite(sweep.price)
     ? sweep.price
     : watch.price;
-  const ready = opportunityStage(input).status === 'CONFIRMED';
+  const stage = opportunityStage(input).status;
+  const ready = stage === 'CONFIRMED' ||
+    stage === 'READY_OBSERVATION';
 
   return [
     heading,
@@ -1203,7 +1254,13 @@ function eventChainLines(input, options) {
     '',
     (progress.displacementCompleted ? '✓ ' : '□ ') +
       steps.displacement,
-    ...(ready ? ['', '状态：READY'] : []),
+    ...(ready
+      ? ['', '状态：' + (
+        decisionGateOf(input)
+          ? 'READY_OBSERVATION'
+          : 'READY'
+      )]
+      : []),
   ];
 }
 
@@ -1222,7 +1279,11 @@ function primaryDrawLines(input, options) {
 function nextOpportunityEvent(input) {
   const progress = opportunityEventProgress(input);
   const steps = opportunitySteps(input);
-  if (opportunityStage(input).status === 'CONFIRMED') {
+  const stage = opportunityStage(input).status;
+  if (
+    stage === 'CONFIRMED' ||
+    stage === 'READY_OBSERVATION'
+  ) {
     return 'READY';
   }
   if (!progress.sweepCompleted) return steps.sweep;
@@ -1247,10 +1308,38 @@ function htfDashboardLines(input) {
   ];
 }
 
+function decisionGateLines(input) {
+  const gate = decisionGateOf(input);
+  if (!gate) return [];
+  const blockers = Array.isArray(gate.blockers)
+    ? gate.blockers
+    : [];
+  return [
+    '【Decision Gate】',
+    '状态：',
+    gate.state,
+    '方向：',
+    gate.direction || 'NONE',
+    '原因：',
+    gate.reasonCode || 'NONE',
+    '阻塞：',
+    blockers.length > 0 ? blockers.join(' / ') : '无',
+  ];
+}
+
 function summarizeTraderContext(input) {
   input = input || {};
+  const gateLines = decisionGateLines(input);
   return [
     ...htfDashboardLines(input),
+    ...(gateLines.length > 0
+      ? [
+        '',
+        '================',
+        '',
+        ...gateLines,
+      ]
+      : []),
     '',
     '================',
     '',
@@ -1276,6 +1365,8 @@ module.exports = {
   dashboardAlignmentText,
   dashboardBiasText,
   dashboardHeading,
+  decisionGateLines,
+  decisionGateOf,
   entryWatchData,
   entryWatchLines,
   eventChainLines,

@@ -878,4 +878,172 @@ test('neutral 4H waits for direction and 5m', () => {
   });
 });
 
+test('Decision Gate section is rendered once with its source fields', () => {
+  const summary = HumanSummary.summarizeTraderContext(
+    traderContext({
+      decisionGate: {
+        state: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        activeOpportunity: {
+          direction: 'BULLISH',
+          liquidityType: 'EQUAL_LOW',
+          price: 99.2,
+        },
+        progress: {},
+        blockers: ['WAITING_LTF_CONFIRMATION'],
+        reasonCode: 'OPPORTUNITY_ACTIVE',
+      },
+    })
+  );
+
+  assert.strictEqual(
+    (summary.match(/【Decision Gate】/g) || []).length,
+    1
+  );
+  assert.ok(summary.includes(
+    '状态：\nWATCH_ZONE\n方向：\nBULLISH'
+  ));
+  assert.ok(summary.includes(
+    '原因：\nOPPORTUNITY_ACTIVE'
+  ));
+  assert.ok(summary.includes(
+    '阻塞：\nWAITING_LTF_CONFIRMATION'
+  ));
+});
+
+test('WATCH_ZONE display uses Gate Opportunity and Progress only', () => {
+  const summary = HumanSummary.summarizeTraderContext(
+    traderContext({
+      opportunity: {
+        status: 'WAITING',
+        direction: 'BEARISH',
+        liquidityType: 'PDH',
+        price: 110,
+      },
+      fiveMinute: {
+        currentConfirmed: {
+          liquiditySweeps: [{ side: 'SELL_SIDE' }],
+          mss: { direction: 'BULLISH' },
+          displacement: { direction: 'BULLISH' },
+          confirmation: {
+            status: 'CONFIRMED',
+            direction: 'BULLISH',
+          },
+        },
+      },
+      decisionGate: {
+        state: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        activeOpportunity: {
+          direction: 'BULLISH',
+          liquidityType: 'EQUAL_LOW',
+          price: 99.2,
+        },
+        progress: {
+          sweepCompleted: false,
+          mssCompleted: false,
+          displacementCompleted: false,
+        },
+        blockers: ['WAITING_LTF_CONFIRMATION'],
+        reasonCode: 'OPPORTUNITY_ACTIVE',
+      },
+    })
+  );
+
+  assert.ok(summary.includes('当前阶段：WATCH_ZONE'));
+  assert.ok(summary.includes(
+    '② 【Entry Watch】\n等待：\nEqual Low\n99.2'
+  ));
+  assert.ok(summary.includes('□ Sweep Equal Low'));
+  assert.ok(summary.includes('□ Bullish MSS'));
+  assert.ok(summary.includes('□ Bullish Displacement'));
+  assert.strictEqual(summary.includes('PDH'), false);
+});
+
+test('CONFIRMING display follows Gate Progress', () => {
+  const summary = HumanSummary.summarizeTraderContext(
+    traderContext({
+      fiveMinute: { currentConfirmed: {} },
+      decisionGate: {
+        state: 'CONFIRMING',
+        direction: 'BEARISH',
+        activeOpportunity: {
+          direction: 'BEARISH',
+          liquidityType: 'EQUAL_HIGH',
+          price: 101.4,
+        },
+        progress: {
+          sweepCompleted: true,
+          mssCompleted: true,
+          displacementCompleted: false,
+        },
+        blockers: ['WAITING_STRICT_CONFIRMATION'],
+        reasonCode: 'MSS_COMPLETED',
+      },
+    })
+  );
+
+  assert.ok(summary.includes('当前阶段：CONFIRMING'));
+  assert.ok(summary.includes('✓ Sweep Equal High'));
+  assert.ok(summary.includes('✓ Bearish MSS'));
+  assert.ok(summary.includes('□ Bearish Displacement'));
+});
+
+test('READY_OBSERVATION display follows completed Gate Progress', () => {
+  const summary = HumanSummary.summarizeTraderContext(
+    traderContext({
+      fiveMinute: { currentConfirmed: {} },
+      decisionGate: {
+        state: 'READY_OBSERVATION',
+        direction: 'BULLISH',
+        activeOpportunity: {
+          direction: 'BULLISH',
+          liquidityType: 'PDL',
+          price: 98.8,
+        },
+        progress: {
+          sweepCompleted: true,
+          mssCompleted: true,
+          displacementCompleted: true,
+          strictConfirmationCompleted: true,
+        },
+        blockers: [],
+        reasonCode: 'STRICT_CONFIRMATION_COMPLETED',
+      },
+    })
+  );
+
+  assert.ok(summary.includes(
+    '当前阶段：READY_OBSERVATION'
+  ));
+  assert.ok(summary.includes('✓ Sweep PDL'));
+  assert.ok(summary.includes('✓ Bullish MSS'));
+  assert.ok(summary.includes('✓ Bullish Displacement'));
+  assert.ok(summary.includes('状态：READY_OBSERVATION'));
+});
+
+test('legacy summary keeps fallback inference without Decision Gate', () => {
+  const summary = HumanSummary.summarizeTraderContext(
+    traderContext({
+      h4: { bias: 'BULLISH' },
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'PDL',
+        price: 99,
+      },
+      fiveMinute: {
+        currentConfirmed: {
+          liquiditySweeps: [{ side: 'SELL_SIDE' }],
+          confirmation: null,
+        },
+      },
+    })
+  );
+
+  assert.strictEqual(summary.includes('【Decision Gate】'), false);
+  assert.ok(summary.includes('当前阶段：CONFIRMING'));
+  assert.ok(summary.includes('✓ Sweep PDL'));
+});
+
 console.log('\n' + testsPassed + ' tests passed.');

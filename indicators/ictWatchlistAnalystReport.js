@@ -24,6 +24,7 @@ const PositionContext = require(
 const OpportunityDetector = require(
   './ictOpportunityDetector'
 );
+const DecisionGate = require('./ictDecisionGate');
 const AnalystReport = require('./ictHtfAnalystReport');
 const HumanSummary = require(
   '../formatters/ictAnalystHumanSummary'
@@ -351,6 +352,10 @@ function analyze(input) {
       current.fourHourAnalysis,
       current.positionContext
     );
+  current.decisionGate = DecisionGate.analyze({
+    current,
+    previousGateState: input.previousGateState || null,
+  });
   const summaryInput = {
     h4: current.fourHourAnalysis,
     fiveMinute: current.fiveMinuteObservation,
@@ -391,6 +396,8 @@ function analyze(input) {
       prefixInvariant: true,
       includesAlignment: true,
       includesHtfAlignment: true,
+      includesDecisionGate: true,
+      decisionGateIsStateAuthority: true,
       readsTrades: false,
       readsBaseline: false,
       callsEntryEngine: false,

@@ -53,6 +53,30 @@ function goldenCase(symbol, offsetMs) {
       status: 'CONFIRMED',
       direction: 'BULLISH',
     },
+    decisionGate: {
+      state: 'READY_OBSERVATION',
+      direction: 'BULLISH',
+      activeOpportunity: {
+        id: 'BULLISH|PDL|99',
+        direction: 'BULLISH',
+        liquidityType: 'PDL',
+        price: 99,
+      },
+      progress: {
+        sweepCompleted: true,
+        mssCompleted: true,
+        displacementCompleted: true,
+        strictConfirmationCompleted: true,
+      },
+      sourceState: { h4Bias: 'BULLISH' },
+      blockers: [],
+      reasonCode: 'STRICT_CONFIRMATION_COMPLETED',
+      transition: {
+        changed: true,
+        from: 'CONFIRMING',
+        to: 'READY_OBSERVATION',
+      },
+    },
     outcome: {},
   };
 }
@@ -173,6 +197,10 @@ test('matches a nearby confirmed outcome and preserves the case', function () {
     assert.deepStrictEqual(
       updatedCase.structurePhase,
       caseData.structurePhase
+    );
+    assert.deepStrictEqual(
+      updatedCase.decisionGate,
+      caseData.decisionGate
     );
     assert.strictEqual(
       JSON.stringify(outcomeStateAfter),

@@ -6,6 +6,7 @@ const HtfBiasV3 = require('../indicators/ictHtfBiasEngineV3');
 const HtfStructurePhase = require(
   '../indicators/ictHtfStructurePhaseEngine'
 );
+const DecisionGate = require('../indicators/ictDecisionGate');
 const WatchlistReport = require(
   '../indicators/ictWatchlistAnalystReport'
 );
@@ -15,6 +16,9 @@ const NotificationFilter = require(
 );
 const WatchlistAnalyst = require(
   '../scripts/runWatchlistAnalyst'
+);
+const ChineseFormatter = require(
+  '../formatters/ictAnalystChineseFormatter'
 );
 
 const FIVE_MINUTES = 5 * 60 * 1000;
@@ -348,6 +352,52 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
   ));
 
   const report = result.results[0].report;
+  const decisionGate = report.current.decisionGate;
+  assert.ok(decisionGate);
+  assert.deepStrictEqual(
+    Object.keys(decisionGate),
+    [
+      'state',
+      'direction',
+      'activeOpportunity',
+      'progress',
+      'sourceState',
+      'blockers',
+      'reasonCode',
+      'transition',
+      'informationalOnly',
+    ]
+  );
+  const gateInput = JSON.parse(JSON.stringify(report.current));
+  delete gateInput.decisionGate;
+  assert.deepStrictEqual(
+    decisionGate,
+    DecisionGate.analyze({
+      current: gateInput,
+      previousGateState: null,
+    })
+  );
+  assert.strictEqual(
+    decisionGate.sourceState.h4Bias,
+    report.current.fourHourAnalysis.bias
+  );
+  assert.strictEqual(
+    decisionGate.sourceState.structurePhase,
+    report.current.structurePhase.state
+  );
+  assert.strictEqual(
+    decisionGate.sourceState.htfAlignment,
+    report.current.htfAlignment.status
+  );
+  assert.strictEqual(
+    decisionGate.sourceState.opportunityStatus,
+    report.current.opportunity.status
+  );
+  assert.strictEqual(decisionGate.informationalOnly, true);
+  assert.strictEqual(
+    report.protocol.decisionGateIsStateAuthority,
+    true
+  );
   const structurePhase = report.current.structurePhase;
   assert.ok(structurePhase);
   assert.ok(Object.values(
@@ -402,6 +452,16 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
     NotificationFilter.extractSymbolState(
       withoutStructurePhase
     )
+  );
+
+  const legacyReport = JSON.parse(JSON.stringify(report));
+  delete legacyReport.current.decisionGate;
+  const legacyFormatted = ChineseFormatter.format(legacyReport);
+  assert.ok(legacyFormatted.includes('【交易监控面板】'));
+  assert.ok(legacyFormatted.includes('【交易机会】'));
+  assert.strictEqual(
+    legacyFormatted.includes('【Decision Gate】'),
+    false
   );
 });
 

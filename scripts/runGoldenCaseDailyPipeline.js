@@ -1,5 +1,9 @@
 'use strict';
 
+var WatchlistAnalystRunner = require('./runWatchlistAnalyst');
+var LifecycleRecorder = require(
+  '../history/ictOpportunityLifecycleRecorder'
+);
 var AutoCaptureRunner = require('./runGoldenCaseAutoCapture');
 var OutcomeRunner = require('./updateGoldenCaseOutcome');
 var StatisticsRunner = require(
@@ -71,6 +75,40 @@ function errorText(step) {
   return step.error.message || String(step.error);
 }
 
+function watchlistLines(step) {
+  if (step.status === 'FAILED') {
+    return [
+      'Watchlist Analyst:',
+      '读取失败（' + errorText(step) + '）',
+    ];
+  }
+  return [
+    'Watchlist Analyst:',
+    '读取交易对数量：' + Number(
+      step.value && Array.isArray(step.value.results)
+        ? step.value.results.length
+        : 0
+    ),
+  ];
+}
+
+function lifecycleLines(step) {
+  if (step.status === 'FAILED') {
+    return [
+      'Opportunity Lifecycle:',
+      '记录失败（' + errorText(step) + '）',
+    ];
+  }
+  return [
+    'Opportunity Lifecycle:',
+    '新增生命周期事件：' + Number(
+      step.value && Array.isArray(step.value.changes)
+        ? step.value.changes.length
+        : 0
+    ),
+  ];
+}
+
 function captureLines(step) {
   if (step.status === 'FAILED') {
     return [
@@ -121,6 +159,14 @@ function formatResult(result) {
     ),
     '',
   ];
+  if (steps.watchlistReport) {
+    lines = lines.concat(watchlistLines(steps.watchlistReport));
+    lines.push('');
+  }
+  if (steps.lifecycleRecorder) {
+    lines = lines.concat(lifecycleLines(steps.lifecycleRecorder));
+    lines.push('');
+  }
   lines = lines.concat(captureLines(steps.capture));
   lines.push('');
   lines = lines.concat(outcomeLines(steps.outcomeUpdate));
@@ -138,10 +184,62 @@ function formatResult(result) {
   return lines.join('\n');
 }
 
-function captureOptions(options, currentTime) {
+function watchlistOptions(options, currentTime) {
+  var result = copyObject(
+    options.watchlistOptions || options.captureOptions
+  );
+  setDefault(result, 'currentTime', currentTime);
+  setDefault(result, 'limit', options.limit);
+  setDefault(result, 'marketData', options.marketData);
+  setDefault(result, 'watchlistPath', options.watchlistPath);
+  setDefault(result, 'watchlistLoader', options.watchlistLoader);
+  setDefault(
+    result,
+    'symbolAvailabilityChecker',
+    options.symbolAvailabilityChecker
+  );
+  setDefault(result, 'exchangeInfoApi', options.exchangeInfoApi);
+  result.output = function () {};
+  return result;
+}
+
+function analysisValue(step, currentTime) {
+  if (
+    step &&
+    step.status === 'SUCCESS' &&
+    step.value &&
+    Array.isArray(step.value.results)
+  ) {
+    return step.value;
+  }
+  return {
+    currentTime: currentTime,
+    results: [],
+  };
+}
+
+function lifecycleOptions(options, currentTime, analysis) {
+  var result = copyObject(options.lifecycleOptions);
+  setDefault(result, 'recordedAt', currentTime);
+  setDefault(result, 'store', options.lifecycleStore);
+  setDefault(
+    result,
+    'lifecycleFilePath',
+    options.lifecycleFilePath
+  );
+  result.results = analysis.results;
+  return result;
+}
+
+function captureOptions(options, currentTime, analysis) {
   var result = copyObject(options.captureOptions);
   setDefault(result, 'currentTime', currentTime);
   setDefault(result, 'casesDirectory', options.casesDirectory);
+  result.watchlistAnalyst = {
+    run: function () {
+      return Promise.resolve(analysis);
+    },
+  };
   result.output = function () {};
   return result;
 }
@@ -175,6 +273,12 @@ function run(options) {
   var output = typeof options.output === 'function'
     ? options.output
     : console.log;
+  var watchlistRunner = options.watchlistRunner ||
+    options.watchlistAnalyst ||
+    WatchlistAnalystRunner;
+  var lifecycleRunner = options.lifecycleRunner ||
+    options.lifecycleRecorder ||
+    LifecycleRecorder;
   var captureRunner = options.captureRunner ||
     AutoCaptureRunner;
   var outcomeRunner = options.outcomeRunner || OutcomeRunner;
@@ -183,13 +287,33 @@ function run(options) {
   var researchRunner = options.researchRunner ||
     ResearchRunner;
   var steps = {};
+  var analysis;
 
   return executeStep(function () {
     return invoke(
-      captureRunner,
+      watchlistRunner,
       'run',
-      captureOptions(options, currentTime)
+      watchlistOptions(options, currentTime)
     );
+  }).then(function (watchlistReport) {
+    steps.watchlistReport = watchlistReport;
+    analysis = analysisValue(watchlistReport, currentTime);
+    return executeStep(function () {
+      return invoke(
+        lifecycleRunner,
+        'recordResults',
+        lifecycleOptions(options, currentTime, analysis)
+      );
+    });
+  }).then(function (lifecycleRecorder) {
+    steps.lifecycleRecorder = lifecycleRecorder;
+    return executeStep(function () {
+      return invoke(
+        captureRunner,
+        'run',
+        captureOptions(options, currentTime, analysis)
+      );
+    });
   }).then(function (capture) {
     steps.capture = capture;
     return executeStep(function () {
@@ -238,12 +362,18 @@ if (require.main === module) {
 }
 
 module.exports = {
+  analysisValue: analysisValue,
   captureLines: captureLines,
+  captureOptions: captureOptions,
   executeStep: executeStep,
   formatResult: formatResult,
   generationLines: generationLines,
   invoke: invoke,
+  lifecycleLines: lifecycleLines,
+  lifecycleOptions: lifecycleOptions,
   normalizeTime: normalizeTime,
   outcomeLines: outcomeLines,
   run: run,
+  watchlistLines: watchlistLines,
+  watchlistOptions: watchlistOptions,
 };

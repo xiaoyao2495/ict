@@ -27,6 +27,30 @@ function goldenCase() {
       symbol: 'BTCUSDT',
       h4Bias: { bias: 'BULLISH' },
     },
+    decisionGate: {
+      state: 'READY_OBSERVATION',
+      direction: 'BULLISH',
+      activeOpportunity: {
+        id: 'BULLISH|PDL|99',
+        direction: 'BULLISH',
+        liquidityType: 'PDL',
+        price: 99,
+      },
+      progress: {
+        sweepCompleted: true,
+        mssCompleted: true,
+        displacementCompleted: true,
+        strictConfirmationCompleted: true,
+      },
+      sourceState: { h4Bias: 'BULLISH' },
+      blockers: [],
+      reasonCode: 'STRICT_CONFIRMATION_COMPLETED',
+      transition: {
+        changed: true,
+        from: 'CONFIRMING',
+        to: 'READY_OBSERVATION',
+      },
+    },
     outcome: {
       trackingStatus: 'TRACKING',
       oneRAt: null,
@@ -180,6 +204,7 @@ test('review update preserves snapshot and outcome exactly', function () {
   var source = goldenCase();
   var snapshotBefore = JSON.stringify(source.snapshot);
   var outcomeBefore = JSON.stringify(source.outcome);
+  var gateBefore = JSON.stringify(source.decisionGate);
   var result = ReviewScore.applyReview(source, review(), {
     currentTime: FIRST_REVIEW_TIME,
   });
@@ -192,8 +217,16 @@ test('review update preserves snapshot and outcome exactly', function () {
     JSON.stringify(result.caseData.outcome),
     outcomeBefore
   );
+  assert.strictEqual(
+    JSON.stringify(result.caseData.decisionGate),
+    gateBefore
+  );
   assert.strictEqual(JSON.stringify(source.snapshot), snapshotBefore);
   assert.strictEqual(JSON.stringify(source.outcome), outcomeBefore);
+  assert.strictEqual(
+    JSON.stringify(source.decisionGate),
+    gateBefore
+  );
   assert.strictEqual(hasOwn(source, 'review'), false);
 });
 

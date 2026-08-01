@@ -183,10 +183,18 @@ test('legacy Golden Case without snapshot reads snapshot as null', function () {
   }).then(function (loaded) {
     assert.strictEqual(loaded.snapshot, null);
     assert.strictEqual(loaded.snapshotVersion, null);
+    assert.strictEqual(loaded.decisionGate, null);
     assert.strictEqual(loaded.symbol, 'ETHUSDT');
     assert.deepStrictEqual(loaded.htfBias, { bias: 'BEARISH' });
     assert.strictEqual(
       Object.prototype.hasOwnProperty.call(legacy, 'snapshot'),
+      false
+    );
+    assert.strictEqual(
+      Object.prototype.hasOwnProperty.call(
+        legacy,
+        'decisionGate'
+      ),
       false
     );
   }).finally(function () {

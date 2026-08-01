@@ -168,6 +168,23 @@ function reportVersionFrom(report) {
   return valueOrNull(report.reportVersion || report.version);
 }
 
+function decisionGateFrom(current) {
+  var gate = isObject(current.decisionGate)
+    ? current.decisionGate
+    : null;
+  if (!gate) return null;
+  return {
+    state: valueOrNull(gate.state),
+    direction: valueOrNull(gate.direction),
+    activeOpportunity: valueOrNull(gate.activeOpportunity),
+    progress: valueOrNull(gate.progress),
+    sourceState: valueOrNull(gate.sourceState),
+    blockers: valueOrNull(gate.blockers),
+    reasonCode: valueOrNull(gate.reasonCode),
+    transition: valueOrNull(gate.transition),
+  };
+}
+
 function buildSnapshot(options, report, current, timestamp) {
   var h4 = isObject(current.fourHourAnalysis)
     ? current.fourHourAnalysis
@@ -238,6 +255,7 @@ function buildCase(options) {
     createdAt: new Date(timestamp).toISOString(),
     analysisVersion: clone(ANALYSIS_VERSION),
     snapshotVersion: '1',
+    decisionGate: decisionGateFrom(current),
     snapshot: buildSnapshot(
       options,
       report,
@@ -376,6 +394,12 @@ function normalizeCase(caseData) {
   }
   if (!Object.prototype.hasOwnProperty.call(
     normalized,
+    'decisionGate'
+  )) {
+    normalized.decisionGate = null;
+  }
+  if (!Object.prototype.hasOwnProperty.call(
+    normalized,
     'snapshotVersion'
   )) {
     normalized.snapshotVersion = null;
@@ -484,6 +508,7 @@ module.exports = {
   beijingDate: beijingDate,
   buildCase: buildCase,
   buildSnapshot: buildSnapshot,
+  decisionGateFrom: decisionGateFrom,
   normalizeCase: normalizeCase,
   readCase: readCase,
   recordCase: recordCase,
