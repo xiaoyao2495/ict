@@ -492,6 +492,52 @@ function formatDecisionGateTransition(change) {
   ].join('\n');
 }
 
+function progressMark(completed, label) {
+  return (completed ? '✓ ' : '□ ') + label;
+}
+
+function progressWaitingText(progress) {
+  if (!progress.sweepCompleted) {
+    return 'Sweep → MSS → Displacement';
+  }
+  if (!progress.mssCompleted) {
+    return 'MSS → Displacement';
+  }
+  if (!progress.displacementCompleted) {
+    return 'Displacement';
+  }
+  if (!progress.strictConfirmationCompleted) {
+    return 'Strict Confirmation';
+  }
+  return '完整确认已完成';
+}
+
+function formatDecisionGateProgress(change) {
+  const transition = change && change.decisionGateProgress;
+  if (!transition || transition.changed !== true) return null;
+  const progress = transition.current || {};
+  return [
+    change.symbol || '--',
+    '',
+    '事件推进：',
+    '',
+    transition.state || 'UNKNOWN',
+    '',
+    'Progress:',
+    '',
+    progressMark(progress.sweepCompleted, 'Sweep'),
+    progressMark(progress.mssCompleted, 'MSS'),
+    progressMark(
+      progress.displacementCompleted,
+      'Displacement'
+    ),
+    '',
+    '等待：',
+    '',
+    progressWaitingText(progress),
+  ].join('\n');
+}
+
 function formatNotificationChange(report, reasons, change) {
   const current = currentOf(report);
   const input = dashboardInput(current);
@@ -499,6 +545,11 @@ function formatNotificationChange(report, reasons, change) {
     formatDecisionGateTransition(change);
   if (decisionGateTransition) {
     return decisionGateTransition;
+  }
+  const decisionGateProgress =
+    formatDecisionGateProgress(change);
+  if (decisionGateProgress) {
+    return decisionGateProgress;
   }
   const changeReasons = Array.isArray(reasons)
     ? reasons
@@ -634,12 +685,15 @@ module.exports = {
   ensureStructurePhaseSection,
   format,
   formatDecisionGateTransition,
+  formatDecisionGateProgress,
   formatNotificationChange,
   manualView,
   mssText,
   opportunityChangeText,
   potentialText,
   positionContextLines,
+  progressMark,
+  progressWaitingText,
   primaryDrawText,
   eventTimeText,
   latestSweep,

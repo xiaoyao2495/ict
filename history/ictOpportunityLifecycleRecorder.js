@@ -2,6 +2,11 @@
 
 var fs = require('fs');
 var path = require('path');
+var OpportunityIdentity = require(
+  '../indicators/ictOpportunityIdentityV2'
+);
+
+var STATE_VERSION = 2;
 
 var DEFAULT_LIFECYCLE_PATH = path.resolve(
   __dirname,
@@ -30,7 +35,7 @@ function clone(value) {
 
 function emptyState() {
   return {
-    version: 1,
+    version: STATE_VERSION,
     symbols: {},
   };
 }
@@ -64,28 +69,53 @@ function normalizeTimestamp(value, fallback) {
 }
 
 function opportunityId(activeOpportunity) {
-  var direction;
-  var liquidityType;
-  var price;
-  if (!isObject(activeOpportunity)) return null;
-  direction = activeOpportunity.direction;
-  liquidityType = activeOpportunity.liquidityType;
-  price = activeOpportunity.price;
-  if (
-    direction !== 'BULLISH' &&
-    direction !== 'BEARISH'
-  ) {
-    return null;
-  }
-  if (
-    typeof liquidityType !== 'string' ||
-    !liquidityType ||
-    typeof price !== 'number' ||
-    !isFinite(price)
-  ) {
-    return null;
-  }
-  return [direction, liquidityType, String(price)].join('|');
+  return OpportunityIdentity.rawOpportunityId(activeOpportunity);
+}
+
+function normalizeProgress(value) {
+  value = isObject(value) ? value : {};
+  return {
+    sweepCompleted: value.sweepCompleted === true,
+    mssCompleted: value.mssCompleted === true,
+    displacementCompleted:
+      value.displacementCompleted === true,
+    strictConfirmationCompleted:
+      value.strictConfirmationCompleted === true,
+  };
+}
+
+function mergeProgress(previous, current) {
+  previous = normalizeProgress(previous);
+  current = normalizeProgress(current);
+  return {
+    sweepCompleted:
+      previous.sweepCompleted || current.sweepCompleted,
+    mssCompleted:
+      previous.mssCompleted || current.mssCompleted,
+    displacementCompleted:
+      previous.displacementCompleted ||
+      current.displacementCompleted,
+    strictConfirmationCompleted:
+      previous.strictConfirmationCompleted ||
+      current.strictConfirmationCompleted,
+  };
+}
+
+function progressAdvanced(previous, current) {
+  previous = normalizeProgress(previous);
+  current = normalizeProgress(current);
+  return (
+    (!previous.sweepCompleted && current.sweepCompleted) ||
+    (!previous.mssCompleted && current.mssCompleted) ||
+    (
+      !previous.displacementCompleted &&
+      current.displacementCompleted
+    ) ||
+    (
+      !previous.strictConfirmationCompleted &&
+      current.strictConfirmationCompleted
+    )
+  );
 }
 
 function normalizeEvent(value, fallbackTimestamp) {
@@ -116,12 +146,125 @@ function normalizeEvent(value, fallbackTimestamp) {
   };
 }
 
+function normalizeAuditEvent(value, fallbackTimestamp) {
+  var event = normalizeEvent(value, fallbackTimestamp);
+  if (!event) return null;
+  return {
+    timestamp: event.timestamp,
+    from: event.from,
+    to: event.to,
+    reasonCode: event.reasonCode,
+    rawOpportunityId:
+      typeof value.rawOpportunityId === 'string'
+        ? value.rawOpportunityId
+        : opportunityId(event.activeOpportunity),
+    canonicalZoneId:
+      typeof value.canonicalZoneId === 'string'
+        ? value.canonicalZoneId
+        : null,
+    sameZone: value.sameZone === true,
+    identityReason:
+      typeof value.identityReason === 'string'
+        ? value.identityReason
+        : null,
+    activeOpportunity: event.activeOpportunity,
+    progress: event.progress,
+  };
+}
+
+function opportunityFromId(value) {
+  var parts;
+  var price;
+  if (typeof value !== 'string') return null;
+  parts = value.split('|');
+  if (parts.length < 3) return null;
+  price = Number(parts[2]);
+  return OpportunityIdentity.normalizeOpportunity({
+    direction: parts[0],
+    liquidityType: parts[1],
+    price: price,
+  });
+}
+
+function firstRecordOpportunity(value, events, id) {
+  var source;
+  if (isObject(value.identity)) {
+    source = {
+      direction: value.identity.direction,
+      liquidityType: value.identity.liquidityType,
+      price: value.identity.anchorPrice,
+    };
+    if (OpportunityIdentity.normalizeOpportunity(source)) {
+      return source;
+    }
+  }
+  if (events.length > 0) {
+    source = events[0].activeOpportunity;
+    if (OpportunityIdentity.normalizeOpportunity(source)) {
+      return source;
+    }
+  }
+  return opportunityFromId(id);
+}
+
+function normalizeIdentity(value, opportunity, createdAt) {
+  var source = isObject(value) && isObject(value.identity)
+    ? value.identity
+    : null;
+  var normalized;
+  if (source) {
+    normalized = OpportunityIdentity.previousZone(source);
+    if (normalized) return normalized;
+  }
+  if (!OpportunityIdentity.normalizeOpportunity(opportunity)) {
+    return null;
+  }
+  return OpportunityIdentity.resolve({
+    opportunity: opportunity,
+    observedAt: createdAt,
+    tolerancePercent: isObject(value)
+      ? value.tolerancePercent
+      : undefined,
+    toleranceSource: isObject(value)
+      ? value.toleranceSource
+      : undefined,
+    maxZoneAgeMs: isObject(value)
+      ? value.maxZoneAgeMs
+      : undefined,
+  });
+}
+
+function appendUnique(values, value) {
+  var result = Array.isArray(values) ? values.slice() : [];
+  if (typeof value === 'string' && result.indexOf(value) < 0) {
+    result.push(value);
+  }
+  return result;
+}
+
+function rawIdsFromEvents(events, seed) {
+  var ids = Array.isArray(seed) ? seed.slice() : [];
+  events.forEach(function (event) {
+    ids = appendUnique(
+      ids,
+      opportunityId(event.activeOpportunity)
+    );
+  });
+  return ids;
+}
+
 function normalizeRecord(value, fallbackSymbol) {
   var symbol;
   var events;
+  var auditEvents;
   var id;
+  var canonicalZoneId;
   var createdAt;
   var currentState;
+  var opportunity;
+  var identity;
+  var rawOpportunityIds;
+  var progress;
   if (!isObject(value)) return null;
   symbol = normalizeSymbol(value.symbol || fallbackSymbol);
   if (!symbol) return null;
@@ -146,16 +289,57 @@ function normalizeRecord(value, fallbackSymbol) {
     events.length > 0 ? events[0].timestamp : null
   );
   if (!createdAt) return null;
+  canonicalZoneId = typeof value.canonicalZoneId === 'string' &&
+    value.canonicalZoneId
+    ? value.canonicalZoneId
+    : id;
+  opportunity = firstRecordOpportunity(value, events, id);
+  identity = normalizeIdentity(value, opportunity, createdAt);
+  if (identity && identity.zoneId !== canonicalZoneId) {
+    identity.zoneId = canonicalZoneId;
+    identity.canonicalZoneId = canonicalZoneId;
+  }
+  rawOpportunityIds = rawIdsFromEvents(
+    events,
+    Array.isArray(value.rawOpportunityIds)
+      ? value.rawOpportunityIds
+      : []
+  );
+  if (identity) {
+    identity.rawOpportunityIds.forEach(function (rawId) {
+      rawOpportunityIds = appendUnique(rawOpportunityIds, rawId);
+    });
+  }
+  rawOpportunityIds = appendUnique(rawOpportunityIds, id);
+  auditEvents = Array.isArray(value.auditEvents)
+    ? value.auditEvents.map(function (event) {
+      return normalizeAuditEvent(event, createdAt);
+    }).filter(function (event) {
+      return event !== null;
+    })
+    : [];
   currentState = typeof value.currentState === 'string'
     ? value.currentState
     : events.length > 0
       ? events[events.length - 1].to
       : null;
+  progress = normalizeProgress(
+    value.progress || (
+      events.length > 0
+        ? events[events.length - 1].progress
+        : null
+    )
+  );
   return {
     opportunityId: id,
+    canonicalZoneId: canonicalZoneId,
     symbol: symbol,
     createdAt: createdAt,
     events: events,
+    auditEvents: auditEvents,
+    rawOpportunityIds: rawOpportunityIds,
+    identity: identity,
+    progress: progress,
     currentState: currentState,
     completed: value.completed === true,
   };
@@ -250,6 +434,7 @@ function extractTransition(input, recordedAt) {
       : null;
   var transition;
   var timestamp;
+  var identityOpportunity;
   var symbol = inputSymbol(input);
   if (!symbol || !gate || !isObject(gate.transition)) {
     return null;
@@ -266,10 +451,16 @@ function extractTransition(input, recordedAt) {
     recordedAt
   );
   if (!timestamp) return null;
+  identityOpportunity = OpportunityIdentity.normalizeOpportunity(
+    gate.activeOpportunity
+  ) || OpportunityIdentity.normalizeOpportunity(
+    isObject(current) ? current.opportunity : null
+  );
   return {
     symbol: symbol,
     state: gate.state,
     opportunityId: opportunityId(gate.activeOpportunity),
+    identityOpportunity: identityOpportunity,
     event: {
       timestamp: timestamp,
       from: typeof transition.from === 'string'
@@ -304,34 +495,115 @@ function sameTransition(left, right) {
   );
 }
 
+function sameAuditEvent(left, right) {
+  if (!left || !right) return false;
+  return (
+    left.from === right.from &&
+    left.to === right.to &&
+    left.reasonCode === right.reasonCode &&
+    left.rawOpportunityId === right.rawOpportunityId &&
+    left.canonicalZoneId === right.canonicalZoneId &&
+    JSON.stringify(left.activeOpportunity) ===
+      JSON.stringify(right.activeOpportunity) &&
+    JSON.stringify(left.progress) ===
+      JSON.stringify(right.progress)
+  );
+}
+
+function createAuditEvent(event, identity, rawId) {
+  return {
+    timestamp: event.timestamp,
+    from: event.from,
+    to: event.to,
+    reasonCode: event.reasonCode,
+    rawOpportunityId: rawId,
+    canonicalZoneId: identity ? identity.zoneId : null,
+    sameZone: identity ? identity.sameZone === true : false,
+    identityReason: identity ? identity.reason : null,
+    activeOpportunity: clone(event.activeOpportunity),
+    progress: clone(event.progress),
+  };
+}
+
+function appendAuditEvent(events, event) {
+  var result = Array.isArray(events) ? events.slice() : [];
+  var previous = result.length > 0
+    ? result[result.length - 1]
+    : null;
+  if (!sameAuditEvent(previous, event)) {
+    result.push(clone(event));
+  }
+  return result;
+}
+
+function resolveIdentity(opportunity, record, timestamp) {
+  if (!OpportunityIdentity.normalizeOpportunity(opportunity)) {
+    return null;
+  }
+  return OpportunityIdentity.resolve({
+    opportunity: opportunity,
+    previousIdentity: record ? record.identity : null,
+    observedAt: timestamp,
+  });
+}
+
+function lifecycleId(symbolState, identity, timestamp) {
+  var base = identity.zoneId;
+  var suffix;
+  var candidate;
+  if (!symbolState.opportunities[base]) return base;
+  suffix = normalizeTimestamp(timestamp, timestamp) || 'NEW';
+  candidate = base + '@' + suffix;
+  while (symbolState.opportunities[candidate]) {
+    candidate += '@NEW';
+  }
+  return candidate;
+}
+
+function stateRank(value) {
+  if (value === 'WATCH_ZONE') return 1;
+  if (value === 'CONFIRMING') return 2;
+  if (value === 'READY_OBSERVATION') return 3;
+  return 0;
+}
+
+function monotonicState(previous, current) {
+  if (!previous) return current;
+  if (current === 'INVALIDATED') return current;
+  return stateRank(current) < stateRank(previous)
+    ? previous
+    : current;
+}
+
 function applyTransition(rawState, input, recordedAt) {
   var state = normalizeState(rawState);
   var extracted = extractTransition(input, recordedAt);
   var symbolState;
+  var currentId;
+  var currentRecord;
+  var identity;
+  var rawId;
   var id;
   var record;
   var events;
   var previousEvent;
+  var auditEvent;
+  var auditEvents;
+  var mergedProgress;
+  var canonicalState;
+  var canonicalEvent;
+  var canonicalChanged;
+  var auditChanged;
   if (!extracted) {
     return {
       changed: false,
       state: state,
       record: null,
       event: null,
+      auditEvent: null,
     };
   }
   symbolState = state.symbols[extracted.symbol];
-  id = extracted.opportunityId || (
-    symbolState ? symbolState.currentOpportunityId : null
-  );
-  if (!id) {
-    return {
-      changed: false,
-      state: state,
-      record: null,
-      event: null,
-    };
-  }
   if (!symbolState) {
     symbolState = {
       currentOpportunityId: null,
@@ -339,47 +611,181 @@ function applyTransition(rawState, input, recordedAt) {
     };
     state.symbols[extracted.symbol] = symbolState;
   }
+  currentId = symbolState.currentOpportunityId;
+  currentRecord = currentId
+    ? symbolState.opportunities[currentId]
+    : null;
+  identity = resolveIdentity(
+    extracted.identityOpportunity,
+    currentRecord,
+    extracted.event.timestamp
+  );
+  rawId = extracted.opportunityId || opportunityId(
+    extracted.identityOpportunity
+  );
+
+  if (
+    extracted.state === 'INVALIDATED' &&
+    extracted.event.reasonCode === 'OPPORTUNITY_REPLACED' &&
+    currentRecord &&
+    identity &&
+    identity.sameZone
+  ) {
+    auditEvent = createAuditEvent(
+      extracted.event,
+      identity,
+      rawId
+    );
+    auditEvents = appendAuditEvent(
+      currentRecord.auditEvents,
+      auditEvent
+    );
+    auditChanged = auditEvents.length !==
+      currentRecord.auditEvents.length;
+    record = {
+      opportunityId: currentRecord.opportunityId,
+      canonicalZoneId: currentRecord.canonicalZoneId,
+      symbol: currentRecord.symbol,
+      createdAt: currentRecord.createdAt,
+      events: currentRecord.events.slice(),
+      auditEvents: auditEvents,
+      rawOpportunityIds: identity.rawOpportunityIds.slice(),
+      identity: identity,
+      progress: mergeProgress(
+        currentRecord.progress,
+        extracted.event.progress
+      ),
+      currentState: currentRecord.currentState,
+      completed: false,
+    };
+    symbolState.opportunities[currentId] = record;
+    symbolState.currentOpportunityId = currentId;
+    return {
+      changed: auditChanged,
+      canonicalChanged: false,
+      state: state,
+      record: clone(record),
+      event: null,
+      auditEvent: auditChanged ? clone(auditEvent) : null,
+    };
+  }
+
+  if (extracted.state === 'INVALIDATED') {
+    id = currentId;
+    identity = currentRecord ? currentRecord.identity : null;
+  } else if (identity && currentRecord && identity.sameZone) {
+    id = currentId;
+  } else if (identity) {
+    id = lifecycleId(
+      symbolState,
+      identity,
+      extracted.event.timestamp
+    );
+  } else {
+    id = extracted.opportunityId || currentId;
+  }
+  if (!id) {
+    return {
+      changed: false,
+      canonicalChanged: false,
+      state: state,
+      record: null,
+      event: null,
+      auditEvent: null,
+    };
+  }
   record = symbolState.opportunities[id];
   if (!record) {
     record = {
       opportunityId: id,
+      canonicalZoneId: identity ? identity.zoneId : id,
       symbol: extracted.symbol,
       createdAt: extracted.event.timestamp,
       events: [],
+      auditEvents: [],
+      rawOpportunityIds: [],
+      identity: identity,
+      progress: normalizeProgress(null),
       currentState: extracted.state,
       completed: false,
     };
   }
+  if (!identity) identity = record.identity;
+  rawId = rawId || (
+    identity ? identity.rawOpportunityId : null
+  );
+  auditEvent = createAuditEvent(
+    extracted.event,
+    identity,
+    rawId
+  );
+  auditEvents = appendAuditEvent(record.auditEvents, auditEvent);
+  auditChanged = auditEvents.length !== record.auditEvents.length;
+  mergedProgress = mergeProgress(
+    record.progress,
+    extracted.event.progress
+  );
+  canonicalState = monotonicState(
+    record.events.length > 0 ? record.currentState : null,
+    extracted.state
+  );
   events = record.events.slice();
   previousEvent = events.length > 0
     ? events[events.length - 1]
     : null;
-  if (sameTransition(previousEvent, extracted.event)) {
-    return {
-      changed: false,
-      state: state,
-      record: clone(record),
-      event: null,
-    };
+  canonicalChanged = (
+    events.length === 0 ||
+    record.currentState !== canonicalState ||
+    progressAdvanced(record.progress, mergedProgress)
+  );
+  canonicalEvent = {
+    timestamp: extracted.event.timestamp,
+    from: events.length > 0
+      ? record.currentState
+      : extracted.event.from,
+    to: canonicalState,
+    reasonCode: extracted.event.reasonCode,
+    activeOpportunity: clone(
+      extracted.event.activeOpportunity
+    ),
+    progress: clone(mergedProgress),
+  };
+  if (
+    canonicalChanged &&
+    !sameTransition(previousEvent, canonicalEvent)
+  ) {
+    events.push(clone(canonicalEvent));
+  } else {
+    canonicalChanged = false;
   }
-  events.push(clone(extracted.event));
   record = {
     opportunityId: record.opportunityId,
+    canonicalZoneId: identity
+      ? identity.zoneId
+      : record.canonicalZoneId,
     symbol: record.symbol,
     createdAt: record.createdAt,
     events: events,
-    currentState: extracted.state,
-    completed: extracted.state === 'INVALIDATED',
+    auditEvents: auditEvents,
+    rawOpportunityIds: identity
+      ? identity.rawOpportunityIds.slice()
+      : appendUnique(record.rawOpportunityIds, rawId),
+    identity: identity,
+    progress: mergedProgress,
+    currentState: canonicalState,
+    completed: canonicalState === 'INVALIDATED',
   };
   symbolState.opportunities[id] = record;
   symbolState.currentOpportunityId = record.completed
     ? null
     : id;
   return {
-    changed: true,
+    changed: canonicalChanged || auditChanged,
+    canonicalChanged: canonicalChanged,
     state: state,
     record: clone(record),
-    event: clone(extracted.event),
+    event: canonicalChanged ? clone(canonicalEvent) : null,
+    auditEvent: auditChanged ? clone(auditEvent) : null,
   };
 }
 
@@ -406,7 +812,10 @@ function recordResults(options) {
       changes.push({
         symbol: applied.record.symbol,
         opportunityId: applied.record.opportunityId,
+        canonicalZoneId: applied.record.canonicalZoneId,
+        canonicalChanged: applied.canonicalChanged === true,
         event: applied.event,
+        auditEvent: applied.auditEvent,
         record: applied.record,
       });
     });
@@ -498,17 +907,24 @@ function createFileStore(filePath) {
 
 module.exports = {
   DEFAULT_LIFECYCLE_PATH: DEFAULT_LIFECYCLE_PATH,
+  STATE_VERSION: STATE_VERSION,
   SUPPORTED_STATES: clone(SUPPORTED_STATES),
+  appendAuditEvent: appendAuditEvent,
   applyTransition: applyTransition,
   createFileStore: createFileStore,
   createMemoryStore: createMemoryStore,
   emptyState: emptyState,
   extractTransition: extractTransition,
   normalizeEvent: normalizeEvent,
+  normalizeAuditEvent: normalizeAuditEvent,
+  normalizeProgress: normalizeProgress,
   normalizeRecord: normalizeRecord,
   normalizeState: normalizeState,
   normalizeTimestamp: normalizeTimestamp,
   opportunityId: opportunityId,
+  mergeProgress: mergeProgress,
+  progressAdvanced: progressAdvanced,
   recordResults: recordResults,
+  sameAuditEvent: sameAuditEvent,
   sameTransition: sameTransition,
 };

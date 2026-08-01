@@ -7,6 +7,9 @@ const path = require('path');
 const Filter = require(
   '../notifications/ictWatchlistNotificationFilter'
 );
+const ChineseFormatter = require(
+  '../formatters/ictAnalystChineseFormatter'
+);
 
 const tests = [];
 let testsPassed = 0;
@@ -170,7 +173,10 @@ test('first symbol state sends once', () => {
     decision.nextState.symbols.BTCUSDT.symbol,
     'BTCUSDT'
   );
-  assert.strictEqual(decision.nextState.version, 6);
+  assert.strictEqual(
+    decision.nextState.version,
+    Filter.STATE_VERSION
+  );
 });
 
 test('Decision Gate WAITING transitions to WATCH_ZONE', () => {
@@ -429,6 +435,585 @@ test('ordinary fields cannot notify while Gate is unchanged', () => {
 
   assert.strictEqual(unchanged.shouldNotify, false);
   assert.deepStrictEqual(unchanged.changes, []);
+});
+
+test('WATCH_ZONE Sweep false to true sends progress notification', () => {
+  const opportunity = {
+    direction: 'BULLISH',
+    liquidityType: 'EQUAL_LOW',
+    price: 62782,
+  };
+  const initial = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate('WATCH_ZONE', null, {
+        activeOpportunity: opportunity,
+      }),
+    }),
+  ], null);
+  const changed = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate(
+        'WATCH_ZONE',
+        'WATCH_ZONE',
+        {
+          changed: true,
+          activeOpportunity: opportunity,
+          progress: { sweepCompleted: true },
+          reasonCode: 'SWEEP_COMPLETED',
+        }
+      ),
+    }),
+  ], committed(initial));
+
+  assert.strictEqual(changed.shouldNotify, true);
+  assert.deepStrictEqual(changed.changes[0].reasons, [
+    'DECISION_GATE_PROGRESS',
+  ]);
+  assert.strictEqual(
+    changed.changes[0].notificationType,
+    'DECISION_GATE_PROGRESS'
+  );
+  assert.strictEqual(
+    changed.changes[0].decisionGateTransition,
+    null
+  );
+  assert.deepStrictEqual(
+    changed.changes[0].decisionGateProgress.completedFields,
+    ['sweepCompleted']
+  );
+  assert.strictEqual(
+    changed.nextState.symbols.BTCUSDT
+      .previousDecisionGateProgress.sweepCompleted,
+    true
+  );
+
+  const text = ChineseFormatter.formatNotificationChange(
+    changed.changes[0].result.report,
+    changed.changes[0].reasons,
+    changed.changes[0]
+  );
+  assert.ok(text.includes('事件推进：\n\nWATCH_ZONE'));
+  assert.ok(text.includes('✓ Sweep'));
+  assert.ok(text.includes('□ MSS'));
+  assert.ok(text.includes('等待：\n\nMSS → Displacement'));
+});
+
+test('CONFIRMING MSS false to true sends progress notification', () => {
+  const opportunity = {
+    direction: 'BULLISH',
+    liquidityType: 'PDL',
+    price: 62000,
+  };
+  const initial = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate('CONFIRMING', null, {
+        activeOpportunity: opportunity,
+        progress: { sweepCompleted: true },
+      }),
+    }),
+  ], null);
+  const changed = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate(
+        'CONFIRMING',
+        'CONFIRMING',
+        {
+          changed: true,
+          activeOpportunity: opportunity,
+          progress: {
+            sweepCompleted: true,
+            mssCompleted: true,
+          },
+          reasonCode: 'MSS_COMPLETED',
+        }
+      ),
+    }),
+  ], committed(initial));
+
+  assert.deepStrictEqual(changed.changes[0].reasons, [
+    'DECISION_GATE_PROGRESS',
+  ]);
+  assert.deepStrictEqual(
+    changed.changes[0].decisionGateProgress.completedFields,
+    ['mssCompleted']
+  );
+  const text = ChineseFormatter.formatNotificationChange(
+    changed.changes[0].result.report,
+    changed.changes[0].reasons,
+    changed.changes[0]
+  );
+  assert.ok(text.includes('事件推进：\n\nCONFIRMING'));
+  assert.ok(text.includes('✓ Sweep'));
+  assert.ok(text.includes('✓ MSS'));
+  assert.ok(text.includes('□ Displacement'));
+  assert.ok(text.includes('等待：\n\nDisplacement'));
+});
+
+test('CONFIRMING Displacement false to true sends progress notification', () => {
+  const opportunity = {
+    direction: 'BEARISH',
+    liquidityType: 'EQUAL_HIGH',
+    price: 67000,
+  };
+  const initial = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate('CONFIRMING', null, {
+        direction: 'BEARISH',
+        activeOpportunity: opportunity,
+        progress: {
+          sweepCompleted: true,
+          mssCompleted: true,
+        },
+      }),
+    }),
+  ], null);
+  const changed = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate(
+        'CONFIRMING',
+        'CONFIRMING',
+        {
+          changed: true,
+          direction: 'BEARISH',
+          activeOpportunity: opportunity,
+          progress: {
+            sweepCompleted: true,
+            mssCompleted: true,
+            displacementCompleted: true,
+          },
+        }
+      ),
+    }),
+  ], committed(initial));
+
+  assert.deepStrictEqual(
+    changed.changes[0].decisionGateProgress.completedFields,
+    ['displacementCompleted']
+  );
+});
+
+test('unchanged and true to false progress do not notify', () => {
+  const gate = decisionGate('CONFIRMING', null, {
+    progress: {
+      sweepCompleted: true,
+      mssCompleted: true,
+    },
+  });
+  const initial = Filter.evaluate([
+    result('BTCUSDT', { decisionGate: gate }),
+  ], null);
+  const unchanged = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate(
+        'CONFIRMING',
+        'CONFIRMING',
+        {
+          changed: false,
+          progress: {
+            sweepCompleted: true,
+            mssCompleted: true,
+          },
+        }
+      ),
+    }),
+  ], committed(initial));
+  const reset = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate(
+        'CONFIRMING',
+        'CONFIRMING',
+        {
+          changed: true,
+          progress: {
+            sweepCompleted: true,
+            mssCompleted: false,
+          },
+        }
+      ),
+    }),
+  ], committed(initial));
+
+  assert.strictEqual(unchanged.shouldNotify, false);
+  assert.strictEqual(reset.shouldNotify, false);
+});
+
+test('Gate price change without progress does not notify', () => {
+  const initial = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate('WATCH_ZONE', null, {
+        activeOpportunity: {
+          direction: 'BULLISH',
+          liquidityType: 'EQUAL_LOW',
+          price: 62782,
+        },
+      }),
+    }),
+  ], null);
+  const changedPrice = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate(
+        'WATCH_ZONE',
+        'WATCH_ZONE',
+        {
+          changed: true,
+          activeOpportunity: {
+            direction: 'BULLISH',
+            liquidityType: 'EQUAL_LOW',
+            price: 62790,
+          },
+        }
+      ),
+    }),
+  ], committed(initial));
+
+  assert.strictEqual(changedPrice.shouldNotify, false);
+  assert.deepStrictEqual(changedPrice.changes, []);
+});
+
+test('Notification State stores raw and canonical Zone identity', () => {
+  const initial = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate('WATCH_ZONE', null, {
+        activeOpportunity: {
+          direction: 'BULLISH',
+          liquidityType: 'EQUAL_LOW',
+          price: 62782,
+        },
+      }),
+    }),
+  ], null);
+  const state = initial.nextState.symbols.BTCUSDT;
+
+  assert.strictEqual(
+    state.activeZoneId,
+    'BULLISH|EQUAL_LOW|62782'
+  );
+  assert.strictEqual(
+    state.canonicalOpportunityId,
+    'BULLISH|EQUAL_LOW|62782'
+  );
+  assert.strictEqual(
+    state.rawOpportunityId,
+    'BULLISH|EQUAL_LOW|62782'
+  );
+  assert.strictEqual(state.opportunityIdentity.anchorPrice, 62782);
+});
+
+test('same Zone OPPORTUNITY_REPLACED does not notify', () => {
+  const initial = Filter.evaluate([
+    result('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'EQUAL_LOW',
+        price: 62782,
+      },
+      decisionGate: decisionGate('WATCH_ZONE', null, {
+        activeOpportunity: {
+          direction: 'BULLISH',
+          liquidityType: 'EQUAL_LOW',
+          price: 62782,
+        },
+      }),
+    }),
+  ], null);
+  const replacement = Filter.evaluate([
+    result('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        liquidityType: 'EQUAL_LOW',
+        price: 62861,
+      },
+      decisionGate: decisionGate(
+        'INVALIDATED',
+        'WATCH_ZONE',
+        {
+          activeOpportunity: null,
+          reasonCode: 'OPPORTUNITY_REPLACED',
+        }
+      ),
+    }),
+  ], committed(initial));
+
+  assert.strictEqual(replacement.shouldNotify, false);
+  assert.deepStrictEqual(replacement.changes, []);
+});
+
+test('same Zone re-entry does not regress CONFIRMING notification', () => {
+  const firstOpportunity = {
+    direction: 'BULLISH',
+    liquidityType: 'EQUAL_LOW',
+    price: 62782,
+  };
+  const nextOpportunity = {
+    ...firstOpportunity,
+    price: 62861,
+  };
+  const confirming = Filter.evaluate([
+    result('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        ...firstOpportunity,
+      },
+      decisionGate: decisionGate('CONFIRMING', null, {
+        activeOpportunity: firstOpportunity,
+        progress: { sweepCompleted: true },
+      }),
+    }),
+  ], null);
+  const replacement = Filter.evaluate([
+    result('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        ...nextOpportunity,
+      },
+      decisionGate: decisionGate(
+        'INVALIDATED',
+        'CONFIRMING',
+        {
+          activeOpportunity: null,
+          progress: { sweepCompleted: true },
+          reasonCode: 'OPPORTUNITY_REPLACED',
+        }
+      ),
+    }),
+  ], committed(confirming));
+  const reentered = Filter.evaluate([
+    result('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        ...nextOpportunity,
+      },
+      decisionGate: decisionGate(
+        'WATCH_ZONE',
+        'INVALIDATED',
+        {
+          activeOpportunity: nextOpportunity,
+          progress: { sweepCompleted: false },
+        }
+      ),
+    }),
+  ], committed(confirming));
+
+  assert.strictEqual(replacement.shouldNotify, false);
+  assert.strictEqual(reentered.shouldNotify, false);
+});
+
+test('SAME_ZONE_REPRICE remains silent across repeated prices', () => {
+  const opportunity = (price) => ({
+    direction: 'BULLISH',
+    liquidityType: 'EQUAL_LOW',
+    price,
+  });
+  const initial = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate('WATCH_ZONE', null, {
+        activeOpportunity: opportunity(62782),
+      }),
+    }),
+  ], null);
+  const second = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate(
+        'WATCH_ZONE',
+        'WATCH_ZONE',
+        {
+          changed: true,
+          activeOpportunity: opportunity(62861),
+        }
+      ),
+    }),
+  ], committed(initial));
+  const third = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate(
+        'WATCH_ZONE',
+        'WATCH_ZONE',
+        {
+          changed: true,
+          activeOpportunity: opportunity(62886),
+        }
+      ),
+    }),
+  ], committed(initial));
+
+  assert.strictEqual(second.shouldNotify, false);
+  assert.strictEqual(third.shouldNotify, false);
+});
+
+test('new Zone with unchanged Gate state notifies normally', () => {
+  const initial = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate('WATCH_ZONE', null, {
+        activeOpportunity: {
+          direction: 'BULLISH',
+          liquidityType: 'EQUAL_LOW',
+          price: 62782,
+        },
+      }),
+    }),
+  ], null);
+  const changed = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate(
+        'WATCH_ZONE',
+        'WATCH_ZONE',
+        {
+          changed: true,
+          activeOpportunity: {
+            direction: 'BULLISH',
+            liquidityType: 'EQUAL_LOW',
+            price: 62920,
+          },
+        }
+      ),
+    }),
+  ], committed(initial));
+
+  assert.strictEqual(changed.shouldNotify, true);
+  assert.deepStrictEqual(changed.changes[0].reasons, [
+    'DECISION_GATE_TRANSITION',
+  ]);
+  assert.strictEqual(
+    changed.changes[0].currentState.activeZoneId,
+    'BULLISH|EQUAL_LOW|62920'
+  );
+});
+
+test('same Zone reprice still allows progress rising notification', () => {
+  const initial = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate('WATCH_ZONE', null, {
+        activeOpportunity: {
+          direction: 'BULLISH',
+          liquidityType: 'EQUAL_LOW',
+          price: 62782,
+        },
+      }),
+    }),
+  ], null);
+  const changed = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate(
+        'WATCH_ZONE',
+        'WATCH_ZONE',
+        {
+          changed: true,
+          activeOpportunity: {
+            direction: 'BULLISH',
+            liquidityType: 'EQUAL_LOW',
+            price: 62861,
+          },
+          progress: { sweepCompleted: true },
+          reasonCode: 'SWEEP_COMPLETED',
+        }
+      ),
+    }),
+  ], committed(initial));
+
+  assert.strictEqual(changed.shouldNotify, true);
+  assert.deepStrictEqual(changed.changes[0].reasons, [
+    'DECISION_GATE_PROGRESS',
+  ]);
+  assert.strictEqual(
+    changed.changes[0].currentState.activeZoneId,
+    'BULLISH|EQUAL_LOW|62782'
+  );
+  assert.strictEqual(
+    changed.changes[0].currentState.rawOpportunityId,
+    'BULLISH|EQUAL_LOW|62861'
+  );
+});
+
+test('legacy V7 Gate state is upgraded with Zone identity', () => {
+  const opportunity = {
+    direction: 'BULLISH',
+    liquidityType: 'EQUAL_LOW',
+    price: 62782,
+  };
+  const legacy = {
+    version: 7,
+    symbols: {
+      BTCUSDT: Filter.extractSymbolState(
+        result('BTCUSDT', {
+          decisionGate: decisionGate('WATCH_ZONE', null, {
+            activeOpportunity: opportunity,
+          }),
+        })
+      ),
+    },
+  };
+  delete legacy.symbols.BTCUSDT.__identityObservedAt;
+  const changed = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate(
+        'WATCH_ZONE',
+        'WATCH_ZONE',
+        {
+          changed: true,
+          activeOpportunity: {
+            ...opportunity,
+            price: 62861,
+          },
+          progress: { sweepCompleted: true },
+        }
+      ),
+    }),
+  ], legacy);
+
+  assert.strictEqual(changed.previousState.version, 8);
+  assert.strictEqual(changed.shouldNotify, true);
+  assert.deepStrictEqual(changed.changes[0].reasons, [
+    'DECISION_GATE_PROGRESS',
+  ]);
+  assert.strictEqual(
+    changed.changes[0].currentState.activeZoneId,
+    'BULLISH|EQUAL_LOW|62782'
+  );
+});
+
+test('state and progress changing together sends state transition only', () => {
+  const opportunity = {
+    direction: 'BULLISH',
+    liquidityType: 'PDL',
+    price: 62000,
+  };
+  const initial = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate('WATCH_ZONE', null, {
+        activeOpportunity: opportunity,
+      }),
+    }),
+  ], null);
+  const changed = Filter.evaluate([
+    result('BTCUSDT', {
+      decisionGate: decisionGate(
+        'CONFIRMING',
+        'WATCH_ZONE',
+        {
+          activeOpportunity: opportunity,
+          progress: { sweepCompleted: true },
+        }
+      ),
+    }),
+  ], committed(initial));
+
+  assert.deepStrictEqual(changed.changes[0].reasons, [
+    'DECISION_GATE_TRANSITION',
+  ]);
+  assert.strictEqual(
+    changed.changes[0].notificationType,
+    'DECISION_GATE_TRANSITION'
+  );
+  assert.strictEqual(
+    changed.changes[0].decisionGateProgress,
+    null
+  );
+  assert.strictEqual(
+    changed.changes[0].decisionGateTransition.changed,
+    true
+  );
 });
 
 test('reports without Decision Gate keep legacy comparison', () => {

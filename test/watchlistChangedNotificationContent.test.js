@@ -327,6 +327,80 @@ test('Decision Gate状态变化写入精简通知正文', async () => {
   }
 });
 
+test('Decision Gate Progress变化写入事件推进通知', async () => {
+  const opportunity = {
+    direction: 'BULLISH',
+    liquidityType: 'EQUAL_LOW',
+    price: 62782,
+  };
+  const initialRows = rows({
+    BTCUSDT: {
+      decisionGate: {
+        state: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        activeOpportunity: opportunity,
+        progress: {
+          sweepCompleted: false,
+          mssCompleted: false,
+          displacementCompleted: false,
+          strictConfirmationCompleted: false,
+        },
+        blockers: ['WAITING_LTF_CONFIRMATION'],
+        reasonCode: 'OPPORTUNITY_ACTIVE',
+        transition: {
+          changed: true,
+          from: null,
+          to: 'WATCH_ZONE',
+        },
+      },
+    },
+  });
+  const nextRows = rows({
+    BTCUSDT: {
+      decisionGate: {
+        state: 'WATCH_ZONE',
+        direction: 'BULLISH',
+        activeOpportunity: opportunity,
+        progress: {
+          sweepCompleted: true,
+          mssCompleted: false,
+          displacementCompleted: false,
+          strictConfirmationCompleted: false,
+        },
+        blockers: ['WAITING_STRICT_CONFIRMATION'],
+        reasonCode: 'SWEEP_COMPLETED',
+        transition: {
+          changed: true,
+          from: 'WATCH_ZONE',
+          to: 'WATCH_ZONE',
+        },
+      },
+    },
+  });
+  const { result } = await primeRowsAndRun(
+    initialRows,
+    nextRows
+  );
+
+  assert.deepStrictEqual(result.notificationSymbols, [
+    'BTCUSDT',
+  ]);
+  assert.deepStrictEqual(
+    result.notification.changes[0].reasons,
+    ['DECISION_GATE_PROGRESS']
+  );
+  assert.ok(result.message.includes(
+    'BTCUSDT\n\n事件推进：\n\nWATCH_ZONE'
+  ));
+  assert.ok(result.message.includes(
+    'Progress:\n\n✓ Sweep\n□ MSS\n□ Displacement'
+  ));
+  assert.ok(result.message.includes(
+    '等待：\n\nMSS → Displacement'
+  ));
+  assert.strictEqual(result.message.includes('状态变化：'), false);
+});
+
 test('首次运行发送完整有效Watchlist', async () => {
   const runner = mutableRunner(rows());
   const messages = [];

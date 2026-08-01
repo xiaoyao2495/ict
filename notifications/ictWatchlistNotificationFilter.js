@@ -5,6 +5,9 @@ const { isDeepStrictEqual } = require('util');
 const AnalystNotificationState = require(
   './ictAnalystNotificationState'
 );
+const OpportunityIdentity = require(
+  '../indicators/ictOpportunityIdentityV2'
+);
 
 const DEFAULT_STATE_PATH = path.resolve(
   __dirname,
@@ -22,13 +25,29 @@ const CHANGE_REASONS = Object.freeze({
     'ALIGNMENT_STATUS_CHANGED',
   OPPORTUNITY_CHANGED: 'OPPORTUNITY_CHANGED',
   DECISION_GATE_TRANSITION: 'DECISION_GATE_TRANSITION',
+  DECISION_GATE_PROGRESS: 'DECISION_GATE_PROGRESS',
 });
+
+const STATE_VERSION = 8;
+
+const GATE_PROGRESS_FIELDS = Object.freeze([
+  'sweepCompleted',
+  'mssCompleted',
+  'displacementCompleted',
+  'strictConfirmationCompleted',
+]);
 
 const PRIORITY_GATE_STATES = new Set([
   'READY_OBSERVATION',
   'HTF_CONFLICT',
   'INVALIDATED',
 ]);
+
+const GATE_STATE_RANK = Object.freeze({
+  WATCH_ZONE: 1,
+  CONFIRMING: 2,
+  READY_OBSERVATION: 3,
+});
 
 const DYNAMIC_STATE_FIELDS = Object.freeze([
   'reportTime',
@@ -387,10 +406,135 @@ function normalizeGateOpportunity(value) {
     return null;
   }
   return {
-    id: [direction, liquidityType, price].join('|'),
+    id: OpportunityIdentity.rawOpportunityId({
+      direction,
+      liquidityType,
+      price,
+    }),
     direction,
     liquidityType,
     price,
+  };
+}
+
+function opportunityFromIdentityId(value) {
+  if (typeof value !== 'string') return null;
+  const parts = value.split('|');
+  if (parts.length < 3) return null;
+  return OpportunityIdentity.normalizeOpportunity({
+    direction: parts[0],
+    liquidityType: parts[1],
+    price: Number(parts[2]),
+  });
+}
+
+function normalizeNotificationIdentity(value) {
+  if (!value || typeof value !== 'object') return null;
+  return OpportunityIdentity.previousZone(value);
+}
+
+function previousNotificationIdentity(state) {
+  if (!state || typeof state !== 'object') return null;
+  const stored = normalizeNotificationIdentity(
+    state.opportunityIdentity
+  );
+  if (stored) return stored;
+  const canonicalId = state.activeZoneId ||
+    state.canonicalOpportunityId;
+  const opportunity = opportunityFromIdentityId(canonicalId) ||
+    normalizeGateOpportunity(
+      state.decisionGate &&
+      state.decisionGate.activeOpportunity
+    );
+  if (!opportunity) return null;
+  const identity = OpportunityIdentity.resolve({
+    opportunity,
+    observedAt: null,
+  });
+  if (typeof canonicalId === 'string' && canonicalId) {
+    identity.zoneId = canonicalId;
+    identity.canonicalZoneId = canonicalId;
+  }
+  return identity;
+}
+
+function notificationIdentityCandidate(state) {
+  if (!state || typeof state !== 'object') return null;
+  return normalizeGateOpportunity(
+    state.decisionGate && state.decisionGate.activeOpportunity
+  ) || OpportunityIdentity.normalizeOpportunity(
+    state.opportunity
+  );
+}
+
+function applyNotificationIdentity(previousState, currentState) {
+  const previousIdentity = previousNotificationIdentity(
+    previousState
+  );
+  const candidate = notificationIdentityCandidate(currentState);
+  const observedAt = currentState.__identityObservedAt;
+  const candidateIdentity = candidate
+    ? OpportunityIdentity.resolve({
+      opportunity: candidate,
+      previousIdentity,
+      observedAt,
+    })
+    : null;
+  const gateState = currentState.decisionGate
+    ? currentState.decisionGate.state
+    : null;
+  const activeIdentity = (
+    gateState === 'INVALIDATED' && previousIdentity
+  )
+    ? previousIdentity
+    : candidateIdentity;
+  const rawOpportunityId = candidate
+    ? OpportunityIdentity.rawOpportunityId(candidate)
+    : null;
+  const stableState = { ...currentState };
+  delete stableState.__identityObservedAt;
+  return {
+    state: {
+      ...stableState,
+      ...(currentState.decisionGate
+        ? {
+          activeZoneId: activeIdentity
+            ? activeIdentity.zoneId
+            : null,
+          canonicalOpportunityId: activeIdentity
+            ? activeIdentity.zoneId
+            : null,
+          rawOpportunityId,
+          opportunityIdentity: activeIdentity,
+        }
+        : {}),
+    },
+    comparison: {
+      previousRawOpportunityId: previousState &&
+        typeof previousState.rawOpportunityId === 'string'
+        ? previousState.rawOpportunityId
+        : null,
+      previousZoneId: previousIdentity
+        ? previousIdentity.zoneId
+        : null,
+      candidateZoneId: candidateIdentity
+        ? candidateIdentity.zoneId
+        : null,
+      rawOpportunityId,
+      sameZone: Boolean(
+        previousIdentity &&
+        candidateIdentity &&
+        candidateIdentity.sameZone
+      ),
+      newZone: Boolean(
+        previousIdentity &&
+        candidateIdentity &&
+        !candidateIdentity.sameZone
+      ),
+      reason: candidateIdentity
+        ? candidateIdentity.reason
+        : null,
+    },
   };
 }
 
@@ -502,6 +646,17 @@ function extractSymbolState(input) {
   const decisionGate = normalizeDecisionGate(
     current.decisionGate
   );
+  const rawGate = current.decisionGate &&
+    typeof current.decisionGate === 'object'
+    ? current.decisionGate
+    : null;
+  const identityObservedAt = rawGate &&
+    rawGate.activeOpportunity &&
+    rawGate.activeOpportunity.enteredAt !== undefined
+    ? rawGate.activeOpportunity.enteredAt
+    : rawGate && rawGate.transition
+      ? rawGate.transition.occurredAt
+      : null;
   return {
     symbol,
     h4Bias:
@@ -512,82 +667,172 @@ function extractSymbolState(input) {
       current.opportunity
     ),
     latestMss: normalizeMss(latest.mss),
-    ...(decisionGate ? { decisionGate } : {}),
+    ...(decisionGate
+      ? {
+        decisionGate,
+        __identityObservedAt: identityObservedAt,
+        previousDecisionGateProgress: clone(
+          decisionGate.progress
+        ),
+      }
+      : {}),
   };
 }
 
-function gateStableState(value) {
-  if (!value) return null;
-  return {
-    state: value.state,
-    activeOpportunity: value.activeOpportunity,
-    progress: value.progress,
-  };
+function completedProgressFields(previousProgress, currentProgress) {
+  const previous = normalizeGateProgress(previousProgress);
+  const current = normalizeGateProgress(currentProgress);
+  return GATE_PROGRESS_FIELDS.filter((field) => (
+    previous[field] === false && current[field] === true
+  ));
 }
 
-function compareDecisionGates(previousGate, currentGate) {
+function compareDecisionGates(
+  previousGate,
+  currentGate,
+  persistedProgress,
+  identityComparison
+) {
   const reported = currentGate.transition || {};
-  const stableChanged = !previousGate ||
-    !isDeepStrictEqual(
-      gateStableState(previousGate),
-      gateStableState(currentGate)
-    );
+  identityComparison = identityComparison || {};
+  const sameZoneReplacement = Boolean(
+    previousGate &&
+    currentGate.state === 'INVALIDATED' &&
+    currentGate.reasonCode === 'OPPORTUNITY_REPLACED' &&
+    identityComparison.sameZone
+  );
+  const previousRank = previousGate
+    ? GATE_STATE_RANK[previousGate.state] || 0
+    : 0;
+  const currentRank = GATE_STATE_RANK[currentGate.state] || 0;
+  const sameZoneReentry = Boolean(
+    previousGate &&
+    identityComparison.sameZone &&
+    identityComparison.previousRawOpportunityId &&
+    identityComparison.rawOpportunityId &&
+    identityComparison.previousRawOpportunityId !==
+      identityComparison.rawOpportunityId &&
+    (
+      currentGate.state === 'WATCH_ZONE' ||
+      currentGate.state === 'CONFIRMING'
+    ) &&
+    currentRank < previousRank
+  );
+  const identityOnlyTransition =
+    sameZoneReplacement || sameZoneReentry;
+  const stateChanged = !identityOnlyTransition && (
+    !previousGate ||
+    previousGate.state !== currentGate.state
+  );
   const reportedTransitionIsConsistent = Boolean(
+    !identityOnlyTransition &&
     previousGate &&
     reported.changed === true &&
     reported.from === previousGate.state &&
-    reported.to === currentGate.state
+    reported.to === currentGate.state &&
+    reported.from !== reported.to
   );
   const priorityTransition = Boolean(
+    !identityOnlyTransition &&
     previousGate &&
     previousGate.state !== currentGate.state &&
-    PRIORITY_GATE_STATES.has(currentGate.state)
+      PRIORITY_GATE_STATES.has(currentGate.state)
   );
-  const changed = stableChanged ||
+  const zoneChanged = Boolean(
+    !identityOnlyTransition &&
+    previousGate &&
+    identityComparison.newZone
+  );
+  const transitionChanged = stateChanged ||
     reportedTransitionIsConsistent ||
-    priorityTransition;
+    priorityTransition ||
+    zoneChanged;
+  const previousProgress = persistedProgress || (
+    previousGate ? previousGate.progress : null
+  );
+  const progressFields = previousGate
+    ? completedProgressFields(
+      previousProgress,
+      currentGate.progress
+    )
+    : [];
+  const progressChanged = !transitionChanged &&
+    progressFields.length > 0;
+  const shouldNotify = transitionChanged || progressChanged;
 
   return {
-    shouldNotify: changed,
-    reasons: changed
+    shouldNotify,
+    reasons: transitionChanged
       ? [CHANGE_REASONS.DECISION_GATE_TRANSITION]
+      : progressChanged
+        ? [CHANGE_REASONS.DECISION_GATE_PROGRESS]
       : [],
-    decisionGateTransition: {
-      changed,
-      from: previousGate
-        ? previousGate.state
-        : reported.from,
-      to: currentGate.state,
-      direction: currentGate.direction,
-      reasonCode: currentGate.reasonCode,
-      activeOpportunity: clone(
-        currentGate.activeOpportunity
-      ),
-      priority: PRIORITY_GATE_STATES.has(
-        currentGate.state
-      ),
-    },
+    notificationType: transitionChanged
+      ? CHANGE_REASONS.DECISION_GATE_TRANSITION
+      : progressChanged
+        ? CHANGE_REASONS.DECISION_GATE_PROGRESS
+        : null,
+    decisionGateTransition: transitionChanged
+      ? {
+        changed: true,
+        from: previousGate
+          ? previousGate.state
+          : reported.from,
+        to: currentGate.state,
+        direction: currentGate.direction,
+        reasonCode: currentGate.reasonCode,
+        activeOpportunity: clone(
+          currentGate.activeOpportunity
+        ),
+        priority: PRIORITY_GATE_STATES.has(
+          currentGate.state
+        ),
+      }
+      : null,
+    decisionGateProgress: progressChanged
+      ? {
+        changed: true,
+        state: currentGate.state,
+        direction: currentGate.direction,
+        completedFields: progressFields.slice(),
+        previous: normalizeGateProgress(previousProgress),
+        current: normalizeGateProgress(currentGate.progress),
+        activeOpportunity: clone(
+          currentGate.activeOpportunity
+        ),
+      }
+      : null,
   };
 }
 
-function compareSymbolStates(previousState, currentState) {
+function compareSymbolStates(
+  previousState,
+  currentState,
+  identityComparison
+) {
   if (!previousState) {
     return {
       shouldNotify: true,
       reasons: [CHANGE_REASONS.INITIAL_STATE],
+      notificationType: CHANGE_REASONS.INITIAL_STATE,
       decisionGateTransition: currentState.decisionGate
         ? compareDecisionGates(
           null,
-          currentState.decisionGate
+          currentState.decisionGate,
+          null,
+          identityComparison
         ).decisionGateTransition
         : null,
+      decisionGateProgress: null,
     };
   }
 
   if (currentState.decisionGate) {
     return compareDecisionGates(
       previousState.decisionGate || null,
-      currentState.decisionGate
+      currentState.decisionGate,
+      previousState.previousDecisionGateProgress,
+      identityComparison
     );
   }
 
@@ -645,6 +890,24 @@ function normalizePersistedState(value) {
     sourceSymbols
   )) {
     if (!state || typeof state !== 'object') continue;
+    const decisionGate = normalizeDecisionGate(
+      state.decisionGate
+    );
+    const identity = decisionGate
+      ? previousNotificationIdentity({
+        ...state,
+        decisionGate,
+      })
+      : null;
+    const rawOpportunityId = decisionGate
+      ? (
+        typeof state.rawOpportunityId === 'string'
+          ? state.rawOpportunityId
+          : OpportunityIdentity.rawOpportunityId(
+            decisionGate.activeOpportunity
+          )
+      )
+      : null;
     symbols[symbol] = {
       symbol: state.symbol || symbol,
       h4Bias: state.h4Bias || 'UNAVAILABLE',
@@ -656,18 +919,34 @@ function normalizePersistedState(value) {
         state.opportunity
       ),
       latestMss: normalizeMss(state.latestMss),
-      ...(normalizeDecisionGate(state.decisionGate)
+      ...(decisionGate
         ? {
-          decisionGate: normalizeDecisionGate(
-            state.decisionGate
-          ),
+          decisionGate,
+          activeZoneId: typeof state.activeZoneId === 'string'
+            ? state.activeZoneId
+            : identity
+              ? identity.zoneId
+              : null,
+          canonicalOpportunityId:
+            typeof state.canonicalOpportunityId === 'string'
+              ? state.canonicalOpportunityId
+              : identity
+                ? identity.zoneId
+                : null,
+          rawOpportunityId,
+          opportunityIdentity: identity,
+          previousDecisionGateProgress:
+            normalizeGateProgress(
+              state.previousDecisionGateProgress ||
+                decisionGate.progress
+            ),
         }
         : {}),
     };
   }
 
   return {
-    version: 6,
+    version: STATE_VERSION,
     symbols,
   };
 }
@@ -690,12 +969,18 @@ function evaluate(results, persistedState, debugComparison) {
     ) {
       continue;
     }
-    const currentState = extractSymbolState(result);
+    const extractedState = extractSymbolState(result);
     const previousState =
-      previous.symbols[currentState.symbol] || null;
+      previous.symbols[extractedState.symbol] || null;
+    const identityResolution = applyNotificationIdentity(
+      previousState,
+      extractedState
+    );
+    const currentState = identityResolution.state;
     const comparison = compareSymbolStates(
       previousState,
-      currentState
+      currentState,
+      identityResolution.comparison
     );
     if (debugComparison) {
       debugComparison.previousSymbols[
@@ -719,6 +1004,10 @@ function evaluate(results, persistedState, debugComparison) {
       currentState,
       decisionGateTransition:
         comparison.decisionGateTransition || null,
+      decisionGateProgress:
+        comparison.decisionGateProgress || null,
+      notificationType:
+        comparison.notificationType || null,
       result,
     });
     nextState.symbols[currentState.symbol] = currentState;
@@ -869,9 +1158,13 @@ module.exports = {
   CHANGE_REASONS,
   DEFAULT_STATE_PATH,
   DYNAMIC_STATE_FIELDS,
+  GATE_PROGRESS_FIELDS,
+  STATE_VERSION,
+  applyNotificationIdentity,
   changedFieldNames,
   collectDynamicFields,
   compareSymbolStates,
+  completedProgressFields,
   createFileStore,
   createMemoryStore,
   debugNotificationEnabled,
@@ -886,6 +1179,7 @@ module.exports = {
   normalizeGateTransition,
   normalizeMss,
   normalizeOpportunity,
+  normalizeNotificationIdentity,
   normalizePersistedState,
   compareDecisionGates,
   processNotifications,
