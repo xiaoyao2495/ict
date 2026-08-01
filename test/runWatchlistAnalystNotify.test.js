@@ -48,6 +48,10 @@ function symbolResult(symbol, options) {
           direction: options.alignmentDirection || null,
           reason: options.alignmentReason || '',
         },
+        opportunity: options.opportunity,
+        ...(options.decisionGate
+          ? { decisionGate: options.decisionGate }
+          : {}),
         fiveMinuteObservation: {
           currentConfirmed: {
             confirmation:
@@ -97,6 +101,36 @@ function mutableRunner(initialResults) {
     async run(options) {
       assert.strictEqual(typeof options.output, 'function');
       return watchlistAnalysis(results);
+    },
+  };
+}
+
+function decisionGate(state, from, options) {
+  options = options || {};
+  return {
+    state,
+    direction: options.direction || 'BULLISH',
+    activeOpportunity:
+      Object.prototype.hasOwnProperty.call(
+        options,
+        'activeOpportunity'
+      )
+        ? options.activeOpportunity
+        : null,
+    progress: {
+      sweepCompleted: false,
+      mssCompleted: false,
+      displacementCompleted: false,
+      strictConfirmationCompleted: false,
+      ...(options.progress || {}),
+    },
+    blockers: options.blockers || [],
+    reasonCode: options.reasonCode || state,
+    transition: {
+      changed: from !== state,
+      from: from || null,
+      to: state,
+      occurredAt: CURRENT_TIME,
     },
   };
 }
@@ -320,6 +354,162 @@ test('only the independently changed symbol is sent', async () => {
     saved.symbols.ETHUSDT.h4Bias,
     'BEARISH'
   );
+});
+
+test('production logger outputs only operational state summary', async () => {
+  const opportunity = {
+    direction: 'BULLISH',
+    liquidityType: 'EQUAL_LOW',
+    price: 62782,
+  };
+  const runner = mutableRunner([
+    symbolResult('BTCUSDT', {
+      opportunity: {
+        status: 'WAITING',
+        direction: 'BULLISH',
+      },
+      decisionGate: decisionGate(
+        'WAITING_OPPORTUNITY',
+        null
+      ),
+    }),
+    symbolResult('ETHUSDT', {
+      decisionGate: decisionGate(
+        'WAITING_OPPORTUNITY',
+        null
+      ),
+    }),
+  ]);
+  const store = Filter.createMemoryStore();
+  const options = {
+    logLevel: 'production',
+    watchlistRunner: runner,
+    stateStore: store,
+    opportunityHistoryStore:
+      OpportunityHistory.createMemoryStore(),
+    webhookUrl: 'https://example.test/watchlist',
+    httpClient: {
+      async post() {
+        return { data: { errcode: 0 } };
+      },
+    },
+  };
+  await NotifyRunner.run(options);
+  runner.setResults([
+    symbolResult('BTCUSDT', {
+      opportunity: {
+        status: 'WATCH_ZONE',
+        ...opportunity,
+      },
+      decisionGate: decisionGate(
+        'WATCH_ZONE',
+        'WAITING_OPPORTUNITY',
+        {
+          activeOpportunity: opportunity,
+          reasonCode: 'OPPORTUNITY_ACTIVE',
+        }
+      ),
+    }),
+    symbolResult('ETHUSDT', {
+      decisionGate: decisionGate(
+        'WAITING_OPPORTUNITY',
+        'WAITING_OPPORTUNITY'
+      ),
+    }),
+  ]);
+  const result = await NotifyRunner.run(options);
+  const logs = [];
+  NotifyRunner.writeRunLog(result, {
+    logLevel: 'production',
+    logger: { log(value) { logs.push(value); } },
+  });
+
+  assert.strictEqual(result.logLevel, 'production');
+  assert.strictEqual(logs.length, 1);
+  assert.ok(logs[0].includes('ICT Watchlist'));
+  assert.ok(logs[0].includes(
+    'WAITING_OPPORTUNITY → WATCH_ZONE'
+  ));
+  assert.ok(logs[0].includes(
+    'Zone: BULLISH|EQUAL_LOW|62782'
+  ));
+  assert.ok(logs[0].includes('Type: EQUAL_LOW'));
+  assert.ok(logs[0].includes('Anchor: 62782'));
+  assert.ok(logs[0].includes(
+    'ETHUSDT\n\nNo state change\nSkip notification'
+  ));
+  assert.ok(logs[0].includes('State changed:\n1'));
+  assert.ok(logs[0].includes('Notifications:\n1'));
+  for (const hidden of [
+    'Previous Watchlist State',
+    'Current Watchlist State',
+    'Changed Fields:',
+    'toleranceValue',
+    'rawOpportunityIds',
+    'availableIndex',
+    'distancePercent',
+  ]) {
+    assert.strictEqual(logs[0].includes(hidden), false);
+  }
+});
+
+test('development logger preserves detailed notification debug', async () => {
+  const logs = [];
+  const logger = {
+    log(value) {
+      logs.push(String(value));
+    },
+  };
+  const result = await NotifyRunner.run({
+    logLevel: 'development',
+    logger,
+    watchlistRunner: mutableRunner([
+      symbolResult('BTCUSDT'),
+    ]),
+    stateStore: Filter.createMemoryStore(),
+    opportunityHistoryStore:
+      OpportunityHistory.createMemoryStore(),
+    webhookUrl: 'https://example.test/watchlist',
+    httpClient: {
+      async post() {
+        return { data: { errcode: 0 } };
+      },
+    },
+  });
+  NotifyRunner.writeRunLog(result, {
+    logLevel: 'development',
+    logger,
+  });
+  const output = logs.join('\n');
+
+  assert.strictEqual(result.logLevel, 'development');
+  assert.ok(output.includes(
+    '========== Previous Watchlist State =========='
+  ));
+  assert.ok(output.includes(
+    '========== Current Watchlist State =========='
+  ));
+  assert.ok(output.includes('Changed Fields:'));
+  assert.ok(output.includes('Notification Decision'));
+  assert.ok(output.includes(
+    'ICT Watchlist state changed; notification sent.'
+  ));
+});
+
+test('production is the default LOG_LEVEL', () => {
+  const previous = process.env.LOG_LEVEL;
+  delete process.env.LOG_LEVEL;
+  try {
+    assert.strictEqual(
+      NotifyRunner.normalizeLogLevel({
+        debugNotification: false,
+      }),
+      'production'
+    );
+  } finally {
+    if (previous === undefined) delete process.env.LOG_LEVEL;
+    else process.env.LOG_LEVEL = previous;
+  }
 });
 
 (async () => {

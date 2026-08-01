@@ -49,10 +49,19 @@ function createDaemon(options) {
     inFlight = Promise.resolve()
       .then(() => runNotification(notificationOptions))
       .then((result) => {
-        log(result && result.sent
-          ? 'ICT Watchlist state changed; notification sent.'
-          : 'ICT Watchlist state unchanged; notification skipped.'
-        );
+        if (runNotification === WatchlistNotify.run) {
+          WatchlistNotify.writeRunLog(result, {
+            logger,
+            logLevel: notificationOptions.logLevel,
+            debugNotification:
+              notificationOptions.debugNotification,
+          });
+        } else {
+          log(result && result.sent
+            ? 'ICT Watchlist state changed; notification sent.'
+            : 'ICT Watchlist state unchanged; notification skipped.'
+          );
+        }
         return result;
       })
       .catch((error) => {
