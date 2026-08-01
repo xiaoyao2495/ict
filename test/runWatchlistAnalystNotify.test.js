@@ -383,6 +383,12 @@ test('production logger outputs only operational state summary', async () => {
   const store = Filter.createMemoryStore();
   const options = {
     logLevel: 'production',
+    watchlistUniverse: {
+      symbols: ['BTCUSDT', 'ETHUSDT'],
+      updatedAt: '2026-08-01T00:00:00.000Z',
+      source: 'BINANCE_FUTURES_TOP_VOLUME',
+    },
+    watchlistUniverseUpdated: true,
     watchlistRunner: runner,
     stateStore: store,
     opportunityHistoryStore:
@@ -427,6 +433,10 @@ test('production logger outputs only operational state summary', async () => {
   assert.strictEqual(result.logLevel, 'production');
   assert.strictEqual(logs.length, 1);
   assert.ok(logs[0].includes('ICT Watchlist'));
+  assert.ok(logs[0].includes('Universe updated'));
+  assert.ok(logs[0].includes(
+    '1 BTCUSDT\n2 ETHUSDT'
+  ));
   assert.ok(logs[0].includes(
     'WAITING_OPPORTUNITY → WATCH_ZONE'
   ));

@@ -3,6 +3,9 @@
 const WatchlistNotify = require(
   './runWatchlistAnalystNotify'
 );
+const TopVolumeWatchlist = require(
+  '../indicators/binanceFuturesTopVolumeWatchlist'
+);
 
 const INTERVAL_MINUTES = 5;
 const INTERVAL_MS = INTERVAL_MINUTES * 60 * 1000;
@@ -13,6 +16,16 @@ function createDaemon(options) {
     options.runNotification || WatchlistNotify.run;
   const notificationOptions =
     options.notificationOptions || {};
+  const watchlistProvider =
+    options.watchlistProvider === false
+      ? null
+      : options.watchlistProvider || (
+        runNotification === WatchlistNotify.run
+          ? TopVolumeWatchlist
+          : null
+      );
+  const watchlistProviderOptions =
+    options.watchlistProviderOptions || {};
   const setIntervalFn =
     options.setIntervalFn || setInterval;
   const clearIntervalFn =
@@ -20,6 +33,51 @@ function createDaemon(options) {
   const logger = options.logger || console;
   let timer = null;
   let inFlight = null;
+  let lastUniverseUpdatedAt = null;
+
+  function invokeWatchlistProvider() {
+    if (!watchlistProvider) return Promise.resolve(null);
+    if (typeof watchlistProvider === 'function') {
+      return Promise.resolve(
+        watchlistProvider(watchlistProviderOptions)
+      );
+    }
+    if (typeof watchlistProvider.load === 'function') {
+      return Promise.resolve(
+        watchlistProvider.load(watchlistProviderOptions)
+      );
+    }
+    return Promise.reject(new Error(
+      'Dynamic Watchlist provider does not expose load().'
+    ));
+  }
+
+  function dynamicNotificationOptions(universe) {
+    if (!universe) return notificationOptions;
+    const resolved = { ...notificationOptions };
+    const universeUpdated =
+      lastUniverseUpdatedAt !== universe.updatedAt;
+    lastUniverseUpdatedAt = universe.updatedAt;
+    resolved.watchlistLoader = {
+      loadWatchlist() {
+        return { symbols: universe.symbols.slice() };
+      },
+    };
+    resolved.symbolAvailabilityChecker = {
+      async checkSymbols(symbols) {
+        return {
+          validSymbols: symbols.slice(),
+          invalidSymbols: [],
+          checkFailed: false,
+          error: null,
+        };
+      },
+    };
+    resolved.watchlistUniverse = universe;
+    resolved.watchlistUniverseUpdated = universeUpdated;
+    if (!resolved.logger) resolved.logger = logger;
+    return resolved;
+  }
 
   function log(message) {
     if (logger && typeof logger.log === 'function') {
@@ -46,8 +104,10 @@ function createDaemon(options) {
       };
     }
 
-    inFlight = Promise.resolve()
-      .then(() => runNotification(notificationOptions))
+    inFlight = invokeWatchlistProvider()
+      .then((universe) => runNotification(
+        dynamicNotificationOptions(universe)
+      ))
       .then((result) => {
         if (runNotification === WatchlistNotify.run) {
           WatchlistNotify.writeRunLog(result, {

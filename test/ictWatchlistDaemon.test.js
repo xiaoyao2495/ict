@@ -132,6 +132,52 @@ test('overlapping intervals do not start duplicate runs', async () => {
   await daemon.stop();
 });
 
+test('daemon injects the dynamic Top Volume Watchlist', async () => {
+  const received = [];
+  let providerCalls = 0;
+  const daemon = Daemon.createDaemon({
+    logger: quietLogger(),
+    watchlistProvider: {
+      async load() {
+        providerCalls += 1;
+        return {
+          symbols: ['BTCUSDT', 'ETHUSDT'],
+          updatedAt: '2026-08-01T00:00:00.000Z',
+          source: 'BINANCE_FUTURES_TOP_VOLUME',
+        };
+      },
+    },
+    runNotification: async (options) => {
+      received.push(options);
+      return { sent: false };
+    },
+    setIntervalFn() {
+      return {};
+    },
+    clearIntervalFn() {},
+  });
+
+  await daemon.execute('first');
+  await daemon.execute('second');
+
+  assert.strictEqual(providerCalls, 2);
+  assert.deepStrictEqual(
+    received[0].watchlistLoader.loadWatchlist(),
+    { symbols: ['BTCUSDT', 'ETHUSDT'] }
+  );
+  assert.strictEqual(received[0].watchlistUniverseUpdated, true);
+  assert.strictEqual(received[1].watchlistUniverseUpdated, false);
+  const availability = await received[0]
+    .symbolAvailabilityChecker.checkSymbols([
+      'BTCUSDT',
+      'ETHUSDT',
+    ]);
+  assert.deepStrictEqual(availability.validSymbols, [
+    'BTCUSDT',
+    'ETHUSDT',
+  ]);
+});
+
 (async () => {
   for (const item of tests) {
     try {

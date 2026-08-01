@@ -207,6 +207,24 @@ function formatProductionLog(result) {
     '',
   ];
 
+  if (
+    result.watchlistUniverseUpdated &&
+    result.watchlistUniverse &&
+    Array.isArray(result.watchlistUniverse.symbols)
+  ) {
+    lines.push(
+      'Universe updated',
+      '',
+      'Top Binance USDT Perpetual:'
+    );
+    result.watchlistUniverse.symbols.forEach(
+      (symbol, index) => lines.push(
+        String(index + 1) + ' ' + symbol
+      )
+    );
+    lines.push('');
+  }
+
   symbols.forEach((symbol, index) => {
     lines.push(...productionSymbolLines(
       resultMap.get(symbol),
@@ -457,6 +475,9 @@ async function run(options) {
   const result = {
     ...analysis,
     logLevel,
+    watchlistUniverse: options.watchlistUniverse || null,
+    watchlistUniverseUpdated:
+      options.watchlistUniverseUpdated === true,
     watchlistMessage: analysis.message,
     opportunityHistory,
     notification,
