@@ -47,6 +47,28 @@ test('non perpetual contracts are excluded', () => {
   assert.deepStrictEqual(symbols, ['BTCUSDT']);
 });
 
+test('TRADIFI_PERPETUAL contract enters Top Volume ranking', () => {
+  const exchangeInfo = {
+    symbols: [
+      {
+        symbol: 'MUUSDT',
+        contractType: 'TRADIFI_PERPETUAL',
+        status: 'TRADING',
+        quoteAsset: 'USDT',
+      },
+      contract('BTCUSDT'),
+    ],
+  };
+  const ranking = Watchlist.rankedTickers(exchangeInfo, [
+    ticker('MUUSDT', 2000),
+    ticker('BTCUSDT', 1000),
+  ], 20);
+  assert.deepStrictEqual(ranking, [
+    { symbol: 'MUUSDT', quoteVolume: '2000' },
+    { symbol: 'BTCUSDT', quoteVolume: '1000' },
+  ]);
+});
+
 test('non trading and non USDT contracts are excluded', () => {
   const symbols = Watchlist.tradableSymbols({
     symbols: [

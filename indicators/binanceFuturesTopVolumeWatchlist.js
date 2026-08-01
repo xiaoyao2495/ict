@@ -56,7 +56,8 @@ function tradableSymbols(exchangeInfo) {
     return Boolean(
       item &&
       typeof item.symbol === 'string' &&
-      item.contractType === 'PERPETUAL' &&
+      typeof item.contractType === 'string' &&
+      item.contractType.endsWith('PERPETUAL') &&
       item.quoteAsset === 'USDT' &&
       item.status === 'TRADING' &&
       !item.symbol.endsWith('USDC')
