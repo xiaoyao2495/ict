@@ -390,7 +390,7 @@ test('formatter forwards Decision Gate without duplicate sections', () => {
   assert.ok(text.includes('Equal Low\n50100'));
 });
 
-test('Decision Gate notification contains transition details', () => {
+test('Decision Gate通知使用中文交易观察语言', () => {
   const report = currentReport({
     decisionGate: {
       state: 'WATCH_ZONE',
@@ -434,17 +434,107 @@ test('Decision Gate notification contains transition details', () => {
   );
 
   for (const expected of [
-    'Symbol：\nBTCUSDT',
-    '状态变化：\nWAITING_OPPORTUNITY → WATCH_ZONE',
-    '方向：\nBULLISH',
-    'reasonCode：\nOPPORTUNITY_ACTIVE',
-    'activeOpportunity：',
-    'BULLISH|EQUAL_LOW|62782',
-    '类型：EQUAL_LOW',
-    '价格：62782',
+    '🔔 BTCUSDT 机会更新',
+    '时间：\n2026-07-28 08:00:00',
+    '状态：\n🟡 观察区（Watch Zone）',
+    '变化：\n等待流动性机会 → 进入观察区域',
+    '方向：\n🟢 偏多',
+    '原因：\n发现潜在机会区域',
+    '流动性位置：\n📍 等低点（卖方流动性）',
+    '价格：\n62782',
+    '当前阶段：\n等待流动性被扫取',
+    '✅ 流动性位置已发现：等低点（卖方流动性）',
+    '⏳ 5分钟看涨 MSS',
+    '1. 是否扫取62782下方流动性',
   ]) {
     assert.ok(text.includes(expected), expected);
   }
+  assert.strictEqual(text.includes('reasonCode'), false);
+  assert.strictEqual(
+    text.includes('BULLISH|EQUAL_LOW|62782'),
+    false
+  );
+});
+
+test('偏空等高通知显示自然方向与流动性描述', () => {
+  const report = currentReport({
+    decisionGate: {
+      state: 'WATCH_ZONE',
+      direction: 'BEARISH',
+      activeOpportunity: {
+        direction: 'BEARISH',
+        liquidityType: 'EQUAL_HIGH',
+        price: 63282.95,
+      },
+      progress: {},
+      blockers: ['WAITING_LTF_CONFIRMATION'],
+      reasonCode: 'OPPORTUNITY_ACTIVE',
+    },
+  });
+  const text = Formatter.formatNotificationChange(
+    report,
+    ['DECISION_GATE_TRANSITION'],
+    {
+      symbol: 'BTCUSDT',
+      decisionGateTransition: {
+        changed: true,
+        from: 'WATCH_ZONE',
+        to: 'WATCH_ZONE',
+        direction: 'BEARISH',
+        reasonCode: 'OPPORTUNITY_ACTIVE',
+        activeOpportunity: {
+          direction: 'BEARISH',
+          liquidityType: 'EQUAL_HIGH',
+          price: 63282.95,
+        },
+      },
+    }
+  );
+
+  for (const expected of [
+    '状态：\n🟡 观察区（Watch Zone）',
+    '方向：\n🔴 偏空',
+    '📍 等高点（买方流动性）',
+    '价格：\n63282.95',
+    '等待流动性被扫取',
+    '是否形成5分钟看跌 MSS',
+    '是否出现看跌 Displacement',
+  ]) {
+    assert.ok(text.includes(expected), expected);
+  }
+  assert.strictEqual(text.includes('变化：'), false);
+});
+
+test('无具体机会的HTF状态也使用中文说明', () => {
+  const text = Formatter.formatNotificationChange(
+    currentReport({
+      decisionGate: {
+        state: 'WAITING_HTF',
+        direction: null,
+        activeOpportunity: null,
+        progress: {},
+        blockers: ['HTF_BIAS_UNCLEAR'],
+        reasonCode: 'WAITING_FOR_HTF_BIAS',
+      },
+    }),
+    ['DECISION_GATE_TRANSITION'],
+    {
+      symbol: 'BTCUSDT',
+      decisionGateTransition: {
+        changed: true,
+        from: 'NONE',
+        to: 'WAITING_HTF',
+        direction: null,
+        reasonCode: 'WAITING_FOR_HTF_BIAS',
+        activeOpportunity: null,
+      },
+    }
+  );
+
+  assert.ok(text.includes('⚪ 等待4小时方向确认'));
+  assert.ok(text.includes('⚪ 方向尚未明确'));
+  assert.ok(text.includes('等待高周期方向明确'));
+  assert.strictEqual(text.includes('流动性位置：'), false);
 });
 
 test('精简通知可显示进入CONFIRMING', () => {

@@ -492,10 +492,14 @@ test('WATCH_ZONE Sweep false to true sends progress notification', () => {
     changed.changes[0].reasons,
     changed.changes[0]
   );
-  assert.ok(text.includes('事件推进：\n\nWATCH_ZONE'));
-  assert.ok(text.includes('✓ Sweep'));
-  assert.ok(text.includes('□ MSS'));
-  assert.ok(text.includes('等待：\n\nMSS → Displacement'));
+  assert.ok(text.includes('🔔 BTCUSDT 事件更新'));
+  assert.ok(text.includes('状态：\n🟡 观察区（Watch Zone）'));
+  assert.ok(text.includes('事件进展：\n目标流动性已经被扫取'));
+  assert.ok(text.includes('✅ 流动性扫取'));
+  assert.ok(text.includes('⏳ 5分钟看涨 MSS'));
+  assert.ok(text.includes(
+    '流动性已扫取，等待5分钟看涨 MSS'
+  ));
 });
 
 test('CONFIRMING MSS false to true sends progress notification', () => {
@@ -542,11 +546,16 @@ test('CONFIRMING MSS false to true sends progress notification', () => {
     changed.changes[0].reasons,
     changed.changes[0]
   );
-  assert.ok(text.includes('事件推进：\n\nCONFIRMING'));
-  assert.ok(text.includes('✓ Sweep'));
-  assert.ok(text.includes('✓ MSS'));
-  assert.ok(text.includes('□ Displacement'));
-  assert.ok(text.includes('等待：\n\nDisplacement'));
+  assert.ok(text.includes('状态：\n🟠 确认中（Confirming）'));
+  assert.ok(text.includes(
+    '事件进展：\n5分钟看涨 MSS已经确认'
+  ));
+  assert.ok(text.includes('✅ 流动性扫取'));
+  assert.ok(text.includes('✅ 5分钟看涨 MSS'));
+  assert.ok(text.includes('⏳ 看涨 Displacement'));
+  assert.ok(text.includes(
+    'MSS 已确认，等待看涨 Displacement'
+  ));
 });
 
 test('CONFIRMING Displacement false to true sends progress notification', () => {

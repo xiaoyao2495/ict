@@ -316,15 +316,22 @@ test('Decision Gate状态变化写入精简通知正文', async () => {
     'BTCUSDT',
   ]);
   for (const expected of [
-    'Symbol：\nBTCUSDT',
-    '状态变化：\nWAITING_OPPORTUNITY → WATCH_ZONE',
-    '方向：\nBULLISH',
-    'reasonCode：\nOPPORTUNITY_ACTIVE',
-    'activeOpportunity：',
-    'BULLISH|EQUAL_LOW|62782',
+    '🔔 BTCUSDT 机会更新',
+    '状态：\n🟡 观察区（Watch Zone）',
+    '变化：\n等待流动性机会 → 进入观察区域',
+    '方向：\n🟢 偏多',
+    '原因：\n发现潜在机会区域',
+    '流动性位置：\n📍 等低点（卖方流动性）',
+    '价格：\n62782',
+    '当前阶段：\n等待流动性被扫取',
   ]) {
     assert.ok(result.message.includes(expected), expected);
   }
+  assert.strictEqual(result.message.includes('reasonCode'), false);
+  assert.strictEqual(
+    result.message.includes('BULLISH|EQUAL_LOW|62782'),
+    false
+  );
 });
 
 test('Decision Gate Progress变化写入事件推进通知', async () => {
@@ -389,14 +396,15 @@ test('Decision Gate Progress变化写入事件推进通知', async () => {
     result.notification.changes[0].reasons,
     ['DECISION_GATE_PROGRESS']
   );
+  assert.ok(result.message.includes('🔔 BTCUSDT 事件更新'));
   assert.ok(result.message.includes(
-    'BTCUSDT\n\n事件推进：\n\nWATCH_ZONE'
+    '事件进展：\n目标流动性已经被扫取'
   ));
   assert.ok(result.message.includes(
-    'Progress:\n\n✓ Sweep\n□ MSS\n□ Displacement'
+    '✅ 流动性扫取\n⏳ 5分钟看涨 MSS'
   ));
   assert.ok(result.message.includes(
-    '等待：\n\nMSS → Displacement'
+    '流动性已扫取，等待5分钟看涨 MSS'
   ));
   assert.strictEqual(result.message.includes('状态变化：'), false);
 });
