@@ -1,0 +1,184 @@
+ICT Daily Bias Transition Gate Shadow Audit V1
+
+Generated At：2026-08-03T06:40:32.062Z
+Data Source：CURRENT_WATCHLIST_H4_5M
+Source As Of：2026-08-03T06:39:59.999Z
+Production Behavior Modified：NO
+
+Summary
+
+Symbols：8
+Available：8
+Unavailable：0
+Gate State Changed：3
+Gate State Unchanged：5
+Transition Semantic Applied：3
+Transition Safety Violations：0
+Confirmed Trend Changes：0
+
+Gate State Transitions
+WAITING_HTF -> HTF_TRANSITION：3
+WAITING_OPPORTUNITY -> WAITING_OPPORTUNITY：1
+WATCH_ZONE -> WATCH_ZONE：4
+
+Reasons
+EXISTING_GATE_PRESERVED：5
+TRANSITION_SEMANTIC_APPLIED：3
+
+================================
+
+Symbol：BTCUSDT
+Market Bias：NEUTRAL
+Legacy Bias：BULLISH
+Transition Direction：BEARISH
+Structure Phase：BEARISH_PULLBACK
+Structure Context：POST_MSS
+Current Gate State：WAITING_HTF
+Shadow Gate State：HTF_TRANSITION
+Current Direction：null
+Shadow Direction：null
+Reason：TRANSITION_SEMANTIC_APPLIED
+Current Reason Code：WAITING_FOR_HTF_BIAS
+Shadow Reason Code：HTF_STRUCTURE_TRANSITION
+Transition Safety Violation：NO
+Confirmed Trend Changed：NO
+
+================================
+
+Symbol：BNBUSDT
+Market Bias：BEARISH
+Legacy Bias：BEARISH
+Transition Direction：null
+Structure Phase：BEARISH_PULLBACK
+Structure Context：CONTINUATION
+Current Gate State：WATCH_ZONE
+Shadow Gate State：WATCH_ZONE
+Current Direction：BEARISH
+Shadow Direction：BEARISH
+Reason：EXISTING_GATE_PRESERVED
+Current Reason Code：OPPORTUNITY_ACTIVE
+Shadow Reason Code：OPPORTUNITY_ACTIVE
+Transition Safety Violation：NO
+Confirmed Trend Changed：NO
+
+================================
+
+Symbol：ETHUSDT
+Market Bias：BULLISH
+Legacy Bias：BULLISH
+Transition Direction：null
+Structure Phase：BULLISH_CONTINUATION
+Structure Context：CONTINUATION
+Current Gate State：WATCH_ZONE
+Shadow Gate State：WATCH_ZONE
+Current Direction：BULLISH
+Shadow Direction：BULLISH
+Reason：EXISTING_GATE_PRESERVED
+Current Reason Code：OPPORTUNITY_ACTIVE
+Shadow Reason Code：OPPORTUNITY_ACTIVE
+Transition Safety Violation：NO
+Confirmed Trend Changed：NO
+
+================================
+
+Symbol：SNDKUSDT
+Market Bias：NEUTRAL
+Legacy Bias：BEARISH
+Transition Direction：BULLISH
+Structure Phase：BULLISH_PULLBACK
+Structure Context：POST_MSS
+Current Gate State：WAITING_HTF
+Shadow Gate State：HTF_TRANSITION
+Current Direction：null
+Shadow Direction：null
+Reason：TRANSITION_SEMANTIC_APPLIED
+Current Reason Code：WAITING_FOR_HTF_BIAS
+Shadow Reason Code：HTF_STRUCTURE_TRANSITION
+Transition Safety Violation：NO
+Confirmed Trend Changed：NO
+
+================================
+
+Symbol：CLUSDT
+Market Bias：BEARISH
+Legacy Bias：BEARISH
+Transition Direction：null
+Structure Phase：BEARISH_CONTINUATION
+Structure Context：CONTINUATION
+Current Gate State：WAITING_OPPORTUNITY
+Shadow Gate State：WAITING_OPPORTUNITY
+Current Direction：BEARISH
+Shadow Direction：BEARISH
+Reason：EXISTING_GATE_PRESERVED
+Current Reason Code：WAITING_FOR_OPPORTUNITY
+Shadow Reason Code：WAITING_FOR_OPPORTUNITY
+Transition Safety Violation：NO
+Confirmed Trend Changed：NO
+
+================================
+
+Symbol：MUUSDT
+Market Bias：BEARISH
+Legacy Bias：BEARISH
+Transition Direction：null
+Structure Phase：BEARISH_PULLBACK
+Structure Context：CONTINUATION
+Current Gate State：WATCH_ZONE
+Shadow Gate State：WATCH_ZONE
+Current Direction：BEARISH
+Shadow Direction：BEARISH
+Reason：EXISTING_GATE_PRESERVED
+Current Reason Code：OPPORTUNITY_ACTIVE
+Shadow Reason Code：OPPORTUNITY_ACTIVE
+Transition Safety Violation：NO
+Confirmed Trend Changed：NO
+
+================================
+
+Symbol：XAUUSDT
+Market Bias：NEUTRAL
+Legacy Bias：BULLISH
+Transition Direction：BEARISH
+Structure Phase：BEARISH_PULLBACK
+Structure Context：POST_MSS
+Current Gate State：WAITING_HTF
+Shadow Gate State：HTF_TRANSITION
+Current Direction：null
+Shadow Direction：null
+Reason：TRANSITION_SEMANTIC_APPLIED
+Current Reason Code：WAITING_FOR_HTF_BIAS
+Shadow Reason Code：HTF_STRUCTURE_TRANSITION
+Transition Safety Violation：NO
+Confirmed Trend Changed：NO
+
+================================
+
+Symbol：SPCXUSDT
+Market Bias：BEARISH
+Legacy Bias：BEARISH
+Transition Direction：null
+Structure Phase：BEARISH_PULLBACK
+Structure Context：CONTINUATION
+Current Gate State：WATCH_ZONE
+Shadow Gate State：WATCH_ZONE
+Current Direction：BEARISH
+Shadow Direction：BEARISH
+Reason：EXISTING_GATE_PRESERVED
+Current Reason Code：OPPORTUNITY_ACTIVE
+Shadow Reason Code：OPPORTUNITY_ACTIVE
+Transition Safety Violation：NO
+Confirmed Trend Changed：NO
+
+================================
+
+Comparison Table
+
+Symbol | Market Bias | Transition | Phase | Context | Current Gate | Shadow Gate | Reason
+BTCUSDT | NEUTRAL | BEARISH | BEARISH_PULLBACK | POST_MSS | WAITING_HTF | HTF_TRANSITION | TRANSITION_SEMANTIC_APPLIED
+BNBUSDT | BEARISH | null | BEARISH_PULLBACK | CONTINUATION | WATCH_ZONE | WATCH_ZONE | EXISTING_GATE_PRESERVED
+ETHUSDT | BULLISH | null | BULLISH_CONTINUATION | CONTINUATION | WATCH_ZONE | WATCH_ZONE | EXISTING_GATE_PRESERVED
+SNDKUSDT | NEUTRAL | BULLISH | BULLISH_PULLBACK | POST_MSS | WAITING_HTF | HTF_TRANSITION | TRANSITION_SEMANTIC_APPLIED
+CLUSDT | BEARISH | null | BEARISH_CONTINUATION | CONTINUATION | WAITING_OPPORTUNITY | WAITING_OPPORTUNITY | EXISTING_GATE_PRESERVED
+MUUSDT | BEARISH | null | BEARISH_PULLBACK | CONTINUATION | WATCH_ZONE | WATCH_ZONE | EXISTING_GATE_PRESERVED
+XAUUSDT | NEUTRAL | BEARISH | BEARISH_PULLBACK | POST_MSS | WAITING_HTF | HTF_TRANSITION | TRANSITION_SEMANTIC_APPLIED
+SPCXUSDT | BEARISH | null | BEARISH_PULLBACK | CONTINUATION | WATCH_ZONE | WATCH_ZONE | EXISTING_GATE_PRESERVED

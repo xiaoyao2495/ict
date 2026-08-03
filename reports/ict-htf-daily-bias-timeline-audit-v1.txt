@@ -1,0 +1,544 @@
+ICT HTF Daily Bias Timeline Audit V1
+
+Generated At：2026-08-03T05:01:12.037Z
+Production Behavior Modified：NO
+Overall：PASS
+
+Summary
+
+Symbols：7
+Passed：7
+Failed：0
+Timeline States：5596
+Prefix Checks：469
+Transition States：1130
+Directional WAIT States：2910
+
+================================
+
+Symbol：BTCUSDT
+Result：PASS
+4H Bars：999
+5m Bars：999
+Timeline States：999
+Prefix Invariance：PASS
+Prefix Checkpoints：80
+Prefix Mismatches：0
+AvailableIndex Causality：PASS
+Causality Violations：0
+5m Mapping：PASS
+5m Mapped Bars：999
+5m Unmapped Bars：0
+5m Mapping Violations：0
+HTF Transition Semantics：PASS
+Transition States：320
+Direction + Readiness Separation：PASS
+Directional WAIT States：416
+
+Timeline Changes
+2026-02-17T19:59:59.999Z | index=0 | availableIndex=0 | phase=UNDETERMINED | context=null | marketBias=NEUTRAL | legacyBias=null | transition=null | location=UNKNOWN | relation=UNKNOWN | readiness=WAIT | draw=NONE
+2026-02-20T19:59:59.999Z | index=18 | availableIndex=18 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/68438
+2026-02-20T23:59:59.999Z | index=19 | availableIndex=19 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/68438
+2026-02-23T11:59:59.999Z | index=34 | availableIndex=34 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-02-25T11:59:59.999Z | index=46 | availableIndex=46 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-02-26T07:59:59.999Z | index=51 | availableIndex=51 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-02-27T03:59:59.999Z | index=56 | availableIndex=56 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-03-03T03:59:59.999Z | index=80 | availableIndex=80 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/70100
+2026-03-03T23:59:59.999Z | index=85 | availableIndex=85 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/70100
+2026-03-05T03:59:59.999Z | index=92 | availableIndex=92 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/74046.5
+2026-03-07T03:59:59.999Z | index=104 | availableIndex=104 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/71387.5
+2026-03-08T15:59:59.999Z | index=113 | availableIndex=113 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-03-08T19:59:59.999Z | index=114 | availableIndex=114 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-03-09T07:59:59.999Z | index=117 | availableIndex=117 | phase=BEARISH_CONFIRMED | context=POST_MSS | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/65234.4
+2026-03-11T23:59:59.999Z | index=133 | availableIndex=133 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/65234.4
+2026-03-12T03:59:59.999Z | index=134 | availableIndex=134 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/65234.4
+2026-03-19T23:59:59.999Z | index=181 | availableIndex=181 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/65770.5
+2026-03-20T19:59:59.999Z | index=186 | availableIndex=186 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/65770.5
+2026-03-22T19:59:59.999Z | index=198 | availableIndex=198 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/65770.5
+2026-03-28T23:59:59.999Z | index=235 | availableIndex=235 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/65234.4
+2026-04-02T23:59:59.999Z | index=265 | availableIndex=265 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/64918.2
+2026-04-03T03:59:59.999Z | index=266 | availableIndex=266 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/64918.2
+2026-04-12T11:59:59.999Z | index=322 | availableIndex=322 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/65676.1
+2026-04-14T23:59:59.999Z | index=337 | availableIndex=337 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-15T15:59:59.999Z | index=341 | availableIndex=341 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-18T03:59:59.999Z | index=356 | availableIndex=356 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/78300
+2026-04-19T15:59:59.999Z | index=365 | availableIndex=365 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/77380
+2026-04-21T07:59:59.999Z | index=375 | availableIndex=375 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/78300
+2026-04-22T03:59:59.999Z | index=380 | availableIndex=380 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=BUY_SIDE/PWH/78300
+2026-04-23T03:59:59.999Z | index=386 | availableIndex=386 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/79444
+2026-04-23T19:59:59.999Z | index=390 | availableIndex=390 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/79444
+2026-04-27T11:59:59.999Z | index=412 | availableIndex=412 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/H4_SWING_HIGH/79455
+2026-04-28T03:59:59.999Z | index=416 | availableIndex=416 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-28T11:59:59.999Z | index=418 | availableIndex=418 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=NONE
+2026-04-30T03:59:59.999Z | index=428 | availableIndex=428 | phase=BEARISH_CONFIRMED | context=POST_MSS | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/73669
+2026-04-30T11:59:59.999Z | index=430 | availableIndex=430 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/73669
+2026-05-01T23:59:59.999Z | index=439 | availableIndex=439 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-05-03T15:59:59.999Z | index=449 | availableIndex=449 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-05-06T19:59:59.999Z | index=468 | availableIndex=468 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/H4_SWING_HIGH/82828.7
+2026-05-10T03:59:59.999Z | index=488 | availableIndex=488 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/81043.2
+2026-05-11T23:59:59.999Z | index=499 | availableIndex=499 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/82828.7
+2026-05-14T03:59:59.999Z | index=512 | availableIndex=512 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-05-15T03:59:59.999Z | index=518 | availableIndex=518 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-03T11:59:59.999Z | index=634 | availableIndex=634 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-07T19:59:59.999Z | index=660 | availableIndex=660 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-10T03:59:59.999Z | index=674 | availableIndex=674 | phase=BEARISH_CONFIRMED | context=POST_MSS | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/59080
+2026-06-10T23:59:59.999Z | index=679 | availableIndex=679 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/59080
+2026-06-22T07:59:59.999Z | index=747 | availableIndex=747 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/62232.1
+2026-06-22T23:59:59.999Z | index=751 | availableIndex=751 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-23T19:59:59.999Z | index=756 | availableIndex=756 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-24T19:59:59.999Z | index=762 | availableIndex=762 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BEARISH | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=NONE
+2026-06-25T03:59:59.999Z | index=764 | availableIndex=764 | phase=BEARISH_CONFIRMED | context=POST_MSS | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/59060
+2026-06-25T15:59:59.999Z | index=767 | availableIndex=767 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-29T11:59:59.999Z | index=790 | availableIndex=790 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/58030
+2026-07-15T23:59:59.999Z | index=889 | availableIndex=889 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-17T23:59:59.999Z | index=901 | availableIndex=901 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-19T11:59:59.999Z | index=910 | availableIndex=910 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/65597.2
+2026-07-19T23:59:59.999Z | index=913 | availableIndex=913 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/65597.2
+2026-07-21T03:59:59.999Z | index=920 | availableIndex=920 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/67255.4
+2026-07-22T03:59:59.999Z | index=926 | availableIndex=926 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/67255.4
+2026-07-30T23:59:59.999Z | index=979 | availableIndex=979 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/66924.1
+2026-07-31T23:59:59.999Z | index=985 | availableIndex=985 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-08-01T19:59:59.999Z | index=990 | availableIndex=990 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+
+================================
+
+Symbol：ETHUSDT
+Result：PASS
+4H Bars：999
+5m Bars：999
+Timeline States：999
+Prefix Invariance：PASS
+Prefix Checkpoints：87
+Prefix Mismatches：0
+AvailableIndex Causality：PASS
+Causality Violations：0
+5m Mapping：PASS
+5m Mapped Bars：999
+5m Unmapped Bars：0
+5m Mapping Violations：0
+HTF Transition Semantics：PASS
+Transition States：327
+Direction + Readiness Separation：PASS
+Directional WAIT States：426
+
+Timeline Changes
+2026-02-17T19:59:59.999Z | index=0 | availableIndex=0 | phase=UNDETERMINED | context=null | marketBias=NEUTRAL | legacyBias=null | transition=null | location=UNKNOWN | relation=UNKNOWN | readiness=WAIT | draw=NONE
+2026-02-23T11:59:59.999Z | index=34 | availableIndex=34 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/H4_SWING_LOW/1844.46
+2026-02-23T23:59:59.999Z | index=37 | availableIndex=37 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-02-26T07:59:59.999Z | index=51 | availableIndex=51 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-02-27T03:59:59.999Z | index=56 | availableIndex=56 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-03-05T03:59:59.999Z | index=92 | availableIndex=92 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/2199.47
+2026-03-06T03:59:59.999Z | index=98 | availableIndex=98 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/2163
+2026-03-13T11:59:59.999Z | index=142 | availableIndex=142 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/2199.47
+2026-03-14T19:59:59.999Z | index=150 | availableIndex=150 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/2209.49
+2026-03-17T07:59:59.999Z | index=165 | availableIndex=165 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/2385.78
+2026-03-17T15:59:59.999Z | index=167 | availableIndex=167 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/2385.78
+2026-03-22T11:59:59.999Z | index=196 | availableIndex=196 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-03-28T23:59:59.999Z | index=235 | availableIndex=235 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-05T23:59:59.999Z | index=283 | availableIndex=283 | phase=BEARISH_CONFIRMED | context=POST_MSS | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=SELL_SIDE/PWL/1936.54
+2026-04-06T19:59:59.999Z | index=288 | availableIndex=288 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-07T07:59:59.999Z | index=291 | availableIndex=291 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-08T07:59:59.999Z | index=297 | availableIndex=297 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/2385.78
+2026-04-09T11:59:59.999Z | index=304 | availableIndex=304 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/2385.78
+2026-04-12T03:59:59.999Z | index=320 | availableIndex=320 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=BUY_SIDE/PWH/2385.78
+2026-04-12T23:59:59.999Z | index=325 | availableIndex=325 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-13T07:59:59.999Z | index=327 | availableIndex=327 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-22T23:59:59.999Z | index=385 | availableIndex=385 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-24T03:59:59.999Z | index=392 | availableIndex=392 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-27T11:59:59.999Z | index=412 | availableIndex=412 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/2423
+2026-04-27T23:59:59.999Z | index=415 | availableIndex=415 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-28T11:59:59.999Z | index=418 | availableIndex=418 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-30T03:59:59.999Z | index=428 | availableIndex=428 | phase=BEARISH_CONFIRMED | context=POST_MSS | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/2174.48
+2026-04-30T23:59:59.999Z | index=433 | availableIndex=433 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/2174.48
+2026-05-08T11:59:59.999Z | index=478 | availableIndex=478 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/2218.83
+2026-05-09T03:59:59.999Z | index=482 | availableIndex=482 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/2218.83
+2026-05-13T23:59:59.999Z | index=511 | availableIndex=511 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/2218.83
+2026-05-15T03:59:59.999Z | index=518 | availableIndex=518 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/2218.83
+2026-05-15T23:59:59.999Z | index=523 | availableIndex=523 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/2174.48
+2026-05-17T19:59:59.999Z | index=534 | availableIndex=534 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/2058.01
+2026-05-18T07:59:59.999Z | index=537 | availableIndex=537 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/2085
+2026-05-18T23:59:59.999Z | index=541 | availableIndex=541 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/2058.01
+2026-05-23T15:59:59.999Z | index=569 | availableIndex=569 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/1978.7
+2026-05-24T07:59:59.999Z | index=573 | availableIndex=573 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/1978.7
+2026-06-01T23:59:59.999Z | index=625 | availableIndex=625 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/1936.54
+2026-06-02T07:59:59.999Z | index=627 | availableIndex=627 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/1936.54
+2026-06-03T11:59:59.999Z | index=634 | availableIndex=634 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/1796
+2026-06-03T19:59:59.999Z | index=636 | availableIndex=636 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=NONE
+2026-06-04T11:59:59.999Z | index=640 | availableIndex=640 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/H4_SWING_LOW/1712.52
+2026-06-07T19:59:59.999Z | index=660 | availableIndex=660 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PDL/1503.6
+2026-06-10T03:59:59.999Z | index=674 | availableIndex=674 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/1503.6
+2026-06-10T23:59:59.999Z | index=679 | availableIndex=679 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/1503.6
+2026-06-15T07:59:59.999Z | index=705 | availableIndex=705 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-16T15:59:59.999Z | index=713 | availableIndex=713 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-20T23:59:59.999Z | index=739 | availableIndex=739 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/2020.9
+2026-06-22T07:59:59.999Z | index=747 | availableIndex=747 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/1848.78
+2026-06-23T19:59:59.999Z | index=756 | availableIndex=756 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-24T19:59:59.999Z | index=762 | availableIndex=762 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=NONE
+2026-06-25T03:59:59.999Z | index=764 | availableIndex=764 | phase=BEARISH_CONFIRMED | context=POST_MSS | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/1503.6
+2026-06-25T15:59:59.999Z | index=767 | availableIndex=767 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/1503.6
+2026-07-02T23:59:59.999Z | index=811 | availableIndex=811 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-05T19:59:59.999Z | index=828 | availableIndex=828 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-10T23:59:59.999Z | index=859 | availableIndex=859 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/1848.78
+2026-07-12T03:59:59.999Z | index=866 | availableIndex=866 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/1848.78
+2026-07-12T11:59:59.999Z | index=868 | availableIndex=868 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/1848.78
+2026-07-15T07:59:59.999Z | index=885 | availableIndex=885 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/2020.9
+2026-07-17T23:59:59.999Z | index=901 | availableIndex=901 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/2020.9
+2026-07-19T19:59:59.999Z | index=912 | availableIndex=912 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/2020.9
+2026-07-20T03:59:59.999Z | index=914 | availableIndex=914 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=BUY_SIDE/PWH/1946.75
+2026-07-21T19:59:59.999Z | index=924 | availableIndex=924 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/2020.9
+2026-07-22T03:59:59.999Z | index=926 | availableIndex=926 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/2020.9
+2026-07-27T15:59:59.999Z | index=959 | availableIndex=959 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/2020.9
+2026-07-28T11:59:59.999Z | index=964 | availableIndex=964 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/2020.9
+2026-08-02T11:59:59.999Z | index=994 | availableIndex=994 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/2020.9
+
+================================
+
+Symbol：SNDKUSDT
+Result：PASS
+4H Bars：706
+5m Bars：999
+Timeline States：706
+Prefix Invariance：PASS
+Prefix Checkpoints：64
+Prefix Mismatches：0
+AvailableIndex Causality：PASS
+Causality Violations：0
+5m Mapping：PASS
+5m Mapped Bars：999
+5m Unmapped Bars：0
+5m Mapping Violations：0
+HTF Transition Semantics：PASS
+Transition States：103
+Direction + Readiness Separation：PASS
+Directional WAIT States：430
+
+Timeline Changes
+2026-04-07T15:59:59.999Z | index=0 | availableIndex=0 | phase=UNDETERMINED | context=null | marketBias=NEUTRAL | legacyBias=null | transition=null | location=UNKNOWN | relation=UNKNOWN | readiness=WAIT | draw=NONE
+2026-04-10T23:59:59.999Z | index=20 | availableIndex=20 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/H4_SWING_HIGH/879.58
+2026-04-13T03:59:59.999Z | index=33 | availableIndex=33 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/879.58
+2026-04-14T11:59:59.999Z | index=41 | availableIndex=41 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/H4_SWING_HIGH/995.4
+2026-04-14T23:59:59.999Z | index=44 | availableIndex=44 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/H4_SWING_HIGH/995.4
+2026-04-16T23:59:59.999Z | index=56 | availableIndex=56 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/945.3
+2026-04-18T03:59:59.999Z | index=63 | availableIndex=63 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/938.91
+2026-04-23T07:59:59.999Z | index=94 | availableIndex=94 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/995.4
+2026-04-24T03:59:59.999Z | index=99 | availableIndex=99 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/995.4
+2026-04-25T07:59:59.999Z | index=106 | availableIndex=106 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/1000.84
+2026-04-26T03:59:59.999Z | index=111 | availableIndex=111 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/1000.84
+2026-04-28T11:59:59.999Z | index=125 | availableIndex=125 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/H4_SWING_HIGH/1088.88
+2026-04-28T23:59:59.999Z | index=128 | availableIndex=128 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/H4_SWING_HIGH/1088.88
+2026-05-01T07:59:59.999Z | index=142 | availableIndex=142 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/1129.42
+2026-05-04T07:59:59.999Z | index=160 | availableIndex=160 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=NONE
+2026-05-04T11:59:59.999Z | index=161 | availableIndex=161 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/H4_SWING_HIGH/1243.8
+2026-05-06T23:59:59.999Z | index=176 | availableIndex=176 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/H4_SWING_HIGH/1518.12
+2026-05-09T07:59:59.999Z | index=190 | availableIndex=190 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/1580
+2026-05-09T23:59:59.999Z | index=194 | availableIndex=194 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/1580
+2026-05-11T11:59:59.999Z | index=203 | availableIndex=203 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/H4_SWING_HIGH/1690.7
+2026-05-23T19:59:59.999Z | index=277 | availableIndex=277 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/1690.7
+2026-05-25T15:59:59.999Z | index=288 | availableIndex=288 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/1690.7
+2026-05-26T15:59:59.999Z | index=294 | availableIndex=294 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=BUY_SIDE/PWH/1690.7
+2026-05-27T23:59:59.999Z | index=302 | availableIndex=302 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/1690.7
+2026-05-28T15:59:59.999Z | index=306 | availableIndex=306 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=NONE
+2026-05-28T23:59:59.999Z | index=308 | availableIndex=308 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/H4_SWING_HIGH/1695.2
+2026-05-30T03:59:59.999Z | index=315 | availableIndex=315 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/1707.6
+2026-06-01T23:59:59.999Z | index=332 | availableIndex=332 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/H4_SWING_HIGH/1797.78
+2026-06-02T11:59:59.999Z | index=335 | availableIndex=335 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/1797.78
+2026-06-04T03:59:59.999Z | index=345 | availableIndex=345 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/1861.91
+2026-06-04T19:59:59.999Z | index=349 | availableIndex=349 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/1861.91
+2026-06-08T23:59:59.999Z | index=374 | availableIndex=374 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/1861.91
+2026-06-10T03:59:59.999Z | index=381 | availableIndex=381 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/1861.91
+2026-06-14T19:59:59.999Z | index=409 | availableIndex=409 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/2017.96
+2026-06-15T23:59:59.999Z | index=416 | availableIndex=416 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/H4_SWING_HIGH/2150
+2026-06-19T03:59:59.999Z | index=435 | availableIndex=435 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/2242.64
+2026-06-19T15:59:59.999Z | index=438 | availableIndex=438 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/2242.64
+2026-06-22T23:59:59.999Z | index=458 | availableIndex=458 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/H4_SWING_HIGH/2352.97
+2026-06-26T11:59:59.999Z | index=479 | availableIndex=479 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/2373.96
+2026-06-29T23:59:59.999Z | index=500 | availableIndex=500 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-01T03:59:59.999Z | index=507 | availableIndex=507 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-03T03:59:59.999Z | index=519 | availableIndex=519 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-03T19:59:59.999Z | index=523 | availableIndex=523 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-14T07:59:59.999Z | index=586 | availableIndex=586 | phase=BEARISH_CONFIRMED | context=POST_MSS | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/1490.14
+2026-07-14T23:59:59.999Z | index=590 | availableIndex=590 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/1490.14
+2026-07-16T03:59:59.999Z | index=597 | availableIndex=597 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/1279.47
+2026-07-18T03:59:59.999Z | index=609 | availableIndex=609 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/1279.47
+2026-07-25T03:59:59.999Z | index=651 | availableIndex=651 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/1310.01
+2026-07-27T15:59:59.999Z | index=666 | availableIndex=666 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=SELL_SIDE/PWL/1166
+2026-07-29T15:59:59.999Z | index=678 | availableIndex=678 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/982.27
+2026-07-31T11:59:59.999Z | index=689 | availableIndex=689 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-31T23:59:59.999Z | index=692 | availableIndex=692 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+
+================================
+
+Symbol：MUUSDT
+Result：PASS
+4H Bars：706
+5m Bars：999
+Timeline States：706
+Prefix Invariance：PASS
+Prefix Checkpoints：61
+Prefix Mismatches：0
+AvailableIndex Causality：PASS
+Causality Violations：0
+5m Mapping：PASS
+5m Mapped Bars：999
+5m Unmapped Bars：0
+5m Mapping Violations：0
+HTF Transition Semantics：PASS
+Transition States：195
+Direction + Readiness Separation：PASS
+Directional WAIT States：352
+
+Timeline Changes
+2026-04-07T15:59:59.999Z | index=0 | availableIndex=0 | phase=UNDETERMINED | context=null | marketBias=NEUTRAL | legacyBias=null | transition=null | location=UNKNOWN | relation=UNKNOWN | readiness=WAIT | draw=NONE
+2026-04-09T11:59:59.999Z | index=11 | availableIndex=11 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/H4_SWING_LOW/385
+2026-04-10T11:59:59.999Z | index=17 | availableIndex=17 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-10T23:59:59.999Z | index=20 | availableIndex=20 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-29T23:59:59.999Z | index=134 | availableIndex=134 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/532
+2026-04-30T03:59:59.999Z | index=135 | availableIndex=135 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/531.94
+2026-05-04T23:59:59.999Z | index=164 | availableIndex=164 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/H4_SWING_HIGH/593.35
+2026-05-06T23:59:59.999Z | index=176 | availableIndex=176 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/H4_SWING_HIGH/689.49
+2026-05-09T07:59:59.999Z | index=190 | availableIndex=190 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/760.71
+2026-05-11T07:59:59.999Z | index=202 | availableIndex=202 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=NONE
+2026-05-21T11:59:59.999Z | index=263 | availableIndex=263 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/817.89
+2026-05-21T23:59:59.999Z | index=266 | availableIndex=266 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/817.89
+2026-05-23T03:59:59.999Z | index=273 | availableIndex=273 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/817.89
+2026-05-24T23:59:59.999Z | index=284 | availableIndex=284 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/817.89
+2026-05-25T23:59:59.999Z | index=290 | availableIndex=290 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/817.89
+2026-05-26T15:59:59.999Z | index=294 | availableIndex=294 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=NONE
+2026-05-27T23:59:59.999Z | index=302 | availableIndex=302 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/H4_SWING_HIGH/987
+2026-05-28T15:59:59.999Z | index=306 | availableIndex=306 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/987
+2026-05-31T11:59:59.999Z | index=323 | availableIndex=323 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PDH/987
+2026-06-01T11:59:59.999Z | index=329 | availableIndex=329 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=NONE
+2026-06-02T03:59:59.999Z | index=333 | availableIndex=333 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/1047.8
+2026-06-02T11:59:59.999Z | index=335 | availableIndex=335 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-08T23:59:59.999Z | index=374 | availableIndex=374 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/1091.27
+2026-06-11T23:59:59.999Z | index=392 | availableIndex=392 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=BUY_SIDE/PWH/1091.27
+2026-06-12T11:59:59.999Z | index=395 | availableIndex=395 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/1091.27
+2026-06-12T15:59:59.999Z | index=396 | availableIndex=396 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/1091.27
+2026-06-15T07:59:59.999Z | index=412 | availableIndex=412 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/1044.7
+2026-06-16T11:59:59.999Z | index=419 | availableIndex=419 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=NONE
+2026-06-16T19:59:59.999Z | index=421 | availableIndex=421 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=BUY_SIDE/H4_SWING_HIGH/1134.58
+2026-06-16T23:59:59.999Z | index=422 | availableIndex=422 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-18T03:59:59.999Z | index=429 | availableIndex=429 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-29T23:59:59.999Z | index=500 | availableIndex=500 | phase=BEARISH_CONFIRMED | context=POST_MSS | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/993.88
+2026-07-02T23:59:59.999Z | index=518 | availableIndex=518 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=UNKNOWN | relation=UNKNOWN | readiness=WAIT | draw=SELL_SIDE/PWL/856.1
+2026-07-03T03:59:59.999Z | index=519 | availableIndex=519 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/856.1
+2026-07-03T23:59:59.999Z | index=524 | availableIndex=524 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/856.1
+2026-07-06T11:59:59.999Z | index=539 | availableIndex=539 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/951.42
+2026-07-06T23:59:59.999Z | index=542 | availableIndex=542 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=SELL_SIDE/PWL/951.42
+2026-07-13T23:59:59.999Z | index=584 | availableIndex=584 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/875.67
+2026-07-16T15:59:59.999Z | index=600 | availableIndex=600 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=SELL_SIDE/PWL/835
+2026-07-17T23:59:59.999Z | index=608 | availableIndex=608 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/773
+2026-07-18T03:59:59.999Z | index=609 | availableIndex=609 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/773
+2026-07-25T03:59:59.999Z | index=651 | availableIndex=651 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/805.09
+2026-07-27T15:59:59.999Z | index=666 | availableIndex=666 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=SELL_SIDE/PWL/846.84
+2026-07-27T23:59:59.999Z | index=668 | availableIndex=668 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/846.84
+2026-07-29T11:59:59.999Z | index=677 | availableIndex=677 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=SELL_SIDE/PWL/653.34
+2026-07-29T15:59:59.999Z | index=678 | availableIndex=678 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/653.34
+2026-08-01T19:59:59.999Z | index=697 | availableIndex=697 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/653.34
+
+================================
+
+Symbol：XAUUSDT
+Result：PASS
+4H Bars：999
+5m Bars：999
+Timeline States：999
+Prefix Invariance：PASS
+Prefix Checkpoints：80
+Prefix Mismatches：0
+AvailableIndex Causality：PASS
+Causality Violations：0
+5m Mapping：PASS
+5m Mapped Bars：999
+5m Unmapped Bars：0
+5m Mapping Violations：0
+HTF Transition Semantics：PASS
+Transition States：135
+Direction + Readiness Separation：PASS
+Directional WAIT States：550
+
+Timeline Changes
+2026-02-17T19:59:59.999Z | index=0 | availableIndex=0 | phase=UNDETERMINED | context=null | marketBias=NEUTRAL | legacyBias=null | transition=null | location=UNKNOWN | relation=UNKNOWN | readiness=WAIT | draw=NONE
+2026-02-23T11:59:59.999Z | index=34 | availableIndex=34 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/H4_SWING_HIGH/5178.76
+2026-02-23T19:59:59.999Z | index=36 | availableIndex=36 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=NONE
+2026-02-24T07:59:59.999Z | index=39 | availableIndex=39 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/5253.4
+2026-02-24T11:59:59.999Z | index=40 | availableIndex=40 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/5253.4
+2026-02-28T19:59:59.999Z | index=66 | availableIndex=66 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/H4_SWING_HIGH/5396.44
+2026-03-01T11:59:59.999Z | index=70 | availableIndex=70 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/5396.44
+2026-03-02T15:59:59.999Z | index=77 | availableIndex=77 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/H4_SWING_HIGH/5420
+2026-03-12T11:59:59.999Z | index=136 | availableIndex=136 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/5420
+2026-03-25T11:59:59.999Z | index=214 | availableIndex=214 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/5043.75
+2026-03-26T03:59:59.999Z | index=218 | availableIndex=218 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/5043.75
+2026-03-30T19:59:59.999Z | index=246 | availableIndex=246 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/4601.69
+2026-03-31T11:59:59.999Z | index=250 | availableIndex=250 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/5043.75
+2026-04-06T19:59:59.999Z | index=288 | availableIndex=288 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/4794.47
+2026-04-07T11:59:59.999Z | index=292 | availableIndex=292 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/4794.47
+2026-04-15T11:59:59.999Z | index=340 | availableIndex=340 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/5043.75
+2026-04-15T19:59:59.999Z | index=342 | availableIndex=342 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/5043.75
+2026-04-17T23:59:59.999Z | index=355 | availableIndex=355 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/5043.75
+2026-04-19T11:59:59.999Z | index=364 | availableIndex=364 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/5043.75
+2026-04-22T03:59:59.999Z | index=380 | availableIndex=380 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-22T15:59:59.999Z | index=383 | availableIndex=383 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-04-27T11:59:59.999Z | index=412 | availableIndex=412 | phase=BEARISH_CONFIRMED | context=POST_MSS | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/4661.01
+2026-04-28T11:59:59.999Z | index=418 | availableIndex=418 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=SELL_SIDE/PWL/4419.21
+2026-04-28T19:59:59.999Z | index=420 | availableIndex=420 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/4419.21
+2026-04-29T11:59:59.999Z | index=424 | availableIndex=424 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/4419.21
+2026-05-05T03:59:59.999Z | index=458 | availableIndex=458 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/4419.21
+2026-05-13T11:59:59.999Z | index=508 | availableIndex=508 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/4505
+2026-05-20T11:59:59.999Z | index=550 | availableIndex=550 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/4419.21
+2026-05-20T23:59:59.999Z | index=553 | availableIndex=553 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/4419.21
+2026-05-27T03:59:59.999Z | index=590 | availableIndex=590 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/4457.27
+2026-05-31T15:59:59.999Z | index=617 | availableIndex=617 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/4124.1
+2026-06-06T15:59:59.999Z | index=653 | availableIndex=653 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/4124.1
+2026-06-07T19:59:59.999Z | index=660 | availableIndex=660 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/4124.1
+2026-06-11T07:59:59.999Z | index=681 | availableIndex=681 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/4025.67
+2026-06-12T07:59:59.999Z | index=687 | availableIndex=687 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PDL/4039.65
+2026-06-18T03:59:59.999Z | index=722 | availableIndex=722 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/4025.67
+2026-06-19T23:59:59.999Z | index=733 | availableIndex=733 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/4025.67
+2026-06-22T07:59:59.999Z | index=747 | availableIndex=747 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=SELL_SIDE/PWL/4124.5
+2026-06-22T11:59:59.999Z | index=748 | availableIndex=748 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-22T23:59:59.999Z | index=751 | availableIndex=751 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-26T23:59:59.999Z | index=775 | availableIndex=775 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/4384.94
+2026-06-28T03:59:59.999Z | index=782 | availableIndex=782 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/4384.94
+2026-06-30T11:59:59.999Z | index=796 | availableIndex=796 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-30T23:59:59.999Z | index=799 | availableIndex=799 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-06T23:59:59.999Z | index=835 | availableIndex=835 | phase=BEARISH_CONFIRMED | context=POST_MSS | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/3948.18
+2026-07-07T07:59:59.999Z | index=837 | availableIndex=837 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=SELL_SIDE/PWL/3948.18
+2026-07-08T07:59:59.999Z | index=843 | availableIndex=843 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/3948.18
+2026-07-08T15:59:59.999Z | index=845 | availableIndex=845 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=SELL_SIDE/PWL/3948.18
+2026-07-08T23:59:59.999Z | index=847 | availableIndex=847 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/3948.18
+2026-07-11T07:59:59.999Z | index=861 | availableIndex=861 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/3948.18
+2026-07-17T03:59:59.999Z | index=896 | availableIndex=896 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/3948.18
+2026-07-18T03:59:59.999Z | index=902 | availableIndex=902 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/3948.18
+2026-07-20T11:59:59.999Z | index=916 | availableIndex=916 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=ABOVE_RANGE | readiness=WAIT | draw=SELL_SIDE/PWL/3966.14
+2026-07-20T19:59:59.999Z | index=918 | availableIndex=918 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-20T23:59:59.999Z | index=919 | availableIndex=919 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-21T15:59:59.999Z | index=923 | availableIndex=923 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/4106.24
+2026-07-22T11:59:59.999Z | index=928 | availableIndex=928 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/4204.41
+2026-07-23T23:59:59.999Z | index=937 | availableIndex=937 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/4204.41
+2026-07-27T11:59:59.999Z | index=958 | availableIndex=958 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/4168.58
+2026-07-27T23:59:59.999Z | index=961 | availableIndex=961 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/4168.58
+2026-07-28T23:59:59.999Z | index=967 | availableIndex=967 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-29T15:59:59.999Z | index=971 | availableIndex=971 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+
+================================
+
+Symbol：CLUSDT
+Result：PASS
+4H Bars：743
+5m Bars：999
+Timeline States：743
+Prefix Invariance：PASS
+Prefix Checkpoints：49
+Prefix Mismatches：0
+AvailableIndex Causality：PASS
+Causality Violations：0
+5m Mapping：PASS
+5m Mapped Bars：999
+5m Unmapped Bars：0
+5m Mapping Violations：0
+HTF Transition Semantics：PASS
+Transition States：0
+Direction + Readiness Separation：PASS
+Directional WAIT States：477
+
+Timeline Changes
+2026-04-01T11:59:59.999Z | index=0 | availableIndex=0 | phase=UNDETERMINED | context=null | marketBias=NEUTRAL | legacyBias=null | transition=null | location=UNKNOWN | relation=UNKNOWN | readiness=WAIT | draw=NONE
+2026-04-08T07:59:59.999Z | index=41 | availableIndex=41 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/91.14
+2026-04-09T23:59:59.999Z | index=51 | availableIndex=51 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PDL/91.11
+2026-04-11T07:59:59.999Z | index=59 | availableIndex=59 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/91.7
+2026-04-12T11:59:59.999Z | index=66 | availableIndex=66 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PDL/91.25
+2026-04-15T07:59:59.999Z | index=83 | availableIndex=83 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/84.41
+2026-04-15T19:59:59.999Z | index=86 | availableIndex=86 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PDL/84.41
+2026-05-01T23:59:59.999Z | index=183 | availableIndex=183 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/85.48
+2026-05-04T03:59:59.999Z | index=196 | availableIndex=196 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/94.61
+2026-05-06T19:59:59.999Z | index=212 | availableIndex=212 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/85.48
+2026-05-08T07:59:59.999Z | index=221 | availableIndex=221 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/85.48
+2026-05-09T11:59:59.999Z | index=228 | availableIndex=228 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/85.48
+2026-05-09T23:59:59.999Z | index=231 | availableIndex=231 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/85.48
+2026-05-18T23:59:59.999Z | index=285 | availableIndex=285 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/94.46
+2026-05-21T23:59:59.999Z | index=303 | availableIndex=303 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/94.46
+2026-05-24T07:59:59.999Z | index=317 | availableIndex=317 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/85.48
+2026-05-24T23:59:59.999Z | index=321 | availableIndex=321 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/85.48
+2026-06-05T03:59:59.999Z | index=388 | availableIndex=388 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/86.35
+2026-06-05T11:59:59.999Z | index=390 | availableIndex=390 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/86.35
+2026-06-10T03:59:59.999Z | index=418 | availableIndex=418 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/79.11
+2026-06-11T07:59:59.999Z | index=425 | availableIndex=425 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/79.11
+2026-06-12T19:59:59.999Z | index=434 | availableIndex=434 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/79.11
+2026-06-12T23:59:59.999Z | index=435 | availableIndex=435 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/79.11
+2026-06-15T07:59:59.999Z | index=449 | availableIndex=449 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/77
+2026-06-16T07:59:59.999Z | index=455 | availableIndex=455 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/77
+2026-06-17T03:59:59.999Z | index=460 | availableIndex=460 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/H4_SWING_LOW/74.77
+2026-06-17T23:59:59.999Z | index=465 | availableIndex=465 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/H4_SWING_LOW/74.12
+2026-06-23T03:59:59.999Z | index=496 | availableIndex=496 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/72.88
+2026-06-26T03:59:59.999Z | index=514 | availableIndex=514 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/68.96
+2026-06-29T11:59:59.999Z | index=534 | availableIndex=534 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/68.63
+2026-06-30T03:59:59.999Z | index=538 | availableIndex=538 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/68.63
+2026-07-25T23:59:59.999Z | index=693 | availableIndex=693 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/72.59
+2026-07-26T15:59:59.999Z | index=697 | availableIndex=697 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=SELL_SIDE/PWL/72.59
+2026-07-26T19:59:59.999Z | index=698 | availableIndex=698 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/72.59
+2026-07-28T15:59:59.999Z | index=709 | availableIndex=709 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=UNKNOWN | relation=UNKNOWN | readiness=WAIT | draw=SELL_SIDE/PWL/72.59
+2026-07-31T15:59:59.999Z | index=727 | availableIndex=727 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/72.59
+
+================================
+
+Symbol：SPCXUSDT
+Result：PASS
+4H Bars：444
+5m Bars：999
+Timeline States：444
+Prefix Invariance：PASS
+Prefix Checkpoints：48
+Prefix Mismatches：0
+AvailableIndex Causality：PASS
+Causality Violations：0
+5m Mapping：PASS
+5m Mapped Bars：999
+5m Unmapped Bars：0
+5m Mapping Violations：0
+HTF Transition Semantics：PASS
+Transition States：50
+Direction + Readiness Separation：PASS
+Directional WAIT States：259
+
+Timeline Changes
+2026-05-21T07:59:59.999Z | index=0 | availableIndex=0 | phase=UNDETERMINED | context=null | marketBias=NEUTRAL | legacyBias=null | transition=null | location=UNKNOWN | relation=UNKNOWN | readiness=WAIT | draw=NONE
+2026-05-23T03:59:59.999Z | index=11 | availableIndex=11 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/190
+2026-05-24T15:59:59.999Z | index=20 | availableIndex=20 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/194.6
+2026-05-28T11:59:59.999Z | index=43 | availableIndex=43 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/194.6
+2026-06-02T19:59:59.999Z | index=75 | availableIndex=75 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/190.07
+2026-06-03T11:59:59.999Z | index=79 | availableIndex=79 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/H4_SWING_LOW/177.44
+2026-06-04T15:59:59.999Z | index=86 | availableIndex=86 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=SELL_SIDE/PDL/177.44
+2026-06-05T03:59:59.999Z | index=89 | availableIndex=89 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/170
+2026-06-06T07:59:59.999Z | index=96 | availableIndex=96 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/161
+2026-06-08T19:59:59.999Z | index=111 | availableIndex=111 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/161
+2026-06-09T03:59:59.999Z | index=113 | availableIndex=113 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PWL/161
+2026-06-10T19:59:59.999Z | index=123 | availableIndex=123 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/H4_SWING_LOW/154.83
+2026-06-12T15:59:59.999Z | index=134 | availableIndex=134 | phase=BULLISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-14T03:59:59.999Z | index=143 | availableIndex=143 | phase=BULLISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BEARISH | transition=BULLISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-06-14T19:59:59.999Z | index=147 | availableIndex=147 | phase=BULLISH_CONFIRMED | context=POST_MSS | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/205
+2026-06-16T11:59:59.999Z | index=157 | availableIndex=157 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/H4_SWING_HIGH/228
+2026-06-17T03:59:59.999Z | index=161 | availableIndex=161 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PDH/228
+2026-06-25T19:59:59.999Z | index=213 | availableIndex=213 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=READY | draw=BUY_SIDE/PWH/228
+2026-06-28T07:59:59.999Z | index=228 | availableIndex=228 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/228
+2026-06-29T07:59:59.999Z | index=234 | availableIndex=234 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/181.26
+2026-06-29T11:59:59.999Z | index=235 | availableIndex=235 | phase=BULLISH_PULLBACK | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/181.26
+2026-07-01T07:59:59.999Z | index=246 | availableIndex=246 | phase=BULLISH_CONTINUATION | context=CONTINUATION | marketBias=BULLISH | legacyBias=BULLISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=BUY_SIDE/PWH/181.26
+2026-07-01T23:59:59.999Z | index=250 | availableIndex=250 | phase=BEARISH_MSS | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-03T03:59:59.999Z | index=257 | availableIndex=257 | phase=BEARISH_PULLBACK | context=POST_MSS | marketBias=NEUTRAL | legacyBias=BULLISH | transition=BEARISH | location=PREMIUM | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-08T03:59:59.999Z | index=287 | availableIndex=287 | phase=BEARISH_CONFIRMED | context=POST_MSS | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/146.87
+2026-07-08T23:59:59.999Z | index=292 | availableIndex=292 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-13T11:59:59.999Z | index=319 | availableIndex=319 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/H4_SWING_LOW/142.34
+2026-07-13T23:59:59.999Z | index=322 | availableIndex=322 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=NONE
+2026-07-14T03:59:59.999Z | index=323 | availableIndex=323 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/136.83
+2026-07-14T23:59:59.999Z | index=328 | availableIndex=328 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=NONE
+2026-07-15T03:59:59.999Z | index=329 | availableIndex=329 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/136.1
+2026-07-15T23:59:59.999Z | index=334 | availableIndex=334 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=NONE
+2026-07-16T03:59:59.999Z | index=335 | availableIndex=335 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PDL/132.29
+2026-07-16T23:59:59.999Z | index=340 | availableIndex=340 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=BELOW_RANGE | readiness=WAIT | draw=NONE
+2026-07-17T07:59:59.999Z | index=342 | availableIndex=342 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/116.05
+2026-07-18T03:59:59.999Z | index=347 | availableIndex=347 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/122.07
+2026-07-21T03:59:59.999Z | index=365 | availableIndex=365 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PWL/116.05
+2026-07-24T07:59:59.999Z | index=384 | availableIndex=384 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PDL/111.04
+2026-08-01T03:59:59.999Z | index=431 | availableIndex=431 | phase=BEARISH_CONTINUATION | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=DISCOUNT | relation=INSIDE | readiness=WAIT | draw=SELL_SIDE/PDL/107.58
+2026-08-01T23:59:59.999Z | index=436 | availableIndex=436 | phase=BEARISH_PULLBACK | context=CONTINUATION | marketBias=BEARISH | legacyBias=BEARISH | transition=null | location=PREMIUM | relation=INSIDE | readiness=READY | draw=SELL_SIDE/PDL/107.58

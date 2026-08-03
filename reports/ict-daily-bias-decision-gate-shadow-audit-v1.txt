@@ -1,0 +1,203 @@
+ICT Daily Bias Decision Gate Shadow Audit V1
+
+Generated At：2026-08-03T06:29:51.769Z
+Data Source：CURRENT_WATCHLIST_H4_5M
+Source As Of：2026-08-03T06:24:59.999Z
+Production Behavior Modified：NO
+Shadow Previous Gate State：NONE
+
+Summary
+
+Symbols：8
+Available：8
+Unavailable：0
+Gate State Changed：6
+Gate State Unchanged：2
+Transition Watch Violations：0
+Direct Confirmation Violations：0
+Production Parity Failures：0
+
+Gate State Transitions
+HTF_CONFLICT -> WAITING_HTF：1
+WAITING_HTF -> WAITING_HTF：2
+WAITING_HTF -> WAITING_OPPORTUNITY：3
+WAITING_HTF -> WATCH_ZONE：2
+
+Transition Reasons
+DAILY_BIAS_ACTIVATES_WAITING_OPPORTUNITY：3
+DAILY_BIAS_ACTIVATES_WATCH_ZONE：2
+TRANSITION_BLOCKED_AS_WAITING_HTF：3
+
+================================
+
+Symbol：BTCUSDT
+Structure Phase：BEARISH_PULLBACK
+Transition Direction：BEARISH
+Old HTF Direction：NEUTRAL
+New HTF Direction：NEUTRAL
+Old Gate State：WAITING_HTF
+New Gate State：WAITING_HTF
+Old Direction：null
+New Direction：null
+Old Opportunity：WAITING / null / null / null
+New Opportunity：WAITING / null / null / null
+Transition Reason：TRANSITION_BLOCKED_AS_WAITING_HTF
+Old Reason Code：WAITING_FOR_HTF_BIAS
+New Reason Code：WAITING_FOR_HTF_BIAS
+Transition Watch Violation：NO
+Direct Confirmation Violation：NO
+Old Production Parity：true
+
+================================
+
+Symbol：BNBUSDT
+Structure Phase：BEARISH_PULLBACK
+Transition Direction：null
+Old HTF Direction：NEUTRAL
+New HTF Direction：BEARISH
+Old Gate State：WAITING_HTF
+New Gate State：WATCH_ZONE
+Old Direction：null
+New Direction：BEARISH
+Old Opportunity：WAITING / null / null / null
+New Opportunity：WATCH_ZONE / BEARISH / EQUAL_HIGH / 583.835
+Transition Reason：DAILY_BIAS_ACTIVATES_WATCH_ZONE
+Old Reason Code：WAITING_FOR_HTF_BIAS
+New Reason Code：OPPORTUNITY_ACTIVE
+Transition Watch Violation：NO
+Direct Confirmation Violation：NO
+Old Production Parity：true
+
+================================
+
+Symbol：ETHUSDT
+Structure Phase：BULLISH_CONTINUATION
+Transition Direction：null
+Old HTF Direction：NEUTRAL
+New HTF Direction：BULLISH
+Old Gate State：WAITING_HTF
+New Gate State：WAITING_OPPORTUNITY
+Old Direction：null
+New Direction：BULLISH
+Old Opportunity：WAITING / null / null / null
+New Opportunity：WAITING / BULLISH / null / null
+Transition Reason：DAILY_BIAS_ACTIVATES_WAITING_OPPORTUNITY
+Old Reason Code：WAITING_FOR_HTF_BIAS
+New Reason Code：WAITING_FOR_OPPORTUNITY
+Transition Watch Violation：NO
+Direct Confirmation Violation：NO
+Old Production Parity：true
+
+================================
+
+Symbol：SNDKUSDT
+Structure Phase：BULLISH_PULLBACK
+Transition Direction：BULLISH
+Old HTF Direction：BEARISH
+New HTF Direction：NEUTRAL
+Old Gate State：HTF_CONFLICT
+New Gate State：WAITING_HTF
+Old Direction：null
+New Direction：null
+Old Opportunity：WAITING / BEARISH / null / null
+New Opportunity：WAITING / null / null / null
+Transition Reason：TRANSITION_BLOCKED_AS_WAITING_HTF
+Old Reason Code：HTF_STRUCTURE_CONFLICT
+New Reason Code：WAITING_FOR_HTF_BIAS
+Transition Watch Violation：NO
+Direct Confirmation Violation：NO
+Old Production Parity：true
+
+================================
+
+Symbol：CLUSDT
+Structure Phase：BEARISH_CONTINUATION
+Transition Direction：null
+Old HTF Direction：NEUTRAL
+New HTF Direction：BEARISH
+Old Gate State：WAITING_HTF
+New Gate State：WAITING_OPPORTUNITY
+Old Direction：null
+New Direction：BEARISH
+Old Opportunity：WAITING / null / null / null
+New Opportunity：WAITING / BEARISH / null / null
+Transition Reason：DAILY_BIAS_ACTIVATES_WAITING_OPPORTUNITY
+Old Reason Code：WAITING_FOR_HTF_BIAS
+New Reason Code：WAITING_FOR_OPPORTUNITY
+Transition Watch Violation：NO
+Direct Confirmation Violation：NO
+Old Production Parity：true
+
+================================
+
+Symbol：MUUSDT
+Structure Phase：BEARISH_PULLBACK
+Transition Direction：null
+Old HTF Direction：NEUTRAL
+New HTF Direction：BEARISH
+Old Gate State：WAITING_HTF
+New Gate State：WAITING_OPPORTUNITY
+Old Direction：null
+New Direction：BEARISH
+Old Opportunity：WAITING / null / null / null
+New Opportunity：WAITING / BEARISH / null / null
+Transition Reason：DAILY_BIAS_ACTIVATES_WAITING_OPPORTUNITY
+Old Reason Code：WAITING_FOR_HTF_BIAS
+New Reason Code：WAITING_FOR_OPPORTUNITY
+Transition Watch Violation：NO
+Direct Confirmation Violation：NO
+Old Production Parity：true
+
+================================
+
+Symbol：XAUUSDT
+Structure Phase：BEARISH_PULLBACK
+Transition Direction：BEARISH
+Old HTF Direction：NEUTRAL
+New HTF Direction：NEUTRAL
+Old Gate State：WAITING_HTF
+New Gate State：WAITING_HTF
+Old Direction：null
+New Direction：null
+Old Opportunity：WAITING / null / null / null
+New Opportunity：WAITING / null / null / null
+Transition Reason：TRANSITION_BLOCKED_AS_WAITING_HTF
+Old Reason Code：WAITING_FOR_HTF_BIAS
+New Reason Code：WAITING_FOR_HTF_BIAS
+Transition Watch Violation：NO
+Direct Confirmation Violation：NO
+Old Production Parity：true
+
+================================
+
+Symbol：SPCXUSDT
+Structure Phase：BEARISH_PULLBACK
+Transition Direction：null
+Old HTF Direction：NEUTRAL
+New HTF Direction：BEARISH
+Old Gate State：WAITING_HTF
+New Gate State：WATCH_ZONE
+Old Direction：null
+New Direction：BEARISH
+Old Opportunity：WAITING / null / null / null
+New Opportunity：WATCH_ZONE / BEARISH / EQUAL_HIGH / 109.155
+Transition Reason：DAILY_BIAS_ACTIVATES_WATCH_ZONE
+Old Reason Code：WAITING_FOR_HTF_BIAS
+New Reason Code：OPPORTUNITY_ACTIVE
+Transition Watch Violation：NO
+Direct Confirmation Violation：NO
+Old Production Parity：true
+
+================================
+
+Comparison Table
+
+Symbol | Old Gate | New Gate | Old Direction | New Direction | Old Opportunity | New Opportunity | Transition Reason
+BTCUSDT | WAITING_HTF | WAITING_HTF | null | null | WAITING / null / null / null | WAITING / null / null / null | TRANSITION_BLOCKED_AS_WAITING_HTF
+BNBUSDT | WAITING_HTF | WATCH_ZONE | null | BEARISH | WAITING / null / null / null | WATCH_ZONE / BEARISH / EQUAL_HIGH / 583.835 | DAILY_BIAS_ACTIVATES_WATCH_ZONE
+ETHUSDT | WAITING_HTF | WAITING_OPPORTUNITY | null | BULLISH | WAITING / null / null / null | WAITING / BULLISH / null / null | DAILY_BIAS_ACTIVATES_WAITING_OPPORTUNITY
+SNDKUSDT | HTF_CONFLICT | WAITING_HTF | null | null | WAITING / BEARISH / null / null | WAITING / null / null / null | TRANSITION_BLOCKED_AS_WAITING_HTF
+CLUSDT | WAITING_HTF | WAITING_OPPORTUNITY | null | BEARISH | WAITING / null / null / null | WAITING / BEARISH / null / null | DAILY_BIAS_ACTIVATES_WAITING_OPPORTUNITY
+MUUSDT | WAITING_HTF | WAITING_OPPORTUNITY | null | BEARISH | WAITING / null / null / null | WAITING / BEARISH / null / null | DAILY_BIAS_ACTIVATES_WAITING_OPPORTUNITY
+XAUUSDT | WAITING_HTF | WAITING_HTF | null | null | WAITING / null / null / null | WAITING / null / null / null | TRANSITION_BLOCKED_AS_WAITING_HTF
+SPCXUSDT | WAITING_HTF | WATCH_ZONE | null | BEARISH | WAITING / null / null / null | WATCH_ZONE / BEARISH / EQUAL_HIGH / 109.155 | DAILY_BIAS_ACTIVATES_WATCH_ZONE

@@ -17,6 +17,9 @@ const NotificationFilter = require(
 const WatchlistAnalyst = require(
   '../scripts/runWatchlistAnalyst'
 );
+const ProductionGateStateStore = require(
+  '../state/ictProductionGateStateStore'
+);
 const ChineseFormatter = require(
   '../formatters/ictAnalystChineseFormatter'
 );
@@ -136,6 +139,106 @@ test('getKline uses generic symbol interval and closed bars only', async () => {
   ));
 });
 
+test('runner restores and persists Decision Gate state across runs', async () => {
+  const data = fixture();
+  const savedStates = {};
+  const previousStates = [];
+  let analysisCount = 0;
+  const gateStateStore = {
+    async load(symbol) {
+      return savedStates[symbol]
+        ? JSON.parse(JSON.stringify(savedStates[symbol]))
+        : null;
+    },
+    async save(symbol, state) {
+      savedStates[symbol] = JSON.parse(JSON.stringify(state));
+    },
+  };
+  const analystReport = {
+    analyze(input) {
+      previousStates.push(input.previousGateState);
+      analysisCount += 1;
+      const enteredAt = input.previousGateState &&
+        input.previousGateState.activeOpportunity
+        ? input.previousGateState.activeOpportunity.enteredAt
+        : 1000;
+      return {
+        symbol: input.symbol,
+        current: {
+          decisionGate: {
+            state: 'WATCH_ZONE',
+            direction: 'BEARISH',
+            activeOpportunity: {
+              id: 'BEARISH|EQUAL_HIGH|587.71',
+              direction: 'BEARISH',
+              liquidityType: 'EQUAL_HIGH',
+              price: 587.71,
+              enteredAt,
+              enteredAvailableIndex: 42,
+            },
+            progress: {
+              sweepCompleted: false,
+              mssCompleted: false,
+              displacementCompleted: false,
+              strictConfirmationCompleted: false,
+            },
+            blockers: ['WAITING_LTF_CONFIRMATION'],
+            reasonCode: 'OPPORTUNITY_ACTIVE',
+            transition: {
+              changed: analysisCount === 1,
+              from: analysisCount === 1
+                ? 'WAITING_OPPORTUNITY'
+                : 'WATCH_ZONE',
+              to: 'WATCH_ZONE',
+            },
+          },
+        },
+      };
+    },
+  };
+  const options = {
+    currentTime: data.currentTime,
+    marketData: {
+      async getKline(symbol, interval) {
+        return data.responses[interval];
+      },
+    },
+    gateStateStore,
+    analystReport,
+    formatter: {
+      format() {
+        return 'formatted';
+      },
+    },
+  };
+
+  const first = await WatchlistAnalyst.analyzeSymbol(
+    'BNBUSDT',
+    options
+  );
+  const second = await WatchlistAnalyst.analyzeSymbol(
+    'BNBUSDT',
+    options
+  );
+
+  assert.strictEqual(first.status, 'SUCCESS');
+  assert.strictEqual(second.status, 'SUCCESS');
+  assert.strictEqual(previousStates[0], null);
+  assert.deepStrictEqual(
+    previousStates[1],
+    first.report.current.decisionGate
+  );
+  assert.strictEqual(
+    second.report.current.decisionGate
+      .activeOpportunity.enteredAt,
+    1000
+  );
+  assert.strictEqual(
+    savedStates.BNBUSDT.activeOpportunity.enteredAt,
+    1000
+  );
+});
+
 test('multiple symbols remain isolated and produce Chinese output', async () => {
   const data = fixture();
   const symbols = [
@@ -150,6 +253,8 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
   let tradeCalls = 0;
   const result = await WatchlistAnalyst.run({
     currentTime: data.currentTime,
+    gateStateStore:
+      ProductionGateStateStore.createMemoryStore(),
     watchlistLoader: {
       loadWatchlist() {
         watchlistLoads += 1;
@@ -408,10 +513,10 @@ test('multiple symbols remain isolated and produce Chinese output', async () => 
     structurePhase.structurePhase
   );
   assert.ok(report.current.humanSummary.includes(
-    'Structure：'
+    '结构阶段：'
   ));
   assert.ok(result.results[0].formatted.includes(
-    'Structure：'
+    '结构阶段：'
   ));
   assert.ok(report.current.htfAlignment);
   assert.ok([

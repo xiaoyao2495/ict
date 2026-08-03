@@ -42,6 +42,9 @@ function currentReport(options) {
             price: 54321.12,
           }
           : options.primaryDraw,
+        ...(options.dailyBias === undefined
+          ? {}
+          : { dailyBias: options.dailyBias }),
       },
       oneHourAnalysis: {
         deliveryDirection:
@@ -438,14 +441,15 @@ test('Decision Gate通知使用中文交易观察语言', () => {
     '时间：\n2026-07-28 08:00:00',
     '状态：\n🟡 观察区（Watch Zone）',
     '变化：\n等待流动性机会 → 进入观察区域',
-    '方向：\n🟢 偏多',
+    '4H交易背景：\n🟢 偏多',
+    '观察方向：\n🟢 偏多',
     '原因：\n发现潜在机会区域',
-    '流动性位置：\n📍 等低点（卖方流动性）',
+    '当前关注流动性：\n📍 等低点（卖方流动性）',
     '价格：\n62782',
-    '当前阶段：\n等待流动性被扫取',
-    '✅ 流动性位置已发现：等低点（卖方流动性）',
-    '⏳ 5分钟看涨 MSS',
-    '1. 是否扫取62782下方流动性',
+    '交易逻辑：\n等待价格扫取下方卖方流动性',
+    '后续确认：\n⏳ 5分钟看涨 MSS',
+    '⏳ 看涨 Displacement',
+    '⏳ 完整确认',
   ]) {
     assert.ok(text.includes(expected), expected);
   }
@@ -458,6 +462,11 @@ test('Decision Gate通知使用中文交易观察语言', () => {
 
 test('偏空等高通知显示自然方向与流动性描述', () => {
   const report = currentReport({
+    dailyBias: {
+      marketBias: 'BEARISH',
+      legacyBias: 'BEARISH',
+      transitionDirection: null,
+    },
     decisionGate: {
       state: 'WATCH_ZONE',
       direction: 'BEARISH',
@@ -493,21 +502,192 @@ test('偏空等高通知显示自然方向与流动性描述', () => {
 
   for (const expected of [
     '状态：\n🟡 观察区（Watch Zone）',
-    '方向：\n🔴 偏空',
+    '4H交易背景：\n🔴 偏空',
+    '观察方向：\n🔴 偏空',
     '📍 等高点（买方流动性）',
     '价格：\n63282.95',
-    '等待流动性被扫取',
-    '是否形成5分钟看跌 MSS',
-    '是否出现看跌 Displacement',
+    '交易逻辑：\n等待价格扫取上方买方流动性',
+    '后续确认：\n⏳ 5分钟看跌 MSS',
+    '⏳ 看跌 Displacement',
   ]) {
     assert.ok(text.includes(expected), expected);
   }
   assert.strictEqual(text.includes('变化：'), false);
 });
 
+test('偏空通知将方向改写为4H交易上下文', () => {
+  const report = currentReport({
+    dailyBias: {
+      marketBias: 'BEARISH',
+      legacyBias: 'BEARISH',
+      transitionDirection: null,
+    },
+    decisionGate: {
+      state: 'WATCH_ZONE',
+      direction: 'BEARISH',
+      activeOpportunity: {
+        direction: 'BEARISH',
+        liquidityType: 'EQUAL_HIGH',
+        price: 587.71,
+      },
+      progress: {},
+      blockers: ['WAITING_LTF_CONFIRMATION'],
+      reasonCode: 'OPPORTUNITY_ACTIVE',
+    },
+  });
+  const text = Formatter.formatNotificationChange(
+    report,
+    ['DECISION_GATE_TRANSITION'],
+    {
+      symbol: 'BNBUSDT',
+      decisionGateTransition: {
+        changed: true,
+        from: 'WAITING_OPPORTUNITY',
+        to: 'WATCH_ZONE',
+        direction: 'BEARISH',
+        reasonCode: 'OPPORTUNITY_ACTIVE',
+        activeOpportunity: {
+          direction: 'BEARISH',
+          liquidityType: 'EQUAL_HIGH',
+          price: 587.71,
+        },
+      },
+    }
+  );
+
+  assert.ok(text.includes('4H交易背景：\n🔴 偏空'));
+  assert.ok(text.includes('观察方向：\n🔴 偏空'));
+  assert.ok(text.includes(
+    '当前关注流动性：\n📍 等高点（买方流动性）'
+  ));
+  assert.ok(text.includes('价格：\n587.71'));
+  assert.ok(text.includes(
+    '交易逻辑：\n等待价格扫取上方买方流动性'
+  ));
+  assert.ok(text.includes('⏳ 5分钟看跌 MSS'));
+  assert.strictEqual(
+    /\n方向：\n/.test(text),
+    false
+  );
+});
+
+test('Daily Bias与Gate方向相反时分别展示背景和观察方向', () => {
+  const report = currentReport({
+    dailyBias: {
+      marketBias: 'BULLISH',
+      legacyBias: 'BULLISH',
+      transitionDirection: null,
+    },
+    decisionGate: {
+      state: 'WATCH_ZONE',
+      direction: 'BEARISH',
+      activeOpportunity: {
+        direction: 'BEARISH',
+        liquidityType: 'EQUAL_HIGH',
+        price: 587.71,
+      },
+      progress: {},
+      blockers: ['WAITING_LTF_CONFIRMATION'],
+      reasonCode: 'OPPORTUNITY_ACTIVE',
+    },
+  });
+  const text = Formatter.formatNotificationChange(
+    report,
+    ['DECISION_GATE_TRANSITION'],
+    {
+      symbol: 'BNBUSDT',
+      decisionGateTransition: {
+        changed: true,
+        from: 'WAITING_OPPORTUNITY',
+        to: 'WATCH_ZONE',
+        direction: 'BEARISH',
+        reasonCode: 'OPPORTUNITY_ACTIVE',
+      },
+    }
+  );
+
+  assert.ok(text.includes('4H交易背景：\n🟢 偏多'));
+  assert.ok(text.includes('观察方向：\n🔴 偏空'));
+  assert.strictEqual(
+    text.includes('4H交易背景：\n🔴 偏空'),
+    false
+  );
+});
+
+test('SNDK转换期展示历史背景和转换方向', () => {
+  const report = currentReport({
+    dailyBias: {
+      marketBias: 'NEUTRAL',
+      legacyBias: 'BEARISH',
+      transitionDirection: 'BULLISH',
+      structureState: 'BULLISH_PULLBACK',
+    },
+    decisionGate: {
+      state: 'HTF_TRANSITION',
+      direction: null,
+      activeOpportunity: null,
+      progress: {},
+      blockers: ['HTF_TRANSITION_PENDING'],
+      reasonCode: 'HTF_STRUCTURE_TRANSITION',
+    },
+  });
+  const text = Formatter.formatNotificationChange(
+    report,
+    ['DECISION_GATE_TRANSITION'],
+    {
+      symbol: 'SNDKUSDT',
+      decisionGateTransition: {
+        changed: true,
+        from: 'WAITING_OPPORTUNITY',
+        to: 'HTF_TRANSITION',
+        direction: null,
+        reasonCode: 'HTF_STRUCTURE_TRANSITION',
+      },
+    }
+  );
+
+  assert.ok(text.includes(
+    '4H交易背景：\n⚪ 结构转换中'
+  ));
+  assert.ok(text.includes('历史背景：\n🔴 偏空'));
+  assert.ok(text.includes('转换方向：\n🟢 偏多'));
+  assert.ok(text.includes(
+    '结构阶段：\n多头回调阶段（BULLISH_PULLBACK）'
+  ));
+  assert.strictEqual(
+    text.includes('4H交易背景：\n🟢 偏多'),
+    false
+  );
+  assert.strictEqual(
+    text.includes('4H交易背景：\n🔴 偏空'),
+    false
+  );
+
+  const progressText = Formatter.formatNotificationChange(
+    report,
+    ['DECISION_GATE_PROGRESS'],
+    {
+      symbol: 'SNDKUSDT',
+      decisionGateProgress: {
+        changed: true,
+        state: 'HTF_TRANSITION',
+        direction: null,
+        completedFields: [],
+        current: {},
+      },
+    }
+  );
+  assert.ok(progressText.includes('历史背景：\n🔴 偏空'));
+  assert.ok(progressText.includes('转换方向：\n🟢 偏多'));
+  assert.ok(progressText.includes(
+    '结构阶段：\n多头回调阶段（BULLISH_PULLBACK）'
+  ));
+});
+
 test('无具体机会的HTF状态也使用中文说明', () => {
   const text = Formatter.formatNotificationChange(
     currentReport({
+      h4Bias: 'NEUTRAL',
       decisionGate: {
         state: 'WAITING_HTF',
         direction: null,
@@ -532,9 +712,12 @@ test('无具体机会的HTF状态也使用中文说明', () => {
   );
 
   assert.ok(text.includes('⚪ 等待4小时方向确认'));
-  assert.ok(text.includes('⚪ 方向尚未明确'));
+  assert.ok(text.includes('4H交易背景：\n⚪ 中性'));
   assert.ok(text.includes('等待高周期方向明确'));
-  assert.strictEqual(text.includes('流动性位置：'), false);
+  assert.ok(text.includes(
+    '交易逻辑：\n暂停，等待4H交易背景明确'
+  ));
+  assert.strictEqual(text.includes('当前关注流动性：'), false);
 });
 
 test('精简通知可显示进入CONFIRMING', () => {

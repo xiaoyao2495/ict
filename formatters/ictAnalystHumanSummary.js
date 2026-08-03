@@ -60,6 +60,18 @@ const STRUCTURE_PHASE_NEXT_EVENTS = Object.freeze({
     '等待后续Bearish BOS或Bullish MSS',
 });
 
+const DAILY_BIAS_STRUCTURE_TEXT = Object.freeze({
+  UNDETERMINED: '结构尚未明确',
+  BULLISH_CONTINUATION: '上涨延续',
+  BEARISH_CONTINUATION: '下跌延续',
+  BULLISH_MSS: '多头结构转换',
+  BEARISH_MSS: '空头结构转换',
+  BULLISH_PULLBACK: '多头回调阶段',
+  BEARISH_PULLBACK: '空头回调阶段',
+  BULLISH_CONFIRMED: '多头趋势已确认',
+  BEARISH_CONFIRMED: '空头趋势已确认',
+});
+
 function phaseDirection(state) {
   if (String(state).indexOf('BULLISH_') === 0) {
     return 'BULLISH';
@@ -901,6 +913,133 @@ function dashboardBiasText(h4) {
   return 'Undetermined';
 }
 
+function dailyBiasOf(h4) {
+  return h4 && h4.dailyBias &&
+    typeof h4.dailyBias === 'object'
+    ? h4.dailyBias
+    : null;
+}
+
+function dailyBiasDirectionText(value) {
+  if (value === 'BULLISH') return '🟢 偏多';
+  if (value === 'BEARISH') return '🔴 偏空';
+  return '⚪ 中性';
+}
+
+function dailyBiasBackgroundText(dailyBias) {
+  if (dailyBias.transitionDirection) {
+    return '⚪ 结构转换中';
+  }
+  return dailyBiasDirectionText(dailyBias.marketBias);
+}
+
+function dailyBiasStructureText(value) {
+  return (
+    DAILY_BIAS_STRUCTURE_TEXT[value] ||
+    '结构尚未明确'
+  ) + '（' + (value || 'UNDETERMINED') + '）';
+}
+
+function dailyBiasLocationText(location) {
+  location = location || {};
+  const state = location.state === 'PREMIUM'
+    ? '溢价区'
+    : location.state === 'DISCOUNT'
+      ? '折价区'
+      : location.state === 'EQUILIBRIUM'
+        ? '均衡区'
+        : '位置不明确';
+  if (location.relationToRange === 'ABOVE_RANGE') {
+    return state + '（4H区间上方）';
+  }
+  if (location.relationToRange === 'BELOW_RANGE') {
+    return state + '（4H区间下方）';
+  }
+  return state;
+}
+
+function dailyBiasDrawText(draw) {
+  if (!draw) return '暂无明确方向性流动性目标';
+  const side = draw.side === 'BUY_SIDE'
+    ? '买方流动性'
+    : draw.side === 'SELL_SIDE'
+      ? '卖方流动性'
+      : '方向未明确的流动性';
+  const type = liquidityTypeText(draw.type);
+  const price = Number.isFinite(draw.price)
+    ? '，价格：' + metricText(draw.price)
+    : '';
+  return side + '（' + type + price + '）';
+}
+
+function dailyBiasReadinessText(dailyBias) {
+  if (dailyBias.transitionDirection) {
+    return '等待结构确认（WAIT）';
+  }
+  if (dailyBias.htfLocationReadiness === 'READY') {
+    return '位置条件已具备，可进入5分钟观察（READY）';
+  }
+  const location = dailyBias.location || {};
+  if (
+    dailyBias.marketBias === 'BULLISH' &&
+    (
+      location.state === 'PREMIUM' ||
+      location.relationToRange === 'ABOVE_RANGE'
+    )
+  ) {
+    return '等待更好的执行位置，不追多（WAIT）';
+  }
+  if (
+    dailyBias.marketBias === 'BEARISH' &&
+    (
+      location.state === 'DISCOUNT' ||
+      location.relationToRange === 'BELOW_RANGE'
+    )
+  ) {
+    return '等待更好的执行位置，不追空（WAIT）';
+  }
+  if (
+    dailyBias.marketBias !== 'BULLISH' &&
+    dailyBias.marketBias !== 'BEARISH'
+  ) {
+    return '等待4H结构方向明确（WAIT）';
+  }
+  return '等待更好的执行位置（WAIT）';
+}
+
+function dailyBiasDashboardLines(input) {
+  const dailyBias = dailyBiasOf(input.h4);
+  if (!dailyBias) return [];
+  const lines = [
+    '① 【HTF】',
+    '4H交易背景：' + dailyBiasBackgroundText(dailyBias),
+  ];
+  if (dailyBias.transitionDirection) {
+    lines.push(
+      '历史背景：' +
+        dailyBiasDirectionText(dailyBias.legacyBias),
+      '转换方向：' +
+        dailyBiasDirectionText(
+          dailyBias.transitionDirection
+        )
+    );
+  }
+  lines.push(
+    '结构阶段：' + dailyBiasStructureText(
+      dailyBias.structureState
+    ),
+    '当前位置：' + dailyBiasLocationText(
+      dailyBias.location
+    ),
+    '流动性目标：' + dailyBiasDrawText(
+      dailyBias.drawOnLiquidity
+    ),
+    '执行环境：' + dailyBiasReadinessText(dailyBias),
+    'Alignment：' + dashboardAlignmentText(input)
+  );
+  return lines;
+}
+
 function dashboardAlignmentText(input) {
   const value = input.htfAlignment || input.alignment || {};
   if (value.status === 'ALIGNED') return 'Aligned';
@@ -955,7 +1094,10 @@ function entryWatchData(input) {
 }
 
 function primaryDrawData(input) {
-  const draw = input.h4 && input.h4.primaryDraw;
+  const dailyBias = dailyBiasOf(input.h4);
+  const draw = dailyBias && dailyBias.drawOnLiquidity
+    ? dailyBias.drawOnLiquidity
+    : input.h4 && input.h4.primaryDraw;
   if (!draw) {
     return {
       type: '暂无明确目标',
@@ -1295,6 +1437,8 @@ function nextOpportunityEvent(input) {
 }
 
 function htfDashboardLines(input) {
+  const dailyLines = dailyBiasDashboardLines(input);
+  if (dailyLines.length > 0) return dailyLines;
   const phase = structurePhaseDetails(
     input.structurePhase ||
     (input.h4 && input.h4.structurePhase)
@@ -1352,6 +1496,7 @@ function summarizeTraderContext(input) {
 }
 
 module.exports = {
+  DAILY_BIAS_STRUCTURE_TEXT,
   LIQUIDITY_TYPE_TEXT,
   OPPORTUNITY_LIQUIDITY_TEXT,
   SETUP_STAGES,
@@ -1367,6 +1512,13 @@ module.exports = {
   dashboardHeading,
   decisionGateLines,
   decisionGateOf,
+  dailyBiasBackgroundText,
+  dailyBiasDashboardLines,
+  dailyBiasDirectionText,
+  dailyBiasDrawText,
+  dailyBiasLocationText,
+  dailyBiasOf,
+  dailyBiasReadinessText,
   entryWatchData,
   entryWatchLines,
   eventChainLines,

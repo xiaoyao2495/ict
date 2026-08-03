@@ -7,6 +7,9 @@ const HtfBiasV3 = require('./ictHtfBiasEngineV3');
 const HtfStructurePhase = require(
   './ictHtfStructurePhaseEngine'
 );
+const HtfDailyBiasV1 = require(
+  './ictHtfDailyBiasEngineV1'
+);
 const HtfAlignment = require(
   './ictHtfAlignmentAnalyzer'
 );
@@ -201,6 +204,57 @@ function latestStateAtOrBefore(states, timestamp) {
   return index >= 0 ? states[index] : null;
 }
 
+function dailyBiasForH4State(
+  h4State,
+  structurePhaseStates
+) {
+  if (!h4State) return HtfDailyBiasV1.analyze();
+  const states = Array.isArray(structurePhaseStates)
+    ? structurePhaseStates
+    : [];
+  const h4Index = Number.isInteger(h4State.index)
+    ? h4State.index
+    : h4State.availableIndex;
+  const phase = Number.isInteger(h4Index)
+    ? states[h4Index] || null
+    : null;
+  const structureTimeline = Number.isInteger(h4Index)
+    ? states.slice(0, h4Index + 1)
+    : [];
+  return HtfDailyBiasV1.analyze({
+    structurePhase: phase,
+    structureTimeline,
+    htfBiasState: h4State,
+    liquidity: h4State.liquidity,
+    dealingRange: h4State.dealingRange,
+    currentPrice: h4State.referencePrice,
+  });
+}
+
+function attachDailyBias(
+  snapshot,
+  h4States,
+  structurePhaseStates
+) {
+  if (!snapshot || !snapshot.fourHourAnalysis) {
+    return snapshot;
+  }
+  const h4State = latestStateAtOrBefore(
+    h4States,
+    snapshot.asOf
+  );
+  return {
+    ...snapshot,
+    fourHourAnalysis: {
+      ...snapshot.fourHourAnalysis,
+      dailyBias: dailyBiasForH4State(
+        h4State,
+        structurePhaseStates
+      ),
+    },
+  };
+}
+
 function internalLiquidityLevels(state) {
   const levels = state &&
     state.liquidity &&
@@ -256,6 +310,46 @@ function analyzeStructurePhase(h4Klines) {
   });
 }
 
+function htfAlignmentBiasDirection(fourHourAnalysis) {
+  const h4 = fourHourAnalysis || {};
+  const dailyBias = h4.dailyBias || {};
+  if (
+    dailyBias.marketBias === 'BULLISH' ||
+    dailyBias.marketBias === 'BEARISH' ||
+    dailyBias.marketBias === 'NEUTRAL'
+  ) {
+    return dailyBias.marketBias;
+  }
+  return h4.bias;
+}
+
+function analyzeHtfAlignment(current) {
+  current = current || {};
+  return HtfAlignment.analyze({
+    biasDirection: htfAlignmentBiasDirection(
+      current.fourHourAnalysis
+    ),
+    structurePhase: current.structurePhase,
+  });
+}
+
+function opportunityBiasDirection(fourHourAnalysis) {
+  return htfAlignmentBiasDirection(fourHourAnalysis);
+}
+
+function analyzeOpportunity(input) {
+  input = input || {};
+  return OpportunityDetector.detect({
+    currentPrice: input.currentPrice,
+    h4Bias: opportunityBiasDirection(
+      input.fourHourAnalysis
+    ),
+    liquidity: Array.isArray(input.liquidity)
+      ? input.liquidity
+      : input.liquidityRoadmap,
+  });
+}
+
 function analyze(input) {
   input = input || {};
   const symbol = input.symbol || 'BTCUSDT';
@@ -287,9 +381,13 @@ function analyze(input) {
     needsSnapshots
   );
   const snapshots = rawTimeline.snapshots.map(
-    (snapshot, index) => normalizeSnapshot(
-      snapshot,
-      confirmation.states[index]
+    (snapshot, index) => attachDailyBias(
+      normalizeSnapshot(
+        snapshot,
+        confirmation.states[index]
+      ),
+      h4.states,
+      structurePhaseAnalysis.states
     )
   );
   if (typeof input.onSnapshot === 'function') {
@@ -311,20 +409,21 @@ function analyze(input) {
     ltf.states,
     currentTime
   );
-  const current = normalizeSnapshot(
-    rawTimeline.current,
-    confirmation.states[
-      confirmation.states.length - 1
-    ]
+  const current = attachDailyBias(
+    normalizeSnapshot(
+      rawTimeline.current,
+      confirmation.states[
+        confirmation.states.length - 1
+      ]
+    ),
+    h4.states,
+    structurePhaseAnalysis.states
   );
   current.structurePhase = {
     ...clone(structurePhaseAnalysis.current),
     state: structurePhaseAnalysis.current.structurePhase,
   };
-  current.htfAlignment = HtfAlignment.analyze({
-    biasDirection: current.fourHourAnalysis.bias,
-    structurePhase: current.structurePhase,
-  });
+  current.htfAlignment = analyzeHtfAlignment(current);
   const roadmapLiquidity = collectRoadmapLiquidity(
     h4State,
     ltfState
@@ -334,9 +433,9 @@ function analyze(input) {
     h4Bias: current.fourHourAnalysis.bias,
     liquidity: roadmapLiquidity,
   });
-  current.opportunity = OpportunityDetector.detect({
+  current.opportunity = analyzeOpportunity({
     currentPrice,
-    h4Bias: current.fourHourAnalysis.bias,
+    fourHourAnalysis: current.fourHourAnalysis,
     liquidity: roadmapLiquidity,
   });
   current.positionContext = PositionContext.analyze({
@@ -379,6 +478,7 @@ function analyze(input) {
   current.humanSummary =
     HumanSummary.summarizeTraderContext({
       ...summaryInput,
+      decisionGate: current.decisionGate,
       setupAnalysis,
       narrative,
     });
@@ -428,14 +528,20 @@ function analyze(input) {
 
 module.exports = {
   analyze,
+  analyzeHtfAlignment,
+  analyzeOpportunity,
   analyzeStructurePhase,
+  attachDailyBias,
   collectRoadmapLiquidity,
+  dailyBiasForH4State,
   internalLiquidityLevels,
+  htfAlignmentBiasDirection,
   latestStateAtOrBefore,
   normalizeFiveMinuteObservation,
   normalizeMss,
   normalizeSnapshot,
   normalizeSweep,
+  opportunityBiasDirection,
   projectConfirmation,
   strictPotentialObservation,
 };

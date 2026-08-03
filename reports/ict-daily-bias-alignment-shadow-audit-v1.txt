@@ -1,0 +1,144 @@
+ICT Daily Bias Alignment Shadow Audit V1
+
+Generated At：2026-08-03T06:11:06.522Z
+Data Source：SAME_DAY_DAILY_BIAS_SHADOW_CACHE
+Source As Of：2026-08-03T04:50:54.889Z
+Production Behavior Modified：NO
+
+Summary
+
+Symbols：8
+Available：7
+Unavailable：1
+Alignment Changed：5
+Alignment Unchanged：2
+
+Alignment Transitions
+CONFLICT -> UNDETERMINED：1
+DATA_UNAVAILABLE -> DATA_UNAVAILABLE：1
+UNDETERMINED -> ALIGNED：4
+UNDETERMINED -> UNDETERMINED：2
+
+Changed Reasons
+DAILY_BIAS_DIRECTION_RESTORED：4
+DAILY_BIAS_TRANSITION_EXPOSED：1
+DATA_UNAVAILABLE：1
+UNCHANGED：2
+
+================================
+
+Symbol：BTCUSDT
+Structure Phase：BEARISH_PULLBACK
+Old Direction：NEUTRAL
+New Direction：NEUTRAL
+Transition Direction：BEARISH
+Old Alignment：UNDETERMINED
+New Alignment：UNDETERMINED
+Changed Reason：UNCHANGED
+Old Reason：4H Bias方向尚未明确
+New Reason：4H Bias方向尚未明确
+
+================================
+
+Symbol：BNBUSDT
+Structure Phase：UNDETERMINED
+Old Direction：NEUTRAL
+New Direction：NEUTRAL
+Transition Direction：null
+Old Alignment：DATA_UNAVAILABLE
+New Alignment：DATA_UNAVAILABLE
+Changed Reason：DATA_UNAVAILABLE
+Old Reason：BINANCE_CURRENT_DATA_TIMEOUT
+New Reason：BINANCE_CURRENT_DATA_TIMEOUT
+
+================================
+
+Symbol：ETHUSDT
+Structure Phase：BULLISH_CONTINUATION
+Old Direction：NEUTRAL
+New Direction：BULLISH
+Transition Direction：null
+Old Alignment：UNDETERMINED
+New Alignment：ALIGNED
+Changed Reason：DAILY_BIAS_DIRECTION_RESTORED
+Old Reason：4H Bias方向尚未明确
+New Reason：4H Bias与Structure Phase方向一致
+
+================================
+
+Symbol：SNDKUSDT
+Structure Phase：BULLISH_PULLBACK
+Old Direction：BEARISH
+New Direction：NEUTRAL
+Transition Direction：BULLISH
+Old Alignment：CONFLICT
+New Alignment：UNDETERMINED
+Changed Reason：DAILY_BIAS_TRANSITION_EXPOSED
+Old Reason：4H Bias与Structure Phase方向冲突
+New Reason：4H Bias方向尚未明确
+
+================================
+
+Symbol：MUUSDT
+Structure Phase：BEARISH_PULLBACK
+Old Direction：NEUTRAL
+New Direction：BEARISH
+Transition Direction：null
+Old Alignment：UNDETERMINED
+New Alignment：ALIGNED
+Changed Reason：DAILY_BIAS_DIRECTION_RESTORED
+Old Reason：4H Bias方向尚未明确
+New Reason：4H Bias与Structure Phase方向一致
+
+================================
+
+Symbol：XAUUSDT
+Structure Phase：BEARISH_PULLBACK
+Old Direction：NEUTRAL
+New Direction：NEUTRAL
+Transition Direction：BEARISH
+Old Alignment：UNDETERMINED
+New Alignment：UNDETERMINED
+Changed Reason：UNCHANGED
+Old Reason：4H Bias方向尚未明确
+New Reason：4H Bias方向尚未明确
+
+================================
+
+Symbol：CLUSDT
+Structure Phase：BEARISH_CONTINUATION
+Old Direction：NEUTRAL
+New Direction：BEARISH
+Transition Direction：null
+Old Alignment：UNDETERMINED
+New Alignment：ALIGNED
+Changed Reason：DAILY_BIAS_DIRECTION_RESTORED
+Old Reason：4H Bias方向尚未明确
+New Reason：4H Bias与Structure Phase方向一致
+
+================================
+
+Symbol：SPCXUSDT
+Structure Phase：BEARISH_PULLBACK
+Old Direction：NEUTRAL
+New Direction：BEARISH
+Transition Direction：null
+Old Alignment：UNDETERMINED
+New Alignment：ALIGNED
+Changed Reason：DAILY_BIAS_DIRECTION_RESTORED
+Old Reason：4H Bias方向尚未明确
+New Reason：4H Bias与Structure Phase方向一致
+
+================================
+
+Comparison Table
+
+Symbol | Old Alignment | New Alignment | Old Direction | New Direction | Changed Reason
+BTCUSDT | UNDETERMINED | UNDETERMINED | NEUTRAL | NEUTRAL | UNCHANGED
+BNBUSDT | DATA_UNAVAILABLE | DATA_UNAVAILABLE | NEUTRAL | NEUTRAL | DATA_UNAVAILABLE
+ETHUSDT | UNDETERMINED | ALIGNED | NEUTRAL | BULLISH | DAILY_BIAS_DIRECTION_RESTORED
+SNDKUSDT | CONFLICT | UNDETERMINED | BEARISH | NEUTRAL | DAILY_BIAS_TRANSITION_EXPOSED
+MUUSDT | UNDETERMINED | ALIGNED | NEUTRAL | BEARISH | DAILY_BIAS_DIRECTION_RESTORED
+XAUUSDT | UNDETERMINED | UNDETERMINED | NEUTRAL | NEUTRAL | UNCHANGED
+CLUSDT | UNDETERMINED | ALIGNED | NEUTRAL | BEARISH | DAILY_BIAS_DIRECTION_RESTORED
+SPCXUSDT | UNDETERMINED | ALIGNED | NEUTRAL | BEARISH | DAILY_BIAS_DIRECTION_RESTORED

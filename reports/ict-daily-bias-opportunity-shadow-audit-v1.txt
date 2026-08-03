@@ -1,0 +1,194 @@
+ICT Daily Bias Opportunity Shadow Audit V1
+
+Generated At：2026-08-03T06:20:21.119Z
+Data Source：CURRENT_WATCHLIST_H4_5M
+Source As Of：2026-08-03T06:19:59.999Z
+Production Behavior Modified：NO
+
+Summary
+
+Symbols：8
+Available：8
+Unavailable：0
+Opportunity Changed：6
+Opportunity Unchanged：2
+Direction Changes：6
+Liquidity Type Changes：3
+Transition Opportunity Violations：0
+Production Parity Failures：0
+
+Observation State Transitions
+WAITING_OPPORTUNITY -> WAITING_OPPORTUNITY：5
+WAITING_OPPORTUNITY -> WATCH_ZONE：3
+
+Changed Reasons
+DAILY_BIAS_DIRECTION_ACTIVATED：2
+TRANSITION_SUPPRESSED_OPPORTUNITY：1
+UNCHANGED：2
+WATCH_ZONE_ENTERED：3
+
+================================
+
+Symbol：BTCUSDT
+Structure Phase：BEARISH_PULLBACK
+Old HTF Direction：NEUTRAL
+New Daily Bias Direction：NEUTRAL
+Transition Direction：BEARISH
+Old Opportunity：WAITING_OPPORTUNITY
+New Opportunity：WAITING_OPPORTUNITY
+Old Opportunity Direction：null
+New Opportunity Direction：null
+Old Active Liquidity：null / null
+New Active Liquidity：null / null
+Changed Reason：UNCHANGED
+Transition Opportunity Violation：NO
+Old Production Parity：true
+Old Reason：HTF_BIAS_UNCLEAR
+New Reason：HTF_BIAS_UNCLEAR
+
+================================
+
+Symbol：BNBUSDT
+Structure Phase：BEARISH_PULLBACK
+Old HTF Direction：NEUTRAL
+New Daily Bias Direction：BEARISH
+Transition Direction：null
+Old Opportunity：WAITING_OPPORTUNITY
+New Opportunity：WATCH_ZONE
+Old Opportunity Direction：null
+New Opportunity Direction：BEARISH
+Old Active Liquidity：null / null
+New Active Liquidity：EQUAL_HIGH / 583.905
+Changed Reason：WATCH_ZONE_ENTERED
+Transition Opportunity Violation：NO
+Old Production Parity：true
+Old Reason：HTF_BIAS_UNCLEAR
+New Reason：BEARISH_PRICE_NEAR_BUY_SIDE_LIQUIDITY
+
+================================
+
+Symbol：ETHUSDT
+Structure Phase：BULLISH_CONTINUATION
+Old HTF Direction：NEUTRAL
+New Daily Bias Direction：BULLISH
+Transition Direction：null
+Old Opportunity：WAITING_OPPORTUNITY
+New Opportunity：WAITING_OPPORTUNITY
+Old Opportunity Direction：null
+New Opportunity Direction：BULLISH
+Old Active Liquidity：null / null
+New Active Liquidity：null / null
+Changed Reason：DAILY_BIAS_DIRECTION_ACTIVATED
+Transition Opportunity Violation：NO
+Old Production Parity：true
+Old Reason：HTF_BIAS_UNCLEAR
+New Reason：NO_MATCHING_LIQUIDITY_WITHIN_THRESHOLD
+
+================================
+
+Symbol：SNDKUSDT
+Structure Phase：BULLISH_PULLBACK
+Old HTF Direction：BEARISH
+New Daily Bias Direction：NEUTRAL
+Transition Direction：BULLISH
+Old Opportunity：WAITING_OPPORTUNITY
+New Opportunity：WAITING_OPPORTUNITY
+Old Opportunity Direction：BEARISH
+New Opportunity Direction：null
+Old Active Liquidity：null / null
+New Active Liquidity：null / null
+Changed Reason：TRANSITION_SUPPRESSED_OPPORTUNITY
+Transition Opportunity Violation：NO
+Old Production Parity：true
+Old Reason：NO_MATCHING_LIQUIDITY_WITHIN_THRESHOLD
+New Reason：HTF_BIAS_UNCLEAR
+
+================================
+
+Symbol：CLUSDT
+Structure Phase：BEARISH_CONTINUATION
+Old HTF Direction：NEUTRAL
+New Daily Bias Direction：BEARISH
+Transition Direction：null
+Old Opportunity：WAITING_OPPORTUNITY
+New Opportunity：WAITING_OPPORTUNITY
+Old Opportunity Direction：null
+New Opportunity Direction：BEARISH
+Old Active Liquidity：null / null
+New Active Liquidity：null / null
+Changed Reason：DAILY_BIAS_DIRECTION_ACTIVATED
+Transition Opportunity Violation：NO
+Old Production Parity：true
+Old Reason：HTF_BIAS_UNCLEAR
+New Reason：NO_MATCHING_LIQUIDITY_WITHIN_THRESHOLD
+
+================================
+
+Symbol：MUUSDT
+Structure Phase：BEARISH_PULLBACK
+Old HTF Direction：NEUTRAL
+New Daily Bias Direction：BEARISH
+Transition Direction：null
+Old Opportunity：WAITING_OPPORTUNITY
+New Opportunity：WATCH_ZONE
+Old Opportunity Direction：null
+New Opportunity Direction：BEARISH
+Old Active Liquidity：null / null
+New Active Liquidity：EQUAL_HIGH / 843.78
+Changed Reason：WATCH_ZONE_ENTERED
+Transition Opportunity Violation：NO
+Old Production Parity：true
+Old Reason：HTF_BIAS_UNCLEAR
+New Reason：BEARISH_PRICE_NEAR_BUY_SIDE_LIQUIDITY
+
+================================
+
+Symbol：XAUUSDT
+Structure Phase：BEARISH_PULLBACK
+Old HTF Direction：NEUTRAL
+New Daily Bias Direction：NEUTRAL
+Transition Direction：BEARISH
+Old Opportunity：WAITING_OPPORTUNITY
+New Opportunity：WAITING_OPPORTUNITY
+Old Opportunity Direction：null
+New Opportunity Direction：null
+Old Active Liquidity：null / null
+New Active Liquidity：null / null
+Changed Reason：UNCHANGED
+Transition Opportunity Violation：NO
+Old Production Parity：true
+Old Reason：HTF_BIAS_UNCLEAR
+New Reason：HTF_BIAS_UNCLEAR
+
+================================
+
+Symbol：SPCXUSDT
+Structure Phase：BEARISH_PULLBACK
+Old HTF Direction：NEUTRAL
+New Daily Bias Direction：BEARISH
+Transition Direction：null
+Old Opportunity：WAITING_OPPORTUNITY
+New Opportunity：WATCH_ZONE
+Old Opportunity Direction：null
+New Opportunity Direction：BEARISH
+Old Active Liquidity：null / null
+New Active Liquidity：EQUAL_HIGH / 109.155
+Changed Reason：WATCH_ZONE_ENTERED
+Transition Opportunity Violation：NO
+Old Production Parity：true
+Old Reason：HTF_BIAS_UNCLEAR
+New Reason：BEARISH_PRICE_NEAR_BUY_SIDE_LIQUIDITY
+
+================================
+
+Comparison Table
+
+Symbol | Old State | New State | Old Direction | New Direction | Old Liquidity | New Liquidity | Changed Reason
+BTCUSDT | WAITING_OPPORTUNITY | WAITING_OPPORTUNITY | null | null | null | null | UNCHANGED
+BNBUSDT | WAITING_OPPORTUNITY | WATCH_ZONE | null | BEARISH | null | EQUAL_HIGH | WATCH_ZONE_ENTERED
+ETHUSDT | WAITING_OPPORTUNITY | WAITING_OPPORTUNITY | null | BULLISH | null | null | DAILY_BIAS_DIRECTION_ACTIVATED
+SNDKUSDT | WAITING_OPPORTUNITY | WAITING_OPPORTUNITY | BEARISH | null | null | null | TRANSITION_SUPPRESSED_OPPORTUNITY
+CLUSDT | WAITING_OPPORTUNITY | WAITING_OPPORTUNITY | null | BEARISH | null | null | DAILY_BIAS_DIRECTION_ACTIVATED
+MUUSDT | WAITING_OPPORTUNITY | WATCH_ZONE | null | BEARISH | null | EQUAL_HIGH | WATCH_ZONE_ENTERED
+XAUUSDT | WAITING_OPPORTUNITY | WAITING_OPPORTUNITY | null | null | null | null | UNCHANGED
+SPCXUSDT | WAITING_OPPORTUNITY | WATCH_ZONE | null | BEARISH | null | EQUAL_HIGH | WATCH_ZONE_ENTERED

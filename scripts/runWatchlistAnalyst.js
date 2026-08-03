@@ -8,6 +8,9 @@ const SymbolAvailabilityChecker = require(
 const AnalystReport = require(
   '../indicators/ictWatchlistAnalystReport'
 );
+const ProductionGateStateStore = require(
+  '../state/ictProductionGateStateStore'
+);
 const ChineseFormatter = require(
   '../formatters/ictAnalystChineseFormatter'
 );
@@ -92,19 +95,33 @@ async function analyzeSymbol(symbol, options) {
   }
 
   try {
-    const report = AnalystReport.analyze({
+    const gateStateStore = options.gateStateStore ||
+      ProductionGateStateStore;
+    const analystReport = options.analystReport ||
+      AnalystReport;
+    const formatter = options.formatter ||
+      ChineseFormatter;
+    const previousGateState =
+      await gateStateStore.load(symbol);
+    const report = analystReport.analyze({
       symbol,
       h4Klines: klines.h4Klines,
       ltf5mKlines: klines.ltf5mKlines,
+      previousGateState: previousGateState || null,
       retainSnapshots: false,
     });
+    const formatted = formatter.format(report);
+    await gateStateStore.save(
+      symbol,
+      report.current.decisionGate
+    );
     return {
       symbol,
       status: 'SUCCESS',
       stage: 'COMPLETE',
       klines,
       report,
-      formatted: ChineseFormatter.format(report),
+      formatted,
     };
   } catch (error) {
     return {
@@ -190,6 +207,9 @@ async function run(options) {
     currentTime,
     limit: options.limit,
     marketData: options.marketData || Binance,
+    gateStateStore: options.gateStateStore,
+    analystReport: options.analystReport,
+    formatter: options.formatter,
   };
   const results = await Promise.all(
     availability.validSymbols.map(

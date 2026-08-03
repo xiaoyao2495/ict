@@ -319,11 +319,12 @@ test('Decision Gate状态变化写入精简通知正文', async () => {
     '🔔 BTCUSDT 机会更新',
     '状态：\n🟡 观察区（Watch Zone）',
     '变化：\n等待流动性机会 → 进入观察区域',
-    '方向：\n🟢 偏多',
+    '4H交易背景：\n🟢 偏多',
     '原因：\n发现潜在机会区域',
-    '流动性位置：\n📍 等低点（卖方流动性）',
+    '当前关注流动性：\n📍 等低点（卖方流动性）',
     '价格：\n62782',
-    '当前阶段：\n等待流动性被扫取',
+    '交易逻辑：\n等待价格扫取下方卖方流动性',
+    '后续确认：\n⏳ 5分钟看涨 MSS',
   ]) {
     assert.ok(result.message.includes(expected), expected);
   }
@@ -401,10 +402,10 @@ test('Decision Gate Progress变化写入事件推进通知', async () => {
     '事件进展：\n目标流动性已经被扫取'
   ));
   assert.ok(result.message.includes(
-    '✅ 流动性扫取\n⏳ 5分钟看涨 MSS'
+    '后续确认：\n⏳ 5分钟看涨 MSS'
   ));
   assert.ok(result.message.includes(
-    '流动性已扫取，等待5分钟看涨 MSS'
+    '交易逻辑：\n卖方流动性已扫取，等待多头模型形成'
   ));
   assert.strictEqual(result.message.includes('状态变化：'), false);
 });

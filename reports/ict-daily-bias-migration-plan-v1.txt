@@ -1,0 +1,451 @@
+ICT Daily Bias Production Migration Plan V1
+
+日期：2026-08-03
+审计类型：Phase C.0 生产迁移设计审查
+代码修改：无
+生产行为修改：无
+
+================================
+
+一、结论
+
+Daily Bias V1 已具备时间因果与时间线稳定性，但不能通过：
+
+fourHourAnalysis.bias = dailyBias.marketBias
+
+直接替换旧 Bias。
+
+原因：fourHourAnalysis.bias 当前不是单纯展示字段。它同时承担：
+
+1. 4H方向背景
+2. 5m方向上下文
+3. HTF Alignment 输入
+4. Liquidity Roadmap 主目标分类
+5. Opportunity 方向与流动性侧选择
+6. Decision Gate 生命周期与失效判断
+7. Notification / Golden Case / Research 的历史分组键
+
+直接替换风险：HIGH
+按照本报告分阶段增加字段并迁移：LOW / CONTROLLABLE
+
+建议下一步：只执行 Phase C.1，在报告对象增加 dailyBias，保留 bias 及全部现有消费者不变。
+
+================================
+
+二、当前真实生产数据流
+
+scripts/ictWatchlistDaemon.js
+  ↓
+scripts/runWatchlistAnalystNotify.js
+  ↓
+scripts/runWatchlistAnalyst.js
+  ↓
+indicators/ictWatchlistAnalystReport.js
+  ├─ ictHtfBiasEngineV3
+  │    └─ h4.states[].narrative.bias
+  ├─ ictHtfStructurePhaseEngine
+  ├─ ictLtfExecutionEngine
+  │    └─ h4BiasSnapshots = h4.states
+  ├─ ict5mConfirmationEngine
+  ├─ ictHtfAlignmentAnalyzer
+  ├─ ictLiquidityRoadmapEngine
+  ├─ ictOpportunityDetector
+  └─ ictDecisionGate
+       ↓
+formatters/ictAnalystHumanSummary.js
+formatters/ictAnalystChineseFormatter.js
+       ↓
+notifications/ictWatchlistNotificationFilter.js
+       ↓
+DingTalk / Gate State / Golden Case / Research
+
+关键事实：
+
+- 旧 Bias 时间线在 ictWatchlistAnalystReport.js:262-273 被直接传入5m执行层。
+- 当前报告中的 fourHourAnalysis.bias 由 ictHtfAnalystReport.projectH4() 投影，来源是 state.narrative.bias。
+- 当前值和5m历史上下文使用同一套旧 V3 Bias，因此目前生产内部是一致的。
+- 如果只替换 current.fourHourAnalysis.bias，而不迁移 h4BiasSnapshots，将形成“当前新 Bias、历史5m旧 Bias”的双语义链。
+
+================================
+
+三、消费者清单
+
+1. Report Projection
+
+文件：indicators/ictHtfAnalystReport.js
+位置：projectH4()，约16-68行；buildTimeline()，约229-345行
+当前读取：h4 state.narrative.bias
+实际语义：将对应已关闭4H状态投影到每个5m快照
+需要的新字段：marketBias、transitionDirection、location、readiness
+迁移建议：Phase C.1 只增加 fourHourAnalysis.dailyBias；保留 bias。
+风险：LOW
+
+2. 5m Execution Context
+
+文件：indicators/ictWatchlistAnalystReport.js、indicators/ictLtfExecutionEngine.js
+位置：Watchlist 268-273行；LTF 669-699、798-874行
+当前读取：完整 h4.states Bias 时间线
+当前作用：
+
+- 选择当前优先 Sweep Side
+- 保存 h4Context.bias
+- 判断方向上下文是否匹配
+- 生成内部 setup event
+
+不会改变：Pivot、Liquidity 生命周期、MSS、Displacement、FVG、5m Confirmation 本身
+
+需要：marketBias Timeline
+需要 Transition：YES。Transition 期间不应把 NEUTRAL 当作“完全没有HTF信息”，也不应生成方向性 setup。
+需要 Location/Readiness：事件检测不需要；setup 激活是否读取 readiness 必须另行冻结规则。
+迁移建议：不能在 Phase C.1/C.2 切换；必须与消费者影子验证一起处理。
+风险：HIGH
+
+3. Strict Potential Observation / 4H-5m Alignment
+
+文件：indicators/ictWatchlistAnalystReport.js
+位置：strictPotentialObservation()，约74-111行；normalizeSnapshot()，约145-179行
+当前读取：h4.bias
+实际语义：确认5m方向是否和4H方向一致
+需要：marketBias
+需要 Transition：YES。Transition 应显示等待结构确认，不应被解释成普通方向冲突。
+需要 Readiness：不应改变5m事件事实，但可以阻止进入可观察执行状态。
+风险：MEDIUM
+
+4. HTF Alignment
+
+文件：indicators/ictHtfAlignmentAnalyzer.js
+调用：ictWatchlistAnalystReport.js:324-327
+当前输入：legacy bias + Structure Phase
+实际语义：比较旧 Bias 和 Structure Phase 方向
+
+迁移风险：Daily Bias V1 本身已经由 Structure Phase 推导。如果原样把 marketBias 再与同一个 Structure Phase 比较，会形成同源自我验证。
+
+特别问题：
+
+- POST_MSS 的 marketBias = NEUTRAL。
+- 旧 Analyzer 会首先返回 UNDETERMINED，而不是显式 HTF_TRANSITION。
+- BULLISH_PULLBACK / BEARISH_PULLBACK 当前未根据 context 区分 POST_MSS 与 CONTINUATION。
+
+建议：Phase C.3 前重新定义 Alignment 的职责；不要把 marketBias 直接塞进旧 Analyzer。
+风险：HIGH
+
+5. Liquidity Roadmap
+
+文件：indicators/ictLiquidityRoadmapEngine.js
+调用：ictWatchlistAnalystReport.js:332-336
+当前读取：h4Bias
+实际语义：按 Bias 将流动性分为 PRIMARY_TARGET / COUNTER_RISK
+需要：marketBias
+需要 Transition：YES。Transition=NEUTRAL 时，现逻辑会把最近3个目标全部归为 PRIMARY_TARGET，可能掩盖方向未确认。
+需要 Readiness：NO；位置不应改变 Draw 的方向分类。
+风险：MEDIUM
+
+6. Opportunity Detector
+
+文件：indicators/ictOpportunityDetector.js
+调用：ictWatchlistAnalystReport.js:337-341
+当前读取：h4Bias
+实际语义：
+
+- BULLISH 寻找下方 Sell-side liquidity
+- BEARISH 寻找上方 Buy-side liquidity
+- 0.5% 内进入 WATCH_ZONE
+
+需要：marketBias
+需要 Transition：YES；Transition 期间必须暂停创建方向性 Opportunity。
+需要 Location/Readiness：YES；readiness 应作为机会激活条件或明确 blocker，而不是反向修改 marketBias。
+风险：HIGH
+
+7. Position Context
+
+文件：indicators/ictPositionContextEngine.js
+调用：ictWatchlistAnalystReport.js:342-354
+当前 Engine 输入：dealingRange、premiumDiscount、roadmap
+直接读取 Bias：NO
+展示叙事读取 Bias：YES，位于 ictAnalystHumanSummary.positionWaitingNarrative()
+需要：location + readiness + marketBias
+迁移建议：Engine 保持不变；展示层读取 dailyBias。
+风险：LOW
+
+8. Decision Gate
+
+文件：indicators/ictDecisionGate.js
+位置：sourceStateOf() 约421-460行；analyze() 约590-805行
+当前读取：fourHourAnalysis.bias
+当前作用：
+
+- Gate direction
+- activeOpportunity 创建和继承
+- HTF方向变化失效
+- Opportunity方向匹配
+- WAITING_HTF / HTF_CONFLICT / HTF_TRANSITION 优先级
+
+确定风险：当前 analyze() 先判断 !h4Bias，再判断 Transition Phase。
+
+因此：
+
+marketBias = NEUTRAL
+transitionDirection = BULLISH
+
+如果简单替换，将进入 WAITING_HTF，而不是 HTF_TRANSITION。
+
+此外，旧 activeOpportunity 可能因为 Bias 来源切换被标记 HTF_DIRECTION_CHANGED。
+
+需要：marketBias、transitionDirection、structureState、readiness、biasSourceVersion
+迁移建议：必须在影子 Gate 验证后单独迁移，不能在 Report 接入阶段改变。
+风险：CRITICAL
+
+9. Human Summary
+
+文件：formatters/ictAnalystHumanSummary.js
+当前读取：h4.bias（多处）
+实际语义：方向文字、等待链、Setup Stage、位置叙事、HTF Dashboard
+需要：全部 Daily Bias 字段
+迁移顺序：最适合成为第一个消费者，但必须保留无 dailyBias 时的旧逻辑兼容。
+要求：Transition 明确显示；Location WAIT 不得写成“4H方向不明确”。
+风险：LOW
+
+10. Chinese Formatter
+
+文件：formatters/ictAnalystChineseFormatter.js
+当前读取：fourHourAnalysis.bias、Decision Gate direction
+实际语义：完整报告和精简通知中的“4H交易背景”
+需要：marketBias、legacyBias、transitionDirection、location、readiness
+注意：Gate 尚未迁移时，通知仍可能使用旧 Gate direction。必须明确“报告背景”和“Gate观察方向”来源，不能静默混用。
+风险：MEDIUM
+
+11. Notification Filter / State
+
+文件：notifications/ictWatchlistNotificationFilter.js
+当前保存：h4Bias，同时优先比较 Decision Gate transition
+实际语义：旧报告兼容和通知状态持久化
+需要：迁移初期不读取 dailyBias
+最终迁移：Notification State 需要新版本，并明确 Bias Source；普通 location 变化不得单独通知。
+风险：HIGH
+
+12. Golden Case / Opportunity History / Research
+
+文件：
+
+- history/ictGoldenCaseAutoCapture.js
+- history/ictGoldenCaseRecorder.js
+- history/ictOpportunityHistory.js
+- history/ictGoldenCaseStatisticsAnalyzer.js
+- history/ictGoldenCaseLifecycleResearchAnalyzer.js
+
+当前读取：legacy h4.bias，并把它用于捕获资格、Opportunity身份字段和研究分组。
+需要：保留 legacyBias；新增 dailyBias 快照和 biasSourceVersion。
+迁移要求：禁止把旧 V3 和 Daily Bias V1 样本无版本混合统计。
+风险：HIGH
+
+================================
+
+四、字段职责分配
+
+marketBias 应由以下模块读取：
+
+- Human Summary / Formatter：4H背景方向
+- Liquidity Roadmap：Draw方向分类
+- Opportunity Detector：等待哪一侧流动性
+- Decision Gate：已确认背景方向
+- 5m Context：只用于方向对齐，不用于重算5m事件
+
+transitionDirection 应由以下模块读取：
+
+- Human Summary / Formatter：显示结构转换方向
+- HTF Alignment：表达转换中，而不是普通冲突
+- Opportunity：暂停新方向性机会
+- Decision Gate：进入 HTF_TRANSITION
+- Notification：只在正式 Gate Transition 后参与通知
+
+location / htfLocationReadiness 应由以下模块读取：
+
+- Human Summary / Formatter：解释当前位置和等待原因
+- Opportunity 或 Decision Gate：作为执行观察 blocker
+- Position Context：位置叙事
+
+不应读取 readiness 的模块：
+
+- Pivot / Swing
+- StructureEngineV2
+- Structure Phase Engine
+- Liquidity 生命周期
+- MSS
+- Displacement
+- FVG
+- 5m Confirmation 事件检测
+
+legacyBias 必须暂时保留给：
+
+- fourHourAnalysis.bias 兼容字段
+- 旧 Notification State
+- 旧 Gate State
+- Golden Case / Research 历史样本
+- 生产回放基准比较
+
+================================
+
+五、是否存在把 Bias 当执行信号
+
+结论：YES，但没有直接生成订单。
+
+Bias 当前会直接影响：
+
+- 选择哪侧 Liquidity
+- 是否进入 WATCH_ZONE
+- 5m事件是否被视为同向观察
+- activeOpportunity 是否创建、继承或失效
+- Gate 是否进入 WAITING / CONFIRMING / READY_OBSERVATION
+
+Bias 当前不会直接生成：
+
+- Entry Price
+- Stop Loss
+- Target
+- Position Size
+- Order
+
+因此 Bias 是“观察状态的上游控制输入”，不是纯报告文本，也不是自动订单信号。
+
+================================
+
+六、冻结迁移顺序
+
+Phase C.1：Report Additive Integration
+
+只增加：
+
+fourHourAnalysis.dailyBias = {
+  marketBias,
+  legacyBias,
+  transitionDirection,
+  structureState,
+  drawOnLiquidity,
+  location,
+  htfLocationReadiness,
+  reasons,
+  version: "ICT_HTF_DAILY_BIAS_V1"
+}
+
+同时要求：
+
+- bias 保持原值
+- h4.states 生产输入保持原值
+- Decision Gate、Opportunity、Roadmap、Notification 不读取 dailyBias
+- current 与 retained snapshots 使用对应时间点的 dailyBias，禁止用最新状态回填
+- 新字段缺失时所有旧调用方继续工作
+
+Phase C.2：Human Display Integration
+
+- Human Summary 优先显示 dailyBias，缺失时回退 bias
+- 显示 marketBias、legacyBias、transitionDirection、location、readiness
+- Entry Watch / Gate State 继续明确标注来自旧生产 Gate
+- 不改变 Opportunity、Gate 或 Notification Filter
+
+Phase C.3：Shadow Consumers
+
+并行计算但不驱动生产：
+
+- dailyHtfAlignment
+- dailyLiquidityRoadmap
+- dailyOpportunity
+- dailyDecisionGate
+
+对比旧链与新链：状态、方向、机会身份、通知数量、activeOpportunity生命周期。
+禁止写入 Production Gate State Store 和 Notification State。
+
+Phase C.4：Directional Consumer Cutover
+
+必须作为同一套语义迁移：
+
+1. HTF Alignment transition-aware contract
+2. Liquidity Roadmap marketBias source
+3. Opportunity marketBias + readiness blocker
+4. Decision Gate transition/readiness priority
+5. 5m H4 Context Timeline
+
+不能只替换其中一个，否则当前状态和历史5m上下文会分裂。
+
+Phase C.5：Persistent State / History Cutover
+
+- Gate State 增加 biasSourceVersion
+- Notification State 增加版本
+- Golden Case 同时保存 legacyBias 和 dailyBias
+- Research 按 biasSourceVersion 分组
+- Opportunity Identity 保持 canonicalZoneId，不因 Bias 字段重命名重建同一区域
+
+================================
+
+七、Gate State 切换策略
+
+切换时不能直接复用所有旧 Gate State。
+
+建议规则：
+
+1. 新旧方向相同、非 Transition、canonicalZoneId 相同：保留 activeOpportunity 和 enteredAt。
+2. 新模型为 Transition：结束旧方向性观察，进入 HTF_TRANSITION；不得降级 WAITING_HTF。
+3. 新旧方向不同：明确记录 Bias Source Migration，不伪装成普通市场反转。
+4. Notification 首轮应是受控初始化或迁移事件，避免所有 Symbol 同时产生虚假的 INVALIDATED 通知。
+
+================================
+
+八、Phase C.1 测试计划
+
+必须覆盖：
+
+1. current.fourHourAnalysis.dailyBias 存在且字段完整。
+2. fourHourAnalysis.bias 与迁移前完全一致。
+3. 每个5m snapshot 读取当时最后关闭4H对应的 dailyBias。
+4. POST_MSS 历史状态不被后续 CONFIRMED 回填。
+5. Prefix Invariance 保持通过。
+6. Opportunity、Decision Gate、Notification State 输出逐字段保持不变。
+7. Gate State 文件不因新增 dailyBias 改写。
+8. Golden Case 捕获资格保持不变。
+9. 输入 Kline、HtfBiasV3 state、Structure Phase state 均不被修改。
+10. 所有旧格式报告在缺少 dailyBias 时继续兼容。
+
+================================
+
+九、生产切换前硬性门槛
+
+以下全部满足才允许替换消费者：
+
+- Daily Bias Timeline Prefix Mismatch = 0
+- availableIndex Violation = 0
+- 5m Closed-H4 Mapping Violation = 0
+- Transition 不产生 WAITING_HTF 误分类
+- Directional + WAIT 不取消 marketBias
+- Shadow Opportunity 身份稳定
+- Shadow Gate activeOpportunity 不重复创建
+- 新旧 Gate 差异均有可解释分类
+- Notification 不因 location / readiness 普通变化产生噪音
+- Golden Case 和 Research 有 biasSourceVersion
+
+================================
+
+十、最终建议
+
+KEEP：
+
+- ictHtfBiasEngineV3，作为迁移期 legacy 基准
+- ictHtfDailyBiasEngineV1，作为新 Daily Bias 解释层
+- ictHtfStructurePhaseEngine，作为结构阶段来源
+- 现有5m事件检测链，迁移期间不修改
+
+NEXT：
+
+- Phase C.1：只在 Report 增加时间因果 dailyBias 字段
+- Phase C.2：Human Summary / Formatter 优先展示新语义
+- Phase C.3：所有决策消费者先影子运行
+
+DO NOT：
+
+- 不要直接执行 fourHourAnalysis.bias = marketBias
+- 不要只迁移 current 而不处理4H Timeline
+- 不要让 Gate 把 Transition 解释成 WAITING_HTF
+- 不要让新旧 Bias 样本在 Research 中无版本混合
+- 不要在本阶段修改任何交易逻辑
+
+Phase C.0 Final：PASS WITH MIGRATION CONDITIONS
+
+Daily Bias V1 具备生产替代资格；生产迁移必须按 C.1 → C.2 → C.3 → C.4 → C.5 分阶段执行。

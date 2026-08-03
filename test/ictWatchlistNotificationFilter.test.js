@@ -495,10 +495,10 @@ test('WATCH_ZONE Sweep false to true sends progress notification', () => {
   assert.ok(text.includes('🔔 BTCUSDT 事件更新'));
   assert.ok(text.includes('状态：\n🟡 观察区（Watch Zone）'));
   assert.ok(text.includes('事件进展：\n目标流动性已经被扫取'));
-  assert.ok(text.includes('✅ 流动性扫取'));
+  assert.ok(text.includes('4H交易背景：\n🟢 偏多'));
   assert.ok(text.includes('⏳ 5分钟看涨 MSS'));
   assert.ok(text.includes(
-    '流动性已扫取，等待5分钟看涨 MSS'
+    '交易逻辑：\n卖方流动性已扫取，等待多头模型形成'
   ));
 });
 
@@ -550,11 +550,10 @@ test('CONFIRMING MSS false to true sends progress notification', () => {
   assert.ok(text.includes(
     '事件进展：\n5分钟看涨 MSS已经确认'
   ));
-  assert.ok(text.includes('✅ 流动性扫取'));
   assert.ok(text.includes('✅ 5分钟看涨 MSS'));
   assert.ok(text.includes('⏳ 看涨 Displacement'));
   assert.ok(text.includes(
-    'MSS 已确认，等待看涨 Displacement'
+    '交易逻辑：\n5分钟看涨 MSS 已确认，等待看涨 Displacement'
   ));
 });
 

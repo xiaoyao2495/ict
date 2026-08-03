@@ -605,18 +605,11 @@ function notificationStageText(state, progress, direction) {
 }
 
 function notificationProgressLines(
-  opportunity,
   progress,
   direction
 ) {
   progress = progress || {};
-  const type = opportunity
-    ? notificationLiquidityText(opportunity.liquidityType)
-    : '具体流动性位置';
   return [
-    '✅ 流动性位置已发现：' + type,
-    (progress.sweepCompleted ? '✅ ' : '⏳ ') +
-      '流动性扫取',
     (progress.mssCompleted ? '✅ ' : '⏳ ') +
       directionalMssText(direction),
     (progress.displacementCompleted ? '✅ ' : '⏳ ') +
@@ -626,55 +619,170 @@ function notificationProgressLines(
   ];
 }
 
-function notificationWatchLines(
+function notificationTradingLogicText(
   opportunity,
   progress,
-  direction
+  direction,
+  state
 ) {
   progress = progress || {};
-  const lines = [];
-  const price = opportunity && Number.isFinite(opportunity.price)
-    ? metricNumberText(opportunity.price)
-    : null;
+  if (state === 'INVALIDATED') {
+    return '原机会观察生命周期已经结束';
+  }
+  if (state === 'HTF_CONFLICT') {
+    return '暂停，等待4H结构冲突解除';
+  }
+  if (state === 'HTF_TRANSITION') {
+    return '暂停，等待4H结构转换完成';
+  }
+  if (state === 'WAITING_HTF') {
+    return '暂停，等待4H交易背景明确';
+  }
+  if (state === 'DATA_UNAVAILABLE') {
+    return '暂停，等待市场数据恢复';
+  }
+  if (!opportunity) {
+    return direction === 'BULLISH' || direction === 'BEARISH'
+      ? '等待系统锁定具体流动性位置'
+      : '暂停，等待4H交易背景明确';
+  }
+  const location = direction === 'BEARISH'
+    ? '上方'
+    : direction === 'BULLISH'
+      ? '下方'
+      : '';
+  const liquiditySide = direction === 'BEARISH'
+    ? '买方'
+    : direction === 'BULLISH'
+      ? '卖方'
+      : '';
+  const model = direction === 'BEARISH'
+    ? '空头'
+    : direction === 'BULLISH'
+      ? '多头'
+      : '';
   if (!progress.sweepCompleted) {
-    const side = direction === 'BEARISH'
-      ? '上方'
-      : direction === 'BULLISH'
-        ? '下方'
-        : '附近';
-    lines.push(
-      '是否扫取' + (price ? price : '目标价格') +
-      side + '流动性'
-    );
+    return '等待价格扫取' + location + liquiditySide + '流动性';
   }
   if (!progress.mssCompleted) {
-    lines.push('是否形成' + directionalMssText(direction));
+    return liquiditySide + '流动性已扫取，等待' +
+      model + '模型形成';
   }
   if (!progress.displacementCompleted) {
-    lines.push('是否出现' + directionalDisplacementText(direction));
+    return directionalMssText(direction) +
+      ' 已确认，等待' + directionalDisplacementText(direction);
   }
   if (!progress.strictConfirmationCompleted) {
-    lines.push('是否完成确认链');
+    return directionalDisplacementText(direction) +
+      ' 已出现，等待完整确认';
   }
-  if (lines.length === 0) {
-    lines.push('确认链已完成，继续观察市场状态变化');
-  }
-  return lines.map((line, index) => (
-    String(index + 1) + '. ' + line
-  ));
+  return '完整确认链已经完成，继续观察市场状态变化';
 }
 
 function notificationOpportunityLines(opportunity) {
   if (!opportunity) return [];
   return [
     '',
-    '流动性位置：',
+    '当前关注流动性：',
     '📍 ' + notificationLiquidityText(
       opportunity.liquidityType
     ),
     '',
     '价格：',
     metricNumberText(opportunity.price),
+  ];
+}
+
+function notificationObservationDirection(transition, current) {
+  current = current || {};
+  const gate = current.decisionGate;
+  if (gate && typeof gate === 'object') {
+    return gate.direction === 'BULLISH' ||
+      gate.direction === 'BEARISH'
+      ? gate.direction
+      : null;
+  }
+  return transition && transition.direction ||
+    transition && transition.activeOpportunity &&
+      transition.activeOpportunity.direction ||
+    null;
+}
+
+function notificationObservationDirectionText(
+  direction,
+  state
+) {
+  return state === 'HTF_TRANSITION'
+    ? '无'
+    : notificationDirectionText(direction);
+}
+
+function notificationStructurePhaseText(value) {
+  const text = HumanSummary.DAILY_BIAS_STRUCTURE_TEXT[value] ||
+    '结构尚未明确';
+  return text + '（' + (value || 'UNDETERMINED') + '）';
+}
+
+function notificationDailyBiasLines(current, gateState) {
+  current = current || {};
+  const h4 = current.fourHourAnalysis || {};
+  const dailyBias = h4.dailyBias &&
+    typeof h4.dailyBias === 'object'
+    ? h4.dailyBias
+    : null;
+  const currentPhase = current.structurePhase || {};
+  const structurePhase = dailyBias &&
+    dailyBias.structureState ||
+    currentPhase.state ||
+    currentPhase.structurePhase ||
+    currentPhase.phase ||
+    null;
+  const structureLines = structurePhase
+    ? [
+      '',
+      '结构阶段：',
+      notificationStructurePhaseText(structurePhase),
+    ]
+    : [];
+
+  if (
+    gateState === 'HTF_TRANSITION' ||
+    dailyBias && dailyBias.transitionDirection
+  ) {
+    const legacyBias = dailyBias
+      ? dailyBias.legacyBias
+      : h4.bias;
+    const transitionDirection = dailyBias &&
+      dailyBias.transitionDirection ||
+      currentPhase.direction ||
+      null;
+    const lines = [
+      '4H交易背景：',
+      '⚪ 结构转换中',
+    ];
+    if (legacyBias) {
+      lines.push(
+        '',
+        '历史背景：',
+        notificationDirectionText(legacyBias)
+      );
+    }
+    if (transitionDirection) {
+      lines.push(
+        '',
+        '转换方向：',
+        notificationDirectionText(transitionDirection)
+      );
+    }
+    return lines.concat(structureLines);
+  }
+
+  return [
+    '4H交易背景：',
+    notificationDirectionText(
+      dailyBias ? dailyBias.marketBias : h4.bias
+    ),
+    ...structureLines,
   ];
 }
 
@@ -693,11 +801,18 @@ function formatDecisionGateTransition(change, current) {
   if (!transition || transition.changed !== true) return null;
   current = current || {};
   const currentGate = current.decisionGate || {};
-  const opportunity = transition.activeOpportunity ||
-    currentGate.activeOpportunity || null;
-  const progress = currentGate.progress || {};
-  const direction = transition.direction ||
-    currentGate.direction || null;
+  const isHtfTransition = transition.to === 'HTF_TRANSITION';
+  const opportunity = isHtfTransition
+    ? null
+    : transition.activeOpportunity ||
+      currentGate.activeOpportunity || null;
+  const progress = isHtfTransition
+    ? {}
+    : currentGate.progress || {};
+  const direction = notificationObservationDirection(
+    transition,
+    current
+  );
   const lines = [
     '🔔 ' + (change.symbol || '--') + ' 机会更新',
     ...notificationTimeLines(current),
@@ -715,33 +830,31 @@ function formatDecisionGateTransition(change, current) {
   }
   lines.push(
     '',
-    '方向：',
-    notificationDirectionText(direction),
+    ...notificationDailyBiasLines(current, transition.to),
+    '',
+    '观察方向：',
+    notificationObservationDirectionText(
+      direction,
+      transition.to
+    ),
     '',
     '原因：',
     notificationReasonText(transition.reasonCode),
     ...notificationOpportunityLines(opportunity),
     '',
-    '当前阶段：',
-    notificationStageText(
-      transition.to,
+    '交易逻辑：',
+    notificationTradingLogicText(
+      opportunity,
       progress,
-      direction
+      direction,
+      transition.to
     )
   );
   if (opportunity) {
     lines.push(
       '',
-      'ICT流程：',
+      '后续确认：',
       ...notificationProgressLines(
-        opportunity,
-        progress,
-        direction
-      ),
-      '',
-      '后续关注：',
-      ...notificationWatchLines(
-        opportunity,
         progress,
         direction
       )
@@ -793,13 +906,18 @@ function formatDecisionGateProgress(change, current) {
   if (!transition || transition.changed !== true) return null;
   current = current || {};
   const progress = transition.current || {};
-  const opportunity = transition.activeOpportunity ||
-    current.decisionGate &&
-      current.decisionGate.activeOpportunity ||
-    null;
-  const direction = transition.direction ||
-    current.decisionGate && current.decisionGate.direction ||
-    null;
+  const isHtfTransition =
+    transition.state === 'HTF_TRANSITION';
+  const opportunity = isHtfTransition
+    ? null
+    : transition.activeOpportunity ||
+      current.decisionGate &&
+        current.decisionGate.activeOpportunity ||
+      null;
+  const direction = notificationObservationDirection(
+    transition,
+    current
+  );
   const lines = [
     '🔔 ' + (change.symbol || '--') + ' 事件更新',
     ...notificationTimeLines(current),
@@ -807,33 +925,34 @@ function formatDecisionGateProgress(change, current) {
     '状态：',
     notificationStateDisplay(transition.state),
     '',
-    '方向：',
-    notificationDirectionText(direction),
+    ...notificationDailyBiasLines(
+      current,
+      transition.state
+    ),
+    '',
+    '观察方向：',
+    notificationObservationDirectionText(
+      direction,
+      transition.state
+    ),
     '',
     '事件进展：',
     progressUpdateText(transition),
     ...notificationOpportunityLines(opportunity),
     '',
-    '当前阶段：',
-    notificationStageText(
-      transition.state,
+    '交易逻辑：',
+    notificationTradingLogicText(
+      opportunity,
       progress,
-      direction
+      direction,
+      transition.state
     )
   ];
   if (opportunity) {
     lines.push(
       '',
-      'ICT流程：',
+      '后续确认：',
       ...notificationProgressLines(
-        opportunity,
-        progress,
-        direction
-      ),
-      '',
-      '后续关注：',
-      ...notificationWatchLines(
-        opportunity,
         progress,
         direction
       )
@@ -991,6 +1110,8 @@ module.exports = {
   formatDecisionGateTransition,
   formatDecisionGateProgress,
   formatNotificationChange,
+  notificationDailyBiasLines,
+  notificationObservationDirection,
   manualView,
   mssText,
   opportunityChangeText,

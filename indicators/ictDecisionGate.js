@@ -52,6 +52,69 @@ function phaseOf(value) {
     'UNDETERMINED';
 }
 
+function htfBiasOf(fourHourAnalysis) {
+  const h4 = isObject(fourHourAnalysis)
+    ? fourHourAnalysis
+    : {};
+  const dailyBias = isObject(h4.dailyBias)
+    ? h4.dailyBias
+    : {};
+  if (
+    dailyBias.marketBias === 'BULLISH' ||
+    dailyBias.marketBias === 'BEARISH' ||
+    dailyBias.marketBias === 'NEUTRAL'
+  ) {
+    return dailyBias.marketBias;
+  }
+  return h4.bias || 'UNAVAILABLE';
+}
+
+function dailyBiasTransitionContextOf(current) {
+  const h4 = isObject(current) &&
+    isObject(current.fourHourAnalysis)
+    ? current.fourHourAnalysis
+    : {};
+  const dailyBias = isObject(h4.dailyBias)
+    ? h4.dailyBias
+    : {};
+  const dailyStructure = dailyBias.structureState;
+  if (dailyBias.structureContext === 'POST_MSS') {
+    return 'POST_MSS';
+  }
+  if (dailyBias.context === 'POST_MSS') {
+    return 'POST_MSS';
+  }
+  if (
+    isObject(dailyStructure) &&
+    dailyStructure.context === 'POST_MSS'
+  ) {
+    return 'POST_MSS';
+  }
+  if (dailyStructure === 'POST_MSS') {
+    return 'POST_MSS';
+  }
+  const structurePhase = isObject(current) &&
+    isObject(current.structurePhase)
+    ? current.structurePhase
+    : {};
+  return structurePhase.context || null;
+}
+
+function isDailyBiasTransition(current) {
+  const h4 = isObject(current) &&
+    isObject(current.fourHourAnalysis)
+    ? current.fourHourAnalysis
+    : {};
+  const dailyBias = isObject(h4.dailyBias)
+    ? h4.dailyBias
+    : {};
+  return Boolean(
+    dailyBias.marketBias === 'NEUTRAL' &&
+    directionOf(dailyBias.transitionDirection) &&
+    dailyBiasTransitionContextOf(current) === 'POST_MSS'
+  );
+}
+
 function finiteTime(value) {
   if (Number.isFinite(value)) return value;
   if (typeof value !== 'string') return null;
@@ -449,7 +512,7 @@ function sourceStateOf(current) {
       ? latestConfirmation
       : {};
   return {
-    h4Bias: h4.bias || 'UNAVAILABLE',
+    h4Bias: htfBiasOf(h4),
     structurePhase: phaseOf(
       isObject(current) ? current.structurePhase : null
     ),
@@ -632,6 +695,18 @@ function analyze(input) {
     }
   }
 
+  if (isDailyBiasTransition(current)) {
+    return finalize(resultFor(
+      STATES.HTF_TRANSITION,
+      null,
+      null,
+      emptyProgress(),
+      sourceState,
+      ['WAITING_STRUCTURE_CONFIRMATION'],
+      'HTF_STRUCTURE_TRANSITION'
+    ), previousGateState, current);
+  }
+
   if (!h4Bias) {
     return finalize(resultFor(
       STATES.WAITING_HTF,
@@ -808,7 +883,10 @@ module.exports = {
   eventProgress,
   eventTime,
   expectedSweepSide,
+  dailyBiasTransitionContextOf,
+  htfBiasOf,
   isAtOrAfterOpportunity,
+  isDailyBiasTransition,
   opportunityId,
   orderedEvents,
   phaseOf,

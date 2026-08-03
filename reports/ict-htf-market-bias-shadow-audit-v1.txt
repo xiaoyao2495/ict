@@ -1,0 +1,105 @@
+Production HTF Market Bias Shadow Audit V1
+
+Generated At：2026-08-03T02:03:00.137Z
+Production Behavior Modified：NO
+
+Summary
+
+Symbols：7
+Same：2
+Changed：5
+OLD_NEUTRAL_NEW_DIRECTION：4
+OLD_DIRECTION_NEW_TRANSITION：1
+SAME：2
+DIRECTION_CHANGED：0
+
+================================
+
+Symbol：BTCUSDT
+Old Bias：NEUTRAL
+New Market Bias：NEUTRAL
+Legacy Bias：BULLISH
+Transition Direction：BEARISH
+Structure Phase：BEARISH_PULLBACK
+Location：PREMIUM
+Range Relation：INSIDE
+HTF Location Readiness：WAIT
+Difference Type：SAME
+
+================================
+
+Symbol：ETHUSDT
+Old Bias：NEUTRAL
+New Market Bias：BULLISH
+Legacy Bias：BULLISH
+Transition Direction：null
+Structure Phase：BULLISH_CONTINUATION
+Location：PREMIUM
+Range Relation：INSIDE
+HTF Location Readiness：WAIT
+Difference Type：OLD_NEUTRAL_NEW_DIRECTION
+
+================================
+
+Symbol：SNDKUSDT
+Old Bias：BEARISH
+New Market Bias：NEUTRAL
+Legacy Bias：BEARISH
+Transition Direction：BULLISH
+Structure Phase：BULLISH_PULLBACK
+Location：PREMIUM
+Range Relation：ABOVE_RANGE
+HTF Location Readiness：WAIT
+Difference Type：OLD_DIRECTION_NEW_TRANSITION
+
+================================
+
+Symbol：MUUSDT
+Old Bias：NEUTRAL
+New Market Bias：BEARISH
+Legacy Bias：BEARISH
+Transition Direction：null
+Structure Phase：BEARISH_PULLBACK
+Location：PREMIUM
+Range Relation：INSIDE
+HTF Location Readiness：READY
+Difference Type：OLD_NEUTRAL_NEW_DIRECTION
+
+================================
+
+Symbol：XAUUSDT
+Old Bias：NEUTRAL
+New Market Bias：NEUTRAL
+Legacy Bias：BULLISH
+Transition Direction：BEARISH
+Structure Phase：BEARISH_PULLBACK
+Location：PREMIUM
+Range Relation：BELOW_RANGE
+HTF Location Readiness：WAIT
+Difference Type：SAME
+
+================================
+
+Symbol：CLUSDT
+Old Bias：NEUTRAL
+New Market Bias：BEARISH
+Legacy Bias：BEARISH
+Transition Direction：null
+Structure Phase：BEARISH_CONTINUATION
+Location：DISCOUNT
+Range Relation：INSIDE
+HTF Location Readiness：WAIT
+Difference Type：OLD_NEUTRAL_NEW_DIRECTION
+
+================================
+
+Symbol：SPCXUSDT
+Old Bias：NEUTRAL
+New Market Bias：BEARISH
+Legacy Bias：BEARISH
+Transition Direction：null
+Structure Phase：BEARISH_PULLBACK
+Location：PREMIUM
+Range Relation：INSIDE
+HTF Location Readiness：READY
+Difference Type：OLD_NEUTRAL_NEW_DIRECTION
