@@ -865,6 +865,7 @@ module.exports = {
     filterClosedKlines: filterClosedKlines,
     getAnalysisWindowRange: getAnalysisWindowRange,
     analyzeHistoricalKlines: analyzeHistoricalKlines,
+    fetchHistoricalKlines: fetchHistoricalKlines,
     filterLiquidityForSetup: filterLiquidityForSetup,
     createEntriesWithoutFutureLiquidity:
         createEntriesWithoutFutureLiquidity,
