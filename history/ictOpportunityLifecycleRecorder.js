@@ -22,6 +22,11 @@ var SUPPORTED_STATES = {
   INVALIDATED: true,
 };
 
+var BIAS_SOURCE_VERSIONS = {
+  DAILY_BIAS_V1: 'daily_bias_v1',
+  HTF_BIAS_V3: 'htf_bias_v3',
+};
+
 function isObject(value) {
   return value !== null &&
     typeof value === 'object' &&
@@ -340,6 +345,9 @@ function normalizeRecord(value, fallbackSymbol) {
     rawOpportunityIds: rawOpportunityIds,
     identity: identity,
     progress: progress,
+    htfContext: value.htfContext === undefined
+      ? null
+      : normalizeHtfContext(value.htfContext),
     currentState: currentState,
     completed: value.completed === true,
   };
@@ -425,6 +433,67 @@ function inputSymbol(input) {
   );
 }
 
+function normalizeHtfContext(value) {
+  if (!isObject(value)) return null;
+  return {
+    biasSourceVersion: value.biasSourceVersion ===
+      BIAS_SOURCE_VERSIONS.DAILY_BIAS_V1
+      ? BIAS_SOURCE_VERSIONS.DAILY_BIAS_V1
+      : BIAS_SOURCE_VERSIONS.HTF_BIAS_V3,
+    marketBias: typeof value.marketBias === 'string'
+      ? value.marketBias
+      : null,
+    transitionDirection: typeof value.transitionDirection === 'string'
+      ? value.transitionDirection
+      : null,
+    structurePhase: typeof value.structurePhase === 'string'
+      ? value.structurePhase
+      : null,
+  };
+}
+
+/*
+ * HTF 背景（biasSourceVersion / marketBias / transitionDirection /
+ * structurePhase）独立于 Opportunity 生命周期记录。
+ * 无 HTF 信息（旧报告且无 fourHourAnalysis）时返回 null。
+ */
+function extractHtfContext(input) {
+  var current = reportCurrent(input);
+  var h4 = isObject(current) && isObject(current.fourHourAnalysis)
+    ? current.fourHourAnalysis
+    : {};
+  var dailyBias = isObject(h4.dailyBias) ? h4.dailyBias : null;
+  var phase = isObject(current) && isObject(current.structurePhase)
+    ? current.structurePhase
+    : {};
+  var marketBias;
+  if (dailyBias) {
+    return {
+      biasSourceVersion: BIAS_SOURCE_VERSIONS.DAILY_BIAS_V1,
+      marketBias: typeof dailyBias.marketBias === 'string'
+        ? dailyBias.marketBias
+        : null,
+      transitionDirection: typeof dailyBias.transitionDirection ===
+        'string'
+        ? dailyBias.transitionDirection
+        : null,
+      structurePhase: typeof dailyBias.structureState === 'string'
+        ? dailyBias.structureState
+        : null,
+    };
+  }
+  marketBias = typeof h4.bias === 'string' ? h4.bias : null;
+  if (marketBias === null) return null;
+  return {
+    biasSourceVersion: BIAS_SOURCE_VERSIONS.HTF_BIAS_V3,
+    marketBias: marketBias,
+    transitionDirection: null,
+    structurePhase: typeof phase.state === 'string'
+      ? phase.state
+      : null,
+  };
+}
+
 function extractTransition(input, recordedAt) {
   var current = reportCurrent(input);
   var gate = isObject(current) && isObject(current.decisionGate)
@@ -461,6 +530,7 @@ function extractTransition(input, recordedAt) {
     state: gate.state,
     opportunityId: opportunityId(gate.activeOpportunity),
     identityOpportunity: identityOpportunity,
+    htfContext: extractHtfContext(input),
     event: {
       timestamp: timestamp,
       from: typeof transition.from === 'string'
@@ -594,6 +664,8 @@ function applyTransition(rawState, input, recordedAt) {
   var canonicalEvent;
   var canonicalChanged;
   var auditChanged;
+  var htfContext;
+  var htfChanged;
   if (!extracted) {
     return {
       changed: false,
@@ -642,6 +714,10 @@ function applyTransition(rawState, input, recordedAt) {
     );
     auditChanged = auditEvents.length !==
       currentRecord.auditEvents.length;
+    htfContext = normalizeHtfContext(extracted.htfContext);
+    htfChanged = htfContext !== null &&
+      JSON.stringify(htfContext) !==
+        JSON.stringify(currentRecord.htfContext || null);
     record = {
       opportunityId: currentRecord.opportunityId,
       canonicalZoneId: currentRecord.canonicalZoneId,
@@ -655,13 +731,16 @@ function applyTransition(rawState, input, recordedAt) {
         currentRecord.progress,
         extracted.event.progress
       ),
+      htfContext: htfContext !== null
+        ? htfContext
+        : currentRecord.htfContext || null,
       currentState: currentRecord.currentState,
       completed: false,
     };
     symbolState.opportunities[currentId] = record;
     symbolState.currentOpportunityId = currentId;
     return {
-      changed: auditChanged,
+      changed: auditChanged || htfChanged,
       canonicalChanged: false,
       state: state,
       record: clone(record),
@@ -706,6 +785,7 @@ function applyTransition(rawState, input, recordedAt) {
       rawOpportunityIds: [],
       identity: identity,
       progress: normalizeProgress(null),
+      htfContext: normalizeHtfContext(extracted.htfContext),
       currentState: extracted.state,
       completed: false,
     };
@@ -758,6 +838,10 @@ function applyTransition(rawState, input, recordedAt) {
   } else {
     canonicalChanged = false;
   }
+  htfContext = normalizeHtfContext(extracted.htfContext);
+  htfChanged = htfContext !== null &&
+    JSON.stringify(htfContext) !==
+      JSON.stringify(record.htfContext || null);
   record = {
     opportunityId: record.opportunityId,
     canonicalZoneId: identity
@@ -772,6 +856,9 @@ function applyTransition(rawState, input, recordedAt) {
       : appendUnique(record.rawOpportunityIds, rawId),
     identity: identity,
     progress: mergedProgress,
+    htfContext: htfContext !== null
+      ? htfContext
+      : record.htfContext || null,
     currentState: canonicalState,
     completed: canonicalState === 'INVALIDATED',
   };
@@ -780,7 +867,7 @@ function applyTransition(rawState, input, recordedAt) {
     ? null
     : id;
   return {
-    changed: canonicalChanged || auditChanged,
+    changed: canonicalChanged || auditChanged || htfChanged,
     canonicalChanged: canonicalChanged,
     state: state,
     record: clone(record),
@@ -906,6 +993,7 @@ function createFileStore(filePath) {
 }
 
 module.exports = {
+  BIAS_SOURCE_VERSIONS: clone(BIAS_SOURCE_VERSIONS),
   DEFAULT_LIFECYCLE_PATH: DEFAULT_LIFECYCLE_PATH,
   STATE_VERSION: STATE_VERSION,
   SUPPORTED_STATES: clone(SUPPORTED_STATES),
@@ -914,9 +1002,11 @@ module.exports = {
   createFileStore: createFileStore,
   createMemoryStore: createMemoryStore,
   emptyState: emptyState,
+  extractHtfContext: extractHtfContext,
   extractTransition: extractTransition,
   normalizeEvent: normalizeEvent,
   normalizeAuditEvent: normalizeAuditEvent,
+  normalizeHtfContext: normalizeHtfContext,
   normalizeProgress: normalizeProgress,
   normalizeRecord: normalizeRecord,
   normalizeState: normalizeState,

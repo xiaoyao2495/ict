@@ -33,6 +33,9 @@ function result(symbol, options) {
         asOf: options.time || BASE_TIME,
         fourHourAnalysis: {
           bias: options.bias || 'BULLISH',
+          ...(options.dailyBias === undefined
+            ? {}
+            : { dailyBias: options.dailyBias }),
         },
         opportunity,
         fiveMinuteObservation: {
@@ -66,7 +69,10 @@ test('initial WAITING state is recorded once', async () => {
   assert.deepStrictEqual(record.current, {
     symbol: 'BTCUSDT',
     h4Bias: 'BULLISH',
+    marketBias: 'BULLISH',
+    biasSourceVersion: 'htf_bias_v3',
     direction: 'BULLISH',
+    opportunityDirection: 'BULLISH',
     liquidityType: null,
     liquidityPrice: null,
     status: 'WAITING',
@@ -214,6 +220,99 @@ test('file store persists standalone JSON history', async () => {
       if (error.code !== 'ENOENT') throw error;
     });
   }
+});
+
+test('Daily Bias opportunity history records daily_bias_v1 source', async () => {
+  const store = History.createMemoryStore();
+  const recorded = await History.recordResults({
+    results: [result('BTCUSDT', {
+      bias: 'BULLISH',
+      dailyBias: {
+        marketBias: 'BEARISH',
+        transitionDirection: null,
+        structureState: 'BEARISH_CONFIRMED',
+      },
+      opportunity: {
+        status: 'WATCH_ZONE',
+        direction: 'BEARISH',
+        liquidityType: 'PDH',
+        price: 101,
+      },
+    })],
+    store,
+    recordedAt: BASE_TIME,
+  });
+
+  const entry = recorded.state.symbols.BTCUSDT.current;
+  assert.strictEqual(entry.biasSourceVersion, 'daily_bias_v1');
+  assert.strictEqual(entry.h4Bias, 'BEARISH');
+  assert.strictEqual(entry.marketBias, 'BEARISH');
+  assert.strictEqual(entry.direction, 'BEARISH');
+  assert.strictEqual(entry.opportunityDirection, 'BEARISH');
+});
+
+test('legacy history without biasSourceVersion defaults to htf_bias_v3', async () => {
+  const legacy = {
+    version: 1,
+    symbols: {
+      BTCUSDT: {
+        current: {
+          symbol: 'BTCUSDT',
+          h4Bias: 'BULLISH',
+          direction: 'BULLISH',
+          liquidityType: null,
+          liquidityPrice: null,
+          status: 'WAITING',
+          changedAt: '2026-07-30T00:00:00.000Z',
+        },
+        transitions: [
+          {
+            symbol: 'BTCUSDT',
+            h4Bias: 'BULLISH',
+            direction: 'BULLISH',
+            liquidityType: null,
+            liquidityPrice: null,
+            status: 'WAITING',
+            changedAt: '2026-07-30T00:00:00.000Z',
+          },
+        ],
+      },
+    },
+  };
+  const before = JSON.stringify(legacy);
+  const normalized = History.normalizeHistory(legacy);
+  const entry = normalized.symbols.BTCUSDT.current;
+
+  assert.strictEqual(entry.biasSourceVersion, 'htf_bias_v3');
+  assert.strictEqual(entry.marketBias, 'BULLISH');
+  assert.strictEqual(entry.opportunityDirection, 'BULLISH');
+  assert.strictEqual(JSON.stringify(legacy), before);
+});
+
+test('No mixed bias fields when Daily Bias and legacy bias disagree', async () => {
+  const store = History.createMemoryStore();
+  const recorded = await History.recordResults({
+    results: [result('BTCUSDT', {
+      bias: 'BULLISH',
+      dailyBias: { marketBias: 'BEARISH' },
+      opportunity: {
+        status: 'CONFIRMING',
+        direction: 'BEARISH',
+        liquidityType: 'PDH',
+        price: 101,
+      },
+    })],
+    store,
+    recordedAt: BASE_TIME,
+  });
+
+  const entry = recorded.state.symbols.BTCUSDT.current;
+  // 同一记录内所有 bias 方向字段必须来自同一来源（daily_bias_v1）
+  assert.strictEqual(entry.biasSourceVersion, 'daily_bias_v1');
+  assert.strictEqual(entry.h4Bias, 'BEARISH');
+  assert.strictEqual(entry.marketBias, 'BEARISH');
+  assert.strictEqual(entry.direction, 'BEARISH');
+  assert.strictEqual(entry.opportunityDirection, 'BEARISH');
 });
 
 (async () => {

@@ -54,6 +54,9 @@ function lifecycle(events, options) {
     currentState: currentState,
     completed: currentState === 'INVALIDATED',
   };
+  if (options.htfContext) {
+    record.htfContext = options.htfContext;
+  }
   var state = { version: 1, symbols: {} };
   state.symbols[symbol] = {
     currentOpportunityId: record.completed ? null : id,
@@ -316,6 +319,50 @@ test('missing context fields are retained as UNAVAILABLE', function () {
     findGroup(research.dimensions.liquidityType, 'UNAVAILABLE')
       .totalOpportunities,
     1
+  );
+});
+
+test('biasSourceVersion separates daily and legacy Opportunities', function () {
+  var daily = lifecycle([
+    event('WAITING_OPPORTUNITY', 'WATCH_ZONE'),
+  ], {
+    htfContext: {
+      biasSourceVersion: 'daily_bias_v1',
+      marketBias: 'BULLISH',
+      transitionDirection: null,
+      structurePhase: 'BULLISH_CONFIRMED',
+    },
+  });
+  var legacy = lifecycle([
+    event('WAITING_OPPORTUNITY', 'WATCH_ZONE', {
+      direction: 'BEARISH',
+      liquidityType: 'EQUAL_HIGH',
+      price: 70000,
+    }),
+  ], {
+    symbol: 'ETHUSDT',
+    opportunityId: 'BEARISH|EQUAL_HIGH|70000',
+  });
+  var research = Analyzer.analyze({
+    lifecycle: mergeLifecycle([daily, legacy]),
+    cases: [],
+  });
+  var dailyGroup = findGroup(
+    research.dimensions.biasSourceVersion,
+    'daily_bias_v1'
+  );
+  var legacyGroup = findGroup(
+    research.dimensions.biasSourceVersion,
+    'htf_bias_v3'
+  );
+  assert.ok(dailyGroup, 'daily opportunity in daily_bias_v1');
+  assert.strictEqual(dailyGroup.totalOpportunities, 1);
+  assert.ok(legacyGroup, 'legacy opportunity defaults to htf_bias_v3');
+  assert.strictEqual(legacyGroup.totalOpportunities, 1);
+  // 两个版本必须分开统计，不允许混组
+  assert.strictEqual(
+    research.dimensions.biasSourceVersion.length,
+    2
   );
 });
 

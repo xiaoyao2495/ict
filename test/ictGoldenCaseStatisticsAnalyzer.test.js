@@ -45,7 +45,7 @@ function outcomeFor(status) {
 
 function goldenCase(options) {
   options = options || {};
-  return {
+  var result = {
     symbol: options.symbol || 'BTCUSDT',
     createdAt: '2026-07-31T00:00:00.000Z',
     htfBias: {
@@ -63,6 +63,14 @@ function goldenCase(options) {
     },
     outcome: outcomeFor(options.outcomeStatus || 'EMPTY'),
   };
+  /*
+   * 只有显式提供 biasSourceVersion 时才写入，
+   * 未提供时模拟旧 Golden Case（读取默认 htf_bias_v3）。
+   */
+  if (options.biasSourceVersion) {
+    result.biasSourceVersion = options.biasSourceVersion;
+  }
+  return result;
 }
 
 function findValue(groups, value) {
@@ -257,6 +265,62 @@ test('Top combinations require ten samples and sort by completion rate', functio
     }),
     false
   );
+});
+
+test('same direction different versions stay separated', function () {
+  var daily = goldenCase({
+    biasSourceVersion: 'daily_bias_v1',
+    h4Bias: 'BEARISH',
+    opportunityDirection: 'BEARISH',
+    outcomeStatus: 'COMPLETED',
+  });
+  var legacy = goldenCase({
+    biasSourceVersion: 'htf_bias_v3',
+    h4Bias: 'BEARISH',
+    opportunityDirection: 'BEARISH',
+    outcomeStatus: 'FAILED',
+  });
+  var statistics = Analyzer.analyze([daily, legacy]);
+  var dailyCohort = findValue(
+    statistics.dimensions.biasSourceVersion,
+    'daily_bias_v1'
+  );
+  var legacyCohort = findValue(
+    statistics.dimensions.biasSourceVersion,
+    'htf_bias_v3'
+  );
+  assert.strictEqual(dailyCohort.sampleCount, 1);
+  assert.strictEqual(dailyCohort.completedCount, 1);
+  assert.strictEqual(dailyCohort.failedCount, 0);
+  assert.strictEqual(legacyCohort.sampleCount, 1);
+  assert.strictEqual(legacyCohort.completedCount, 0);
+  assert.strictEqual(legacyCohort.failedCount, 1);
+  // 同方向 BEARISH 必须按版本分开，不能混入同一组
+  assert.strictEqual(statistics.dimensions.biasSourceVersion.length, 2);
+});
+
+test('legacy statistics default missing source to htf_bias_v3', function () {
+  var statistics = Analyzer.analyze([
+    goldenCase({ outcomeStatus: 'COMPLETED' }),
+    goldenCase({
+      biasSourceVersion: 'daily_bias_v1',
+      outcomeStatus: 'COMPLETED',
+    }),
+  ]);
+  var htf = findValue(
+    statistics.dimensions.biasSourceVersion,
+    'htf_bias_v3'
+  );
+  var daily = findValue(
+    statistics.dimensions.biasSourceVersion,
+    'daily_bias_v1'
+  );
+  assert.ok(htf, 'legacy case should fall back to htf_bias_v3');
+  assert.strictEqual(htf.sampleCount, 1);
+  assert.strictEqual(htf.completedCount, 1);
+  assert.ok(daily, 'daily case should stay in daily_bias_v1');
+  assert.strictEqual(daily.sampleCount, 1);
+  assert.strictEqual(daily.completedCount, 1);
 });
 
 test('generator reads cases and writes the statistics report', function () {

@@ -4,6 +4,10 @@ const fs = require('fs/promises');
 const path = require('path');
 
 const STATE_VERSION = 1;
+const BIAS_SOURCE_VERSIONS = Object.freeze({
+  DAILY_BIAS_V1: 'daily_bias_v1',
+  HTF_BIAS_V3: 'htf_bias_v3',
+});
 const DEFAULT_STATE_PATH = path.resolve(
   __dirname,
   '..',
@@ -35,10 +39,29 @@ function normalizeSymbol(value) {
   return symbol;
 }
 
-function normalizeGateState(value) {
+function normalizeBiasSourceVersion(value, fallback) {
+  if (
+    value === BIAS_SOURCE_VERSIONS.DAILY_BIAS_V1 ||
+    value === BIAS_SOURCE_VERSIONS.HTF_BIAS_V3
+  ) {
+    return value;
+  }
+  return fallback;
+}
+
+/*
+ * defaultBiasSourceVersion:
+ * - save 路径（生产新数据）默认 daily_bias_v1
+ * - 旧文件 load 路径通过 normalizeFileState 显式传 htf_bias_v3
+ */
+function normalizeGateState(value, defaultBiasSourceVersion) {
   if (!isObject(value) || typeof value.state !== 'string') {
     throw new Error('A valid Decision Gate state is required.');
   }
+  const fallback =
+    defaultBiasSourceVersion === BIAS_SOURCE_VERSIONS.HTF_BIAS_V3
+      ? BIAS_SOURCE_VERSIONS.HTF_BIAS_V3
+      : BIAS_SOURCE_VERSIONS.DAILY_BIAS_V1;
   return {
     state: value.state,
     direction:
@@ -61,6 +84,10 @@ function normalizeGateState(value) {
     transition: isObject(value.transition)
       ? clone(value.transition)
       : null,
+    biasSourceVersion: normalizeBiasSourceVersion(
+      value.biasSourceVersion,
+      fallback
+    ),
   };
 }
 
@@ -79,8 +106,15 @@ function normalizeFileState(value) {
 
   for (const [symbol, gateState] of Object.entries(symbols)) {
     try {
+      /*
+       * 旧文件（迁移前生成）没有 biasSourceVersion，
+       * load 时兼容补充 htf_bias_v3，不修改磁盘、不重新计算状态。
+       */
       result.symbols[normalizeSymbol(symbol)] =
-        normalizeGateState(gateState);
+        normalizeGateState(
+          gateState,
+          BIAS_SOURCE_VERSIONS.HTF_BIAS_V3
+        );
     } catch (error) {
       // Ignore malformed persisted symbol entries without affecting
       // the remaining independent symbol states.
@@ -172,12 +206,14 @@ function save(symbol, state) {
 }
 
 module.exports = {
+  BIAS_SOURCE_VERSIONS,
   DEFAULT_STATE_PATH,
   STATE_VERSION,
   createFileStore,
   createMemoryStore,
   emptyState,
   load,
+  normalizeBiasSourceVersion,
   normalizeFileState,
   normalizeGateState,
   normalizeSymbol,

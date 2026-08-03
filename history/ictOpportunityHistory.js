@@ -20,6 +20,11 @@ const VALID_STATUSES = new Set([
   'CONFIRMED',
 ]);
 
+const BIAS_SOURCE_VERSIONS = Object.freeze({
+  DAILY_BIAS_V1: 'daily_bias_v1',
+  HTF_BIAS_V3: 'htf_bias_v3',
+});
+
 function clone(value) {
   return value === undefined
     ? undefined
@@ -48,15 +53,38 @@ function normalizeEntry(value) {
   const status = VALID_STATUSES.has(value.status)
     ? value.status
     : 'WAITING';
+  const direction = (
+    value.direction === 'BULLISH' ||
+    value.direction === 'BEARISH'
+  )
+    ? value.direction
+    : null;
+  const opportunityDirection = (
+    value.opportunityDirection === 'BULLISH' ||
+    value.opportunityDirection === 'BEARISH'
+  )
+    ? value.opportunityDirection
+    : direction;
+  const marketBias =
+    typeof value.marketBias === 'string' &&
+    value.marketBias
+      ? value.marketBias
+      : value.h4Bias || 'UNAVAILABLE';
   return {
     symbol: value.symbol,
     h4Bias: value.h4Bias || 'UNAVAILABLE',
-    direction: (
-      value.direction === 'BULLISH' ||
-      value.direction === 'BEARISH'
-    )
-      ? value.direction
-      : null,
+    marketBias,
+    /*
+     * 旧记录（迁移前生成）没有 biasSourceVersion，
+     * 默认视为 htf_bias_v3，保证新旧语义不混用。
+     */
+    biasSourceVersion:
+      value.biasSourceVersion ===
+      BIAS_SOURCE_VERSIONS.DAILY_BIAS_V1
+        ? BIAS_SOURCE_VERSIONS.DAILY_BIAS_V1
+        : BIAS_SOURCE_VERSIONS.HTF_BIAS_V3,
+    direction,
+    opportunityDirection,
     liquidityType:
       typeof value.liquidityType === 'string'
         ? value.liquidityType
@@ -132,8 +160,19 @@ function extractEntry(result, recordedAt) {
   }
 
   const opportunity = current.opportunity || {};
-  const h4Bias =
-    current.fourHourAnalysis.bias || 'UNAVAILABLE';
+  const dailyBias = current.fourHourAnalysis.dailyBias
+    ? current.fourHourAnalysis.dailyBias
+    : null;
+  /*
+   * h4Bias / marketBias / opportunityDirection 必须来源一致：
+   * Daily Bias 链路存在时统一使用 dailyBias.marketBias，
+   * 否则回退旧 V3 bias，避免同一记录混用两套语义。
+   */
+  const marketBias =
+    dailyBias && dailyBias.marketBias
+      ? dailyBias.marketBias
+      : current.fourHourAnalysis.bias || 'UNAVAILABLE';
+  const h4Bias = marketBias;
   const stage = HumanSummary.opportunityStage({
     h4: current.fourHourAnalysis,
     opportunity,
@@ -144,14 +183,19 @@ function extractEntry(result, recordedAt) {
     opportunity.direction === 'BEARISH'
   )
     ? opportunity.direction
-    : h4Bias === 'BULLISH' || h4Bias === 'BEARISH'
-      ? h4Bias
+    : marketBias === 'BULLISH' || marketBias === 'BEARISH'
+      ? marketBias
       : null;
 
   return normalizeEntry({
     symbol,
     h4Bias,
+    marketBias,
+    biasSourceVersion: dailyBias
+      ? BIAS_SOURCE_VERSIONS.DAILY_BIAS_V1
+      : BIAS_SOURCE_VERSIONS.HTF_BIAS_V3,
     direction,
+    opportunityDirection: direction,
     liquidityType: opportunity.liquidityType,
     liquidityPrice: opportunity.price,
     status: stage.status,
@@ -167,8 +211,11 @@ function sameOpportunity(left, right) {
   if (!left || !right) return false;
   return (
     left.symbol === right.symbol &&
+    left.biasSourceVersion === right.biasSourceVersion &&
     left.h4Bias === right.h4Bias &&
+    left.marketBias === right.marketBias &&
     left.direction === right.direction &&
+    left.opportunityDirection === right.opportunityDirection &&
     left.liquidityType === right.liquidityType &&
     left.liquidityPrice === right.liquidityPrice &&
     left.status === right.status
@@ -269,6 +316,7 @@ function createFileStore(filePath) {
 }
 
 module.exports = {
+  BIAS_SOURCE_VERSIONS,
   DEFAULT_HISTORY_PATH,
   VALID_STATUSES,
   createFileStore,

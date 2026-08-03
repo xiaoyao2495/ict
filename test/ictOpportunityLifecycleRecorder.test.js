@@ -24,49 +24,56 @@ function activeOpportunity(direction, type, price) {
 
 function result(symbol, state, from, options) {
   options = options || {};
+  var current = {
+    decisionGate: {
+      state: state,
+      direction: options.direction || 'BULLISH',
+      activeOpportunity:
+        Object.prototype.hasOwnProperty.call(
+          options,
+          'activeOpportunity'
+        )
+          ? options.activeOpportunity
+          : activeOpportunity(
+            options.direction || 'BULLISH',
+            options.liquidityType || 'EQUAL_LOW',
+            options.price === undefined
+              ? 62782
+              : options.price
+          ),
+      progress: {
+        sweepCompleted: false,
+        mssCompleted: false,
+        displacementCompleted: false,
+        strictConfirmationCompleted: false,
+        ...(options.progress || {}),
+      },
+      sourceState: options.sourceState || {},
+      blockers: options.blockers || [],
+      reasonCode: options.reasonCode || state,
+      transition: {
+        changed: options.changed === undefined
+          ? true
+          : options.changed,
+        from: from,
+        to: state,
+        occurredAt: options.timestamp || START,
+      },
+      informationalOnly: true,
+    },
+  };
+  if (Object.prototype.hasOwnProperty.call(
+    options,
+    'fourHourAnalysis'
+  )) {
+    current.fourHourAnalysis = options.fourHourAnalysis;
+  }
   return {
     symbol: symbol,
     status: 'SUCCESS',
     report: {
       symbol: symbol,
-      current: {
-        decisionGate: {
-          state: state,
-          direction: options.direction || 'BULLISH',
-          activeOpportunity:
-            Object.prototype.hasOwnProperty.call(
-              options,
-              'activeOpportunity'
-            )
-              ? options.activeOpportunity
-              : activeOpportunity(
-                options.direction || 'BULLISH',
-                options.liquidityType || 'EQUAL_LOW',
-                options.price === undefined
-                  ? 62782
-                  : options.price
-              ),
-          progress: {
-            sweepCompleted: false,
-            mssCompleted: false,
-            displacementCompleted: false,
-            strictConfirmationCompleted: false,
-            ...(options.progress || {}),
-          },
-          sourceState: options.sourceState || {},
-          blockers: options.blockers || [],
-          reasonCode: options.reasonCode || state,
-          transition: {
-            changed: options.changed === undefined
-              ? true
-              : options.changed,
-            from: from,
-            to: state,
-            occurredAt: options.timestamp || START,
-          },
-          informationalOnly: true,
-        },
-      },
+      current: current,
     },
   };
 }
@@ -558,6 +565,122 @@ test('legacy lifecycle data is normalized and remains appendable', function () {
     assert.strictEqual(lifecycle.currentState, 'CONFIRMING');
     assert.strictEqual(lifecycle.completed, false);
     assert.strictEqual(JSON.stringify(legacy), before);
+  });
+});
+
+test('Daily Bias input records htfContext without touching state', function () {
+  var store = Recorder.createMemoryStore();
+  var input = result(
+    'BTCUSDT',
+    'WATCH_ZONE',
+    'WAITING_OPPORTUNITY',
+    {
+      activeOpportunity: bullishOpportunity(),
+      reasonCode: 'OPPORTUNITY_ACTIVE',
+      fourHourAnalysis: {
+        dailyBias: {
+          marketBias: 'NEUTRAL',
+          transitionDirection: 'BULLISH',
+          structureState: 'BULLISH_PULLBACK',
+        },
+        bias: 'BULLISH',
+      },
+    }
+  );
+  return record(store, input).then(function (recorded) {
+    var lifecycle = recorded.state.symbols.BTCUSDT
+      .opportunities['BULLISH|EQUAL_LOW|62782'];
+    assert.strictEqual(recorded.changed, true);
+    assert.strictEqual(lifecycle.currentState, 'WATCH_ZONE');
+    assert.deepStrictEqual(lifecycle.htfContext, {
+      biasSourceVersion: 'daily_bias_v1',
+      marketBias: 'NEUTRAL',
+      transitionDirection: 'BULLISH',
+      structurePhase: 'BULLISH_PULLBACK',
+    });
+    // htfContext 是独立字段，不会进入 Opportunity events
+    assert.strictEqual(
+      lifecycle.events.some(function (event) {
+        return event.htfContext !== undefined;
+      }),
+      false
+    );
+  });
+});
+
+test('HTF background change updates htfContext only, not lifecycle', function () {
+  var store = Recorder.createMemoryStore();
+  return record(store, result(
+    'BTCUSDT',
+    'WATCH_ZONE',
+    'WAITING_OPPORTUNITY',
+    {
+      activeOpportunity: bullishOpportunity(),
+      reasonCode: 'OPPORTUNITY_ACTIVE',
+      fourHourAnalysis: {
+        dailyBias: {
+          marketBias: 'NEUTRAL',
+          transitionDirection: 'BULLISH',
+          structureState: 'BULLISH_PULLBACK',
+        },
+      },
+    }
+  )).then(function () {
+    return record(store, result(
+      'BTCUSDT',
+      'WATCH_ZONE',
+      'WATCH_ZONE',
+      {
+        activeOpportunity: bullishOpportunity(),
+        timestamp: START + 300000,
+        reasonCode: 'HTF_CONTEXT_UPDATED',
+        fourHourAnalysis: {
+          dailyBias: {
+            marketBias: 'BULLISH',
+            transitionDirection: 'BULLISH',
+            structureState: 'BULLISH_CONFIRMED',
+          },
+        },
+      }
+    ));
+  }).then(function (recorded) {
+    var lifecycle = recorded.state.symbols.BTCUSDT
+      .opportunities['BULLISH|EQUAL_LOW|62782'];
+    assert.strictEqual(recorded.changed, true);
+    // Opportunity 生命周期状态不变，不追加 events
+    assert.strictEqual(lifecycle.currentState, 'WATCH_ZONE');
+    assert.strictEqual(lifecycle.events.length, 1);
+    // HTF 背景变化独立记录
+    assert.deepStrictEqual(lifecycle.htfContext, {
+      biasSourceVersion: 'daily_bias_v1',
+      marketBias: 'BULLISH',
+      transitionDirection: 'BULLISH',
+      structurePhase: 'BULLISH_CONFIRMED',
+    });
+  });
+});
+
+test('HTF_TRANSITION gate never becomes an Opportunity state', function () {
+  var store = Recorder.createMemoryStore();
+  return record(store, result(
+    'BTCUSDT',
+    'HTF_TRANSITION',
+    'WATCH_ZONE',
+    {
+      activeOpportunity: bullishOpportunity(),
+      reasonCode: 'DAILY_BIAS_TRANSITION',
+      fourHourAnalysis: {
+        dailyBias: {
+          marketBias: 'BEARISH',
+          transitionDirection: 'BEARISH',
+          structureState: 'BEARISH_CONFIRMED',
+        },
+      },
+    }
+  )).then(function (recorded) {
+    assert.strictEqual(recorded.changed, false);
+    assert.deepStrictEqual(recorded.changes, []);
+    assert.deepStrictEqual(recorded.state.symbols, {});
   });
 });
 

@@ -17,6 +17,10 @@ var ANALYSIS_VERSION = {
   opportunity: 'V1',
   confirmation: 'V1',
 };
+var BIAS_SOURCE_VERSIONS = {
+  DAILY_BIAS_V1: 'daily_bias_v1',
+  HTF_BIAS_V3: 'htf_bias_v3',
+};
 
 function isObject(value) {
   return value !== null && typeof value === 'object';
@@ -253,6 +257,9 @@ function buildCase(options) {
   data = {
     symbol: symbol,
     createdAt: new Date(timestamp).toISOString(),
+    biasSourceVersion: isObject(h4.dailyBias)
+      ? BIAS_SOURCE_VERSIONS.DAILY_BIAS_V1
+      : BIAS_SOURCE_VERSIONS.HTF_BIAS_V3,
     analysisVersion: clone(ANALYSIS_VERSION),
     snapshotVersion: '1',
     decisionGate: decisionGateFrom(current),
@@ -262,6 +269,23 @@ function buildCase(options) {
       current,
       timestamp
     ),
+    dailyBias: {
+      marketBias: valueOrNull(
+        isObject(h4.dailyBias)
+          ? h4.dailyBias.marketBias
+          : undefined
+      ),
+      structurePhase: valueOrNull(
+        isObject(h4.dailyBias)
+          ? h4.dailyBias.structureState
+          : undefined
+      ),
+      transitionDirection: valueOrNull(
+        isObject(h4.dailyBias)
+          ? h4.dailyBias.transitionDirection
+          : undefined
+      ),
+    },
     htfBias: {
       bias: valueOrNull(h4.bias),
       structure: valueOrNull(structure),
@@ -416,6 +440,17 @@ function normalizeCase(caseData) {
   )) {
     normalized.analysisVersion = null;
   }
+  /*
+   * 旧 Golden Case（迁移前生成）没有 biasSourceVersion，
+   * 读取时默认标记为 htf_bias_v3，保持语义兼容且不修改历史文件。
+   */
+  if (!Object.prototype.hasOwnProperty.call(
+    normalized,
+    'biasSourceVersion'
+  )) {
+    normalized.biasSourceVersion =
+      BIAS_SOURCE_VERSIONS.HTF_BIAS_V3;
+  }
   return normalized;
 }
 
@@ -504,6 +539,7 @@ function recordCase(options) {
 
 module.exports = {
   ANALYSIS_VERSION: clone(ANALYSIS_VERSION),
+  BIAS_SOURCE_VERSIONS: clone(BIAS_SOURCE_VERSIONS),
   DEFAULT_CASES_DIRECTORY: DEFAULT_CASES_DIRECTORY,
   beijingDate: beijingDate,
   buildCase: buildCase,

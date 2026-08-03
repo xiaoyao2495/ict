@@ -11,6 +11,20 @@ var OUTCOME_STATUSES = [
 ];
 var DIMENSIONS = [
   {
+    key: 'biasSourceVersion',
+    label: 'biasSourceVersion',
+    value: function (item) {
+      var version = nestedValue(item, ['biasSourceVersion']);
+      /*
+       * 旧 Golden Case 没有 biasSourceVersion，默认视为 htf_bias_v3，
+       * 禁止与 daily_bias_v1 样本混合统计。
+       */
+      return version === UNKNOWN_VALUE
+        ? 'htf_bias_v3'
+        : version;
+    },
+  },
+  {
     key: 'h4Bias',
     label: 'h4Bias',
     value: function (item) {
@@ -214,6 +228,7 @@ function topCombinations(cases, statuses) {
     var metrics = finalizeMetrics(group.metrics);
     return {
       key: group.key,
+      biasSourceVersion: group.values.biasSourceVersion,
       h4Bias: group.values.h4Bias,
       structurePhase: group.values.structurePhase,
       htfAlignment: group.values.htfAlignment,

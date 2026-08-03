@@ -28,6 +28,7 @@ var TRANSITIONS = [
   },
 ];
 var DIMENSIONS = [
+  { key: 'biasSourceVersion', label: 'Bias Source Version' },
   { key: 'h4Bias', label: 'HTF Bias' },
   { key: 'structurePhase', label: 'Structure Phase' },
   { key: 'htfAlignment', label: 'HTF Alignment' },
@@ -210,7 +211,19 @@ function contextFor(record, caseData) {
   var alignment = isObject(caseData && caseData.htfAlignment)
     ? caseData.htfAlignment
     : {};
+  var htfContext = isObject(record && record.htfContext)
+    ? record.htfContext
+    : {};
   return {
+    /*
+     * biasSourceVersion 优先取生命周期记录的 htfContext，
+     * 其次取 Golden Case 顶层字段，旧数据默认 htf_bias_v3。
+     */
+    biasSourceVersion: valueOrUnknown(
+      htfContext.biasSourceVersion ||
+      (caseData && caseData.biasSourceVersion) ||
+      'htf_bias_v3'
+    ),
     h4Bias: valueOrUnknown(
       source.h4Bias === undefined ? bias.bias : source.h4Bias
     ),

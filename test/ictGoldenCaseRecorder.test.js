@@ -27,6 +27,15 @@ function completeReport() {
         bias: 'BULLISH',
         currentStructure: 'BULLISH',
         premiumDiscount: 'DISCOUNT',
+        dailyBias: {
+          marketBias: 'BULLISH',
+          legacyBias: 'NEUTRAL',
+          transitionDirection: null,
+          structureState: 'BULLISH_CONFIRMED',
+          drawOnLiquidity: 'BELOW',
+          htfLocationReadiness: 'READY',
+          reasons: ['MARKET_BIAS_FROM_STRUCTURE_BULLISH'],
+        },
       },
       structurePhase: {
         state: 'BULLISH_CONFIRMED',
@@ -171,6 +180,12 @@ test('recordCase saves a complete regression case', function () {
       ),
       false
     );
+    assert.strictEqual(data.biasSourceVersion, 'daily_bias_v1');
+    assert.deepStrictEqual(data.dailyBias, {
+      marketBias: 'BULLISH',
+      structurePhase: 'BULLISH_CONFIRMED',
+      transitionDirection: null,
+    });
     assert.deepStrictEqual(data.outcome, {});
   }).finally(function () {
     return removeDirectory(directory);
@@ -360,6 +375,59 @@ test('saveGoldenCase selects the requested latest watchlist report', function ()
     assert.ok(messages[0].indexOf(
       '2026-07-31-BTCUSDT.json'
     ) >= 0);
+  }).finally(function () {
+    return removeDirectory(directory);
+  });
+});
+
+test('legacy report without dailyBias records htf_bias_v3 source', function () {
+  var report = completeReport();
+  delete report.current.fourHourAnalysis.dailyBias;
+  var caseData = Recorder.buildCase({
+    symbol: 'BTCUSDT',
+    report: report,
+    timestamp: TIMESTAMP,
+  });
+  assert.strictEqual(caseData.biasSourceVersion, 'htf_bias_v3');
+  assert.deepStrictEqual(caseData.dailyBias, {
+    marketBias: null,
+    structurePhase: null,
+    transitionDirection: null,
+  });
+});
+
+test('normalizeCase defaults missing biasSourceVersion to htf_bias_v3', function () {
+  var legacy = Recorder.normalizeCase({
+    symbol: 'BTCUSDT',
+    createdAt: '2026-07-30T00:00:00.000Z',
+  });
+  assert.strictEqual(legacy.biasSourceVersion, 'htf_bias_v3');
+  assert.strictEqual(legacy.symbol, 'BTCUSDT');
+});
+
+test('readCase keeps legacy files unmodified', function () {
+  var directory;
+  var casePath;
+  var legacyBody = JSON.stringify({
+    symbol: 'BTCUSDT',
+    createdAt: '2026-07-30T00:00:00.000Z',
+    htfBias: { bias: 'BULLISH' },
+    outcome: {},
+  }, null, 2) + '\n';
+  return temporaryDirectory().then(function (created) {
+    directory = created;
+    casePath = path.join(directory, 'legacy.json');
+    return fs.writeFile(casePath, legacyBody, 'utf8');
+  }).then(function () {
+    return Recorder.readCase(casePath);
+  }).then(function (normalized) {
+    assert.strictEqual(
+      normalized.biasSourceVersion,
+      'htf_bias_v3'
+    );
+    return fs.readFile(casePath, 'utf8');
+  }).then(function (body) {
+    assert.strictEqual(body, legacyBody);
   }).finally(function () {
     return removeDirectory(directory);
   });
